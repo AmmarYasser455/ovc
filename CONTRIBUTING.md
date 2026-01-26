@@ -41,10 +41,10 @@ If you find a bug, please help us by:
 - **Verifying reproducibility** — Ensure the bug can be consistently reproduced
 - **Checking existing issues** — Avoid creating duplicate reports
 - **Opening a detailed issue** with:
-  - Clear description of the problem
-  - Steps to reproduce the issue
-  - Expected vs. actual behavior
-  - Sample data or code snippets (if applicable)
+- Clear description of the problem
+- Steps to reproduce the issue
+- Expected vs. actual behavior
+- Sample data or code snippets (if applicable)
 
 [Report a bug →](https://github.com/AmmarYasser455/ovc/issues/new)
 
