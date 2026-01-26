@@ -2,7 +2,7 @@ from pathlib import Path
 import argparse
 import sys
 
-from ovc.pipeline import run_pipeline
+from ovc.export.pipeline import run_pipeline
 
 
 DEFAULT_BOUNDARIES_DIR = Path("data/boundaries")
