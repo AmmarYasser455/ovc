@@ -60,7 +60,13 @@ pip install -r requirements.txt
 
 ## Quick Start
 
-Run the complete quality control pipeline using GeoJSON inputs:
+### Usage Options: GeoJSON vs Shapefile
+
+OVC supports two ways to run the pipeline depending on your input data:
+
+#### ✅ Option 1: Provide GeoJSON files manually
+
+If you already have cleaned GeoJSON files for your boundary, buildings, and roads, you can run the pipeline directly:
 
 ```python
 from ovc.export.pipeline import run_pipeline
@@ -72,6 +78,29 @@ run_pipeline(
     output_dir="outputs"
 )
 ```
+
+This mode skips OSM download and uses your own data.
+
+#### ✅ Option 2: Provide only a boundary (Shapefile or GeoJSON)
+
+If you only have a boundary file (e.g., a Shapefile or GeoJSON), OVC will automatically download buildings and roads from OpenStreetMap:
+
+```python
+from ovc.export.pipeline import run_pipeline
+
+run_pipeline(
+    boundary_path="data/boundary.shp",  # or .geojson
+    output_dir="outputs"
+)
+```
+
+This is the simplest mode. Just provide your AOI boundary, and OVC will handle the rest.
+
+#### ℹ️ Notes
+
+- The boundary file must be a polygon (WGS84 recommended)
+- If you pass `buildings_path` or `roads_path`, OVC will use them and skip OSM download
+- If you don't pass them, OVC will fetch data automatically
 
 ---
 
