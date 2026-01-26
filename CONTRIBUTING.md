@@ -8,9 +8,9 @@ Thank you for your interest in contributing to OVC! Contributions are welcome an
 
 - [Code of Conduct](#code-of-conduct)
 - [How to Contribute](#how-to-contribute)
-  - [Reporting Bugs](#1-reporting-bugs)
-  - [Suggesting Features](#2-suggesting-features)
-  - [Development Workflow](#3-development-workflow)
+- [Reporting Bugs](#1-reporting-bugs)
+- [Suggesting Features](#2-suggesting-features)
+- [Development Workflow](#3-development-workflow)
 - [Project Structure](#project-structure)
 - [Coding Guidelines](#coding-guidelines)
 - [Testing](#testing)
