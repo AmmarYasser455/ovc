@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+
 import geopandas as gpd
 import pandas as pd
 
@@ -21,6 +22,7 @@ from ovc.export.tables import write_metrics_csv
 from ovc.export.geopackage import write_geopackage
 from ovc.export.webmap import write_webmap
 
+
 @dataclass(frozen=True)
 class PipelineOutputs:
     gpkg_path: Path
@@ -28,17 +30,43 @@ class PipelineOutputs:
     webmap_html: Path
 
 
+def _ensure_osmid(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """
+    Ensure a stable string osmid column exists.
+    Falls back to index-based IDs if missing.
+    """
+    if "osmid" not in gdf.columns:
+        gdf = gdf.copy()
+        gdf["osmid"] = gdf.index.astype(str)
+    else:
+        gdf["osmid"] = gdf["osmid"].astype(str)
+    return gdf
+
+
 def _merge_errors(*layers: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     layers = [g for g in layers if g is not None and not g.empty]
     if not layers:
-        return gpd.GeoDataFrame(geometry=[], crs=4326)
+     return gpd.GeoDataFrame(
+        {
+            "osmid": [],
+            "bldg_id": [],
+            "error_type": [],
+            "error_class": [],
+            "geometry": [],
+        },
+        geometry="geometry",
+        crs=4326,
+    )
+
 
     crs = layers[0].crs
     df = pd.concat(layers, ignore_index=True)
     out = gpd.GeoDataFrame(df, crs=crs)
-    out["osmid"] = out["osmid"].astype(str)
+
+    out = _ensure_osmid(out)
     out = out[["osmid", "bldg_id", "error_type", "error_class", "geometry"]]
     out = out.drop_duplicates(subset=["bldg_id", "error_type"])
+
     return out
 
 
@@ -52,17 +80,21 @@ def run_pipeline(boundary_path: Path, out_dir: Path, config=DEFAULT_CONFIG) -> P
     crs_pair = get_crs_pair(boundary.gdf_4326)
     boundary_union_4326 = boundary.gdf_4326.unary_union
 
+    
     buildings_4326 = load_buildings(boundary.gdf_4326, config.tags.buildings, parts=9)
     buildings_4326 = buildings_4326.reset_index(drop=True)
-    buildings_4326["osmid"] = buildings_4326["osmid"].astype(str)
+    buildings_4326 = _ensure_osmid(buildings_4326)
 
     buildings_metric = buildings_4326.to_crs(crs_pair.crs_metric).copy()
     buildings_metric["bldg_id"] = buildings_metric.index.astype(int)
     buildings_metric["osmid"] = buildings_4326["osmid"].values
 
+   
     roads_4326 = load_roads(boundary.gdf_4326, config.tags.roads)
+    roads_4326 = _ensure_osmid(roads_4326)
     roads_metric = roads_4326.to_crs(crs_pair.crs_metric)
 
+    
     overlaps_metric = find_building_overlaps(buildings_metric, config.overlap)
 
     overlap_buildings_metric = gpd.GeoDataFrame(geometry=[], crs=buildings_metric.crs)
@@ -78,7 +110,7 @@ def run_pipeline(boundary_path: Path, out_dir: Path, config=DEFAULT_CONFIG) -> P
         per_bldg = per_bldg.groupby("bldg_id", as_index=False)["sev"].max()
         per_bldg["error_class"] = per_bldg["sev"].map(inv)
 
-        ids = set(per_bldg["bldg_id"].astype(int).tolist())
+        ids = set(per_bldg["bldg_id"].astype(int))
         overlap_buildings_metric = buildings_metric[buildings_metric["bldg_id"].isin(ids)].copy()
         overlap_buildings_metric["error_type"] = "building_overlap"
         overlap_buildings_metric = overlap_buildings_metric.merge(
@@ -88,6 +120,7 @@ def run_pipeline(boundary_path: Path, out_dir: Path, config=DEFAULT_CONFIG) -> P
         )
         overlap_buildings_metric["error_class"] = overlap_buildings_metric["error_class"].fillna("sliver")
 
+    
     road_conflicts_metric = find_buildings_on_roads(
         buildings_metric=buildings_metric[["bldg_id", "geometry"]],
         roads_metric=roads_metric[["osmid", "geometry"]],
@@ -102,7 +135,9 @@ def run_pipeline(boundary_path: Path, out_dir: Path, config=DEFAULT_CONFIG) -> P
         road_conflict_buildings_metric["error_type"] = "building_on_road"
         road_conflict_buildings_metric["error_class"] = "road_buffer"
 
+    
     boundary_metric = boundary.gdf_4326.to_crs(crs_pair.crs_metric)
+
     boundary_overlap_metric = find_buildings_touching_boundary(
         buildings_metric=buildings_metric[["bldg_id", "osmid", "geometry"]],
         boundary_metric=boundary_metric[["geometry"]],
@@ -112,10 +147,11 @@ def run_pipeline(boundary_path: Path, out_dir: Path, config=DEFAULT_CONFIG) -> P
     outside_boundary_metric = buildings_4326[~buildings_4326.within(boundary_union_4326)].copy()
     outside_boundary_metric = outside_boundary_metric.to_crs(crs_pair.crs_metric)
     outside_boundary_metric["bldg_id"] = outside_boundary_metric.index.astype(int)
-    outside_boundary_metric["osmid"] = outside_boundary_metric["osmid"].astype(str)
+    outside_boundary_metric = _ensure_osmid(outside_boundary_metric)
     outside_boundary_metric["error_type"] = "outside_boundary"
     outside_boundary_metric["error_class"] = "outside"
 
+    
     errors_metric = _merge_errors(
         overlap_buildings_metric,
         road_conflict_buildings_metric,
@@ -124,6 +160,7 @@ def run_pipeline(boundary_path: Path, out_dir: Path, config=DEFAULT_CONFIG) -> P
 
     error_ids = set(errors_metric["bldg_id"])
     buildings_clean_metric = buildings_metric[~buildings_metric["bldg_id"].isin(error_ids)]
+
 
     buildings_clean_4326 = buildings_clean_metric.to_crs(4326)
     overlap_buildings_4326 = overlap_buildings_metric.to_crs(4326)
