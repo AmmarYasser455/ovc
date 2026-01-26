@@ -60,47 +60,42 @@ pip install -r requirements.txt
 
 ## Quick Start
 
-### Usage Options: GeoJSON vs Shapefile
+OVC can be used in two simple ways depending on the data you have. You do not need to write Python code — just run a single command.
 
-OVC supports two ways to run the pipeline depending on your input data:
+### ✅ Option 1: You already have your own GeoJSON buildings (and optionally roads)
 
-#### ✅ Option 1: Provide GeoJSON files manually
+If you have your own datasets (e.g., buildings you digitized manually), you can run OVC by providing both the boundary and buildings files:
 
-If you already have cleaned GeoJSON files for your boundary, buildings, and roads, you can run the pipeline directly:
-
-```python
-from ovc.export.pipeline import run_pipeline
-
-run_pipeline(
-    boundary_path="data/boundary.geojson",
-    buildings_path="data/buildings.geojson",
-    roads_path="data/roads.geojson",
-    output_dir="outputs"
-)
+```bash
+python scripts/run_qc.py \
+  --boundary path/to/boundary.geojson \
+  --buildings path/to/buildings.geojson \
+  --out outputs
 ```
 
-This mode skips OSM download and uses your own data.
+- If you also have your own roads file, you can pass it the same way
+- If you don't provide roads, OVC will download roads from OSM automatically
 
-#### ✅ Option 2: Provide only a boundary (Shapefile or GeoJSON)
+This mode skips OSM buildings and uses your own data.
 
-If you only have a boundary file (e.g., a Shapefile or GeoJSON), OVC will automatically download buildings and roads from OpenStreetMap:
+### ✅ Option 2: You only have a boundary (Shapefile or GeoJSON)
 
-```python
-from ovc.export.pipeline import run_pipeline
+If you only have a boundary file (e.g., a governorate, district, or AOI), OVC will automatically download buildings and roads from OpenStreetMap:
 
-run_pipeline(
-    boundary_path="data/boundary.shp",  # or .geojson
-    output_dir="outputs"
-)
+```bash
+python scripts/run_qc.py \
+  --boundary path/to/boundary.shp \
+  --out outputs
 ```
 
-This is the simplest mode. Just provide your AOI boundary, and OVC will handle the rest.
+This is the simplest mode. Just give OVC your boundary, and it handles everything else.
 
-#### ℹ️ Notes
+### ℹ️ Notes
 
-- The boundary file must be a polygon (WGS84 recommended)
-- If you pass `buildings_path` or `roads_path`, OVC will use them and skip OSM download
-- If you don't pass them, OVC will fetch data automatically
+- The boundary file must be a Polygon (WGS84 recommended)
+- If you pass `--buildings`, OVC will use your buildings and skip OSM buildings
+- If you pass `--roads`, OVC will use your roads and skip OSM roads
+- If you don't pass them, OVC downloads everything automatically
 
 ---
 
