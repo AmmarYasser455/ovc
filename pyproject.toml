@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ovc"
+version = "1.0.0"
+description = "Quality control platform for detecting building overlaps and spatial violations in OpenStreetMap data"
+requires-python = ">=3.10"
+
+authors = [
+  { name = "Ammar Yasser" }
+]
+
+readme = "README.md"
+license = { file = "LICENSE" }
+
+keywords = [
+  "GIS",
+  "OpenStreetMap",
+  "Quality Control",
+  "Geospatial",
+  "Buildings"
+]
+
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: GIS",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11"
+]
+
+dependencies = [
+  "geopandas>=0.14",
+  "shapely>=2.0",
+  "pyproj>=3.6",
+  "pandas>=2.0",
+  "folium>=0.15",
+  "osmnx>=1.8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+include = ["ovc*"]
