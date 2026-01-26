@@ -33,7 +33,6 @@ outputs/
 *.dbf
 *.prj
 *.cpg
-*.geojson
 *.tif
 *.tiff
 
@@ -41,3 +40,10 @@ outputs/
 
 tmp/
 temp/
+
+# Ignore all GeoJSON by default
+*.geojson
+
+# Allow test and example fixtures
+!tests/**/*.geojson
+!examples/**/*.geojson
