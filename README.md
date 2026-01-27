@@ -33,6 +33,33 @@ The tool is built with modularity and extensibility in mind, allowing seamless i
 
 ---
 
+## Requirements
+
+### Python
+
+OVC requires Python 3.10 or newer.
+
+**Recommended version:**
+```
+Python 3.11
+```
+
+**Minimum supported version:**
+```
+Python 3.10
+```
+
+### Git
+
+OVC requires Git 2.30 or newer.
+
+**Recommended version:**
+```
+Git 2.40+
+```
+
+---
+
 ## Installation
 
 ### 1. Clone the repository
@@ -60,42 +87,64 @@ pip install -r requirements.txt
 
 ## Quick Start
 
-OVC can be used in two simple ways depending on the data you have. You do not need to write Python code — just run a single command.
+OVC can be run in multiple flexible modes depending on the data you already have. You do not need to write any Python code — just run a single command.
 
-### ✅ Option 1: You already have your own GeoJSON buildings (and optionally roads)
+### ✅ Option 1: You have your own buildings only (no boundary required)
 
-If you have your own datasets (e.g., buildings you digitized manually), you can run OVC by providing both the boundary and buildings files:
+If you already have a buildings dataset (e.g., digitized manually or from another source), you can run OVC directly on it:
+
+```bash
+python scripts/run_qc.py \
+  --buildings path/to/buildings.shp \
+  --out outputs
+```
+
+**In this mode:**
+- OVC uses your buildings as the analysis area
+- Roads are automatically downloaded from OpenStreetMap using the buildings extent
+- Building overlaps and building–road conflicts are detected
+- No boundary checks are performed
+
+This is the simplest way to run QC on local datasets.
+
+### ✅ Option 2: You have your own buildings and roads
+
+If you already have both buildings and roads datasets:
+
+```bash
+python scripts/run_qc.py \
+  --buildings path/to/buildings.shp \
+  --roads path/to/roads.shp \
+  --out outputs
+```
+
+**In this mode:**
+- OVC uses only your provided data
+- No OpenStreetMap downloads are performed
+- All overlap and road conflict checks are enabled
+
+### ✅ Option 3: You have a boundary and want OSM data
+
+If you provide a boundary file (e.g., governorate, district, or AOI), OVC will automatically download buildings and roads from OpenStreetMap:
 
 ```bash
 python scripts/run_qc.py \
   --boundary path/to/boundary.geojson \
-  --buildings path/to/buildings.geojson \
   --out outputs
 ```
 
-- If you also have your own roads file, you can pass it the same way
-- If you don't provide roads, OVC will download roads from OSM automatically
-
-This mode skips OSM buildings and uses your own data.
-
-### ✅ Option 2: You only have a boundary (Shapefile or GeoJSON)
-
-If you only have a boundary file (e.g., a governorate, district, or AOI), OVC will automatically download buildings and roads from OpenStreetMap:
-
-```bash
-python scripts/run_qc.py \
-  --boundary path/to/boundary.shp \
-  --out outputs
-```
-
-This is the simplest mode. Just give OVC your boundary, and it handles everything else.
+**This mode:**
+- Downloads buildings and roads from OSM
+- Runs all QC checks, including boundary-related checks
+- Requires the boundary to be a polygon (WGS84 recommended)
 
 ### ℹ️ Notes
 
-- The boundary file must be a Polygon (WGS84 recommended)
-- If you pass `--buildings`, OVC will use your buildings and skip OSM buildings
-- If you pass `--roads`, OVC will use your roads and skip OSM roads
-- If you don't pass them, OVC downloads everything automatically
+- The boundary file must be a polygon geometry
+- If `--buildings` is provided, OVC skips downloading OSM buildings
+- If `--roads` is provided, OVC skips downloading OSM roads
+- If no boundary is provided, OVC automatically derives the analysis area from the buildings extent
+- Road conflict checks are always enabled when roads are available
 
 ---
 
@@ -170,7 +219,7 @@ This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for d
 
 ## Contributing
 
-Contributions, issues, and feature requests are welcome!
+Contributions, issues, and feature requests are welcome! 
 
 Please read our **[CONTRIBUTING.md](CONTRIBUTING.md)** guide for:
 - How to report bugs and request features
