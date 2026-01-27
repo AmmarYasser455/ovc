@@ -47,3 +47,5 @@ temp/
 # Allow test and example fixtures
 !tests/**/*.geojson
 !examples/**/*.geojson
+# Generated outputs
+outputs_*/

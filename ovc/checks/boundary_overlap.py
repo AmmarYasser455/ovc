@@ -17,7 +17,11 @@ def find_buildings_touching_boundary(
     boundary_union = boundary_metric.unary_union
     boundary_line = getattr(boundary_union, "boundary", boundary_union)
 
-    buf = gpd.GeoSeries([boundary_line], crs=boundary_metric.crs).buffer(float(boundary_buffer_m)).iloc[0]
+    buf = (
+        gpd.GeoSeries([boundary_line], crs=boundary_metric.crs)
+        .buffer(float(boundary_buffer_m))
+        .iloc[0]
+    )
 
     mask = buildings_metric.intersects(buf)
     out = buildings_metric.loc[mask, ["bldg_id", "osmid", "geometry"]].copy()

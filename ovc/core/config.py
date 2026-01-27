@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+# Runtime overlap configuration
 
-# Runtime overlap configuration 
 
 @dataclass(frozen=True)
 class OverlapConfig:
@@ -12,7 +12,8 @@ class OverlapConfig:
     min_intersection_area_m2: float = 0.5
 
 
-# Backward-compatible wrapper 
+# Backward-compatible wrapper
+
 
 class OverlapThresholds(OverlapConfig):
     def __init__(
@@ -21,8 +22,8 @@ class OverlapThresholds(OverlapConfig):
         duplicate_min_ratio: float | None = None,
         partial_ratio_min: float | None = None,
         partial_min_ratio: float | None = None,
-        sliver_max_ratio: float | None = None,  
-        sliver_max_intersection_area_m2: float | None = None,  
+        sliver_max_ratio: float | None = None,
+        sliver_max_intersection_area_m2: float | None = None,
         min_intersection_area_m2: float = 0.5,
     ):
         # duplicate ratio
@@ -41,7 +42,6 @@ class OverlapThresholds(OverlapConfig):
         else:
             part = 0.30
 
-        
         super().__init__(
             duplicate_ratio_min=dup,
             partial_ratio_min=part,
@@ -49,7 +49,8 @@ class OverlapThresholds(OverlapConfig):
         )
 
 
-# Other configs 
+# Other configs
+
 
 @dataclass(frozen=True)
 class RoadConflictThresholds:

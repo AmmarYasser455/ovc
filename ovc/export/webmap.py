@@ -106,7 +106,9 @@ def write_webmap(
         ).add_to(m)
 
     if errors_4326 is not None and not errors_4326.empty:
-        buildings_on_road = errors_4326[errors_4326["error_type"] == "building_on_road"].copy()
+        buildings_on_road = errors_4326[
+            errors_4326["error_type"] == "building_on_road"
+        ].copy()
         if not buildings_on_road.empty:
             folium.GeoJson(
                 buildings_on_road.to_crs(4326),
@@ -119,7 +121,9 @@ def write_webmap(
                 ),
             ).add_to(m)
 
-        outside_boundary = errors_4326[errors_4326["error_type"] == "outside_boundary"].copy()
+        outside_boundary = errors_4326[
+            errors_4326["error_type"] == "outside_boundary"
+        ].copy()
         if not outside_boundary.empty:
             folium.GeoJson(
                 outside_boundary.to_crs(4326),

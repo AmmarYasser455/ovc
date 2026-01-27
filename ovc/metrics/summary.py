@@ -13,8 +13,16 @@ def build_summary_metrics(
     total_buildings = 0 if buildings_4326 is None else int(len(buildings_4326))
 
     overlap_count = 0 if overlaps_metric is None else int(len(overlaps_metric))
-    overlap_total_area = 0.0 if overlaps_metric is None or overlaps_metric.empty else float(overlaps_metric["inter_area_m2"].sum())
-    overlap_avg_area = 0.0 if overlaps_metric is None or overlaps_metric.empty else float(overlaps_metric["inter_area_m2"].mean())
+    overlap_total_area = (
+        0.0
+        if overlaps_metric is None or overlaps_metric.empty
+        else float(overlaps_metric["inter_area_m2"].sum())
+    )
+    overlap_avg_area = (
+        0.0
+        if overlaps_metric is None or overlaps_metric.empty
+        else float(overlaps_metric["inter_area_m2"].mean())
+    )
 
     dup = 0
     part = 0
@@ -25,24 +33,56 @@ def build_summary_metrics(
         part = int(vc.get("partial", 0))
         sliv = int(vc.get("sliver", 0))
 
-    count_building_on_road = 0 if road_conflicts_buildings_metric is None else int(len(road_conflicts_buildings_metric))
+    count_building_on_road = (
+        0
+        if road_conflicts_buildings_metric is None
+        else int(len(road_conflicts_buildings_metric))
+    )
     count_building_overlap = overlap_count
-    count_building_boundary_overlap = 0 if boundary_overlap_buildings_metric is None else int(len(boundary_overlap_buildings_metric))
-    count_outside_boundary = 0 if outside_boundary_buildings_metric is None else int(len(outside_boundary_buildings_metric))
+    count_building_boundary_overlap = (
+        0
+        if boundary_overlap_buildings_metric is None
+        else int(len(boundary_overlap_buildings_metric))
+    )
+    count_outside_boundary = (
+        0
+        if outside_boundary_buildings_metric is None
+        else int(len(outside_boundary_buildings_metric))
+    )
 
     error_buildings_ids = set()
-    if road_conflicts_buildings_metric is not None and not road_conflicts_buildings_metric.empty and "bldg_id" in road_conflicts_buildings_metric.columns:
-        error_buildings_ids |= set(road_conflicts_buildings_metric["bldg_id"].astype(int).tolist())
-    if boundary_overlap_buildings_metric is not None and not boundary_overlap_buildings_metric.empty and "bldg_id" in boundary_overlap_buildings_metric.columns:
-        error_buildings_ids |= set(boundary_overlap_buildings_metric["bldg_id"].astype(int).tolist())
-    if outside_boundary_buildings_metric is not None and not outside_boundary_buildings_metric.empty and "bldg_id" in outside_boundary_buildings_metric.columns:
-        error_buildings_ids |= set(outside_boundary_buildings_metric["bldg_id"].astype(int).tolist())
+    if (
+        road_conflicts_buildings_metric is not None
+        and not road_conflicts_buildings_metric.empty
+        and "bldg_id" in road_conflicts_buildings_metric.columns
+    ):
+        error_buildings_ids |= set(
+            road_conflicts_buildings_metric["bldg_id"].astype(int).tolist()
+        )
+    if (
+        boundary_overlap_buildings_metric is not None
+        and not boundary_overlap_buildings_metric.empty
+        and "bldg_id" in boundary_overlap_buildings_metric.columns
+    ):
+        error_buildings_ids |= set(
+            boundary_overlap_buildings_metric["bldg_id"].astype(int).tolist()
+        )
+    if (
+        outside_boundary_buildings_metric is not None
+        and not outside_boundary_buildings_metric.empty
+        and "bldg_id" in outside_boundary_buildings_metric.columns
+    ):
+        error_buildings_ids |= set(
+            outside_boundary_buildings_metric["bldg_id"].astype(int).tolist()
+        )
     if overlaps_metric is not None and not overlaps_metric.empty:
         error_buildings_ids |= set(overlaps_metric["bldg_a"].astype(int).tolist())
         error_buildings_ids |= set(overlaps_metric["bldg_b"].astype(int).tolist())
 
     error_buildings_count = int(len(error_buildings_ids))
-    error_buildings_ratio = float(error_buildings_count / total_buildings) if total_buildings > 0 else 0.0
+    error_buildings_ratio = (
+        float(error_buildings_count / total_buildings) if total_buildings > 0 else 0.0
+    )
 
     total_errors = int(
         count_building_on_road
