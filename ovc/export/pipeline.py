@@ -46,18 +46,17 @@ def _ensure_osmid(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 def _merge_errors(*layers: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     layers = [g for g in layers if g is not None and not g.empty]
     if not layers:
-     return gpd.GeoDataFrame(
-        {
-            "osmid": [],
-            "bldg_id": [],
-            "error_type": [],
-            "error_class": [],
-            "geometry": [],
-        },
-        geometry="geometry",
-        crs=4326,
-    )
-
+        return gpd.GeoDataFrame(
+            {
+                "osmid": [],
+                "bldg_id": [],
+                "error_type": [],
+                "error_class": [],
+                "geometry": [],
+            },
+            geometry="geometry",
+            crs=4326,
+        )
 
     crs = layers[0].crs
     df = pd.concat(layers, ignore_index=True)
@@ -70,7 +69,13 @@ def _merge_errors(*layers: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return out
 
 
-def run_pipeline(boundary_path: Path, out_dir: Path, config=DEFAULT_CONFIG) -> PipelineOutputs:
+def run_pipeline(
+    boundary_path: Path,
+    out_dir: Path,
+    buildings_path: Path | None = None,
+    roads_path: Path | None = None,
+    config=DEFAULT_CONFIG,
+) -> PipelineOutputs:
     log = get_logger()
     out_dir = Path(out_dir)
 
@@ -80,8 +85,16 @@ def run_pipeline(boundary_path: Path, out_dir: Path, config=DEFAULT_CONFIG) -> P
     crs_pair = get_crs_pair(boundary.gdf_4326)
     boundary_union_4326 = boundary.gdf_4326.unary_union
 
-    
-    buildings_4326 = load_buildings(boundary.gdf_4326, config.tags.buildings, parts=9)
+    # Buildings
+    if buildings_path is not None:
+        buildings_4326 = gpd.read_file(buildings_path).to_crs(4326)
+    else:
+        buildings_4326 = load_buildings(
+            boundary.gdf_4326,
+            config.tags.buildings,
+            parts=9,
+        )
+
     buildings_4326 = buildings_4326.reset_index(drop=True)
     buildings_4326 = _ensure_osmid(buildings_4326)
 
@@ -89,12 +102,19 @@ def run_pipeline(boundary_path: Path, out_dir: Path, config=DEFAULT_CONFIG) -> P
     buildings_metric["bldg_id"] = buildings_metric.index.astype(int)
     buildings_metric["osmid"] = buildings_4326["osmid"].values
 
-   
-    roads_4326 = load_roads(boundary.gdf_4326, config.tags.roads)
+    # Roads
+    if roads_path is not None:
+        roads_4326 = gpd.read_file(roads_path).to_crs(4326)
+    else:
+        roads_4326 = load_roads(
+            boundary.gdf_4326,
+            config.tags.roads,
+        )
+
     roads_4326 = _ensure_osmid(roads_4326)
     roads_metric = roads_4326.to_crs(crs_pair.crs_metric)
 
-    
+    # Checks
     overlaps_metric = find_building_overlaps(buildings_metric, config.overlap)
 
     overlap_buildings_metric = gpd.GeoDataFrame(geometry=[], crs=buildings_metric.crs)
@@ -120,7 +140,6 @@ def run_pipeline(boundary_path: Path, out_dir: Path, config=DEFAULT_CONFIG) -> P
         )
         overlap_buildings_metric["error_class"] = overlap_buildings_metric["error_class"].fillna("sliver")
 
-    
     road_conflicts_metric = find_buildings_on_roads(
         buildings_metric=buildings_metric[["bldg_id", "geometry"]],
         roads_metric=roads_metric[["osmid", "geometry"]],
@@ -135,7 +154,6 @@ def run_pipeline(boundary_path: Path, out_dir: Path, config=DEFAULT_CONFIG) -> P
         road_conflict_buildings_metric["error_type"] = "building_on_road"
         road_conflict_buildings_metric["error_class"] = "road_buffer"
 
-    
     boundary_metric = boundary.gdf_4326.to_crs(crs_pair.crs_metric)
 
     boundary_overlap_metric = find_buildings_touching_boundary(
@@ -151,7 +169,6 @@ def run_pipeline(boundary_path: Path, out_dir: Path, config=DEFAULT_CONFIG) -> P
     outside_boundary_metric["error_type"] = "outside_boundary"
     outside_boundary_metric["error_class"] = "outside"
 
-    
     errors_metric = _merge_errors(
         overlap_buildings_metric,
         road_conflict_buildings_metric,
@@ -160,7 +177,6 @@ def run_pipeline(boundary_path: Path, out_dir: Path, config=DEFAULT_CONFIG) -> P
 
     error_ids = set(errors_metric["bldg_id"])
     buildings_clean_metric = buildings_metric[~buildings_metric["bldg_id"].isin(error_ids)]
-
 
     buildings_clean_4326 = buildings_clean_metric.to_crs(4326)
     overlap_buildings_4326 = overlap_buildings_metric.to_crs(4326)
