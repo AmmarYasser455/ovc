@@ -4,7 +4,6 @@ import sys
 
 from ovc.export.pipeline import run_pipeline
 
-
 DEFAULT_BOUNDARIES_DIR = Path("data/boundaries")
 
 
@@ -28,11 +27,25 @@ def main():
     parser = argparse.ArgumentParser(
         description="OVC – OpenStreetMap Building Quality Control"
     )
+
     parser.add_argument(
         "--boundary",
         required=True,
         help="Path to boundary file (shp/geojson/gpkg) or boundary name",
     )
+
+    parser.add_argument(
+        "--buildings",
+        required=False,
+        help="Optional: path to buildings file (shp/geojson/gpkg). If not provided, OSM buildings will be downloaded.",
+    )
+
+    parser.add_argument(
+        "--roads",
+        required=False,
+        help="Optional: path to roads file (shp/geojson/gpkg). If not provided, OSM roads will be downloaded.",
+    )
+
     parser.add_argument(
         "--out",
         default="outputs",
@@ -41,14 +54,22 @@ def main():
 
     args = parser.parse_args()
 
+    # Resolve boundary
     try:
         boundary_path = resolve_boundary(args.boundary)
     except FileNotFoundError as e:
         print(e)
         sys.exit(1)
 
+    # Optional inputs
+    buildings_path = Path(args.buildings) if args.buildings else None
+    roads_path = Path(args.roads) if args.roads else None
+
+    # Run pipeline
     outputs = run_pipeline(
         boundary_path=boundary_path,
+        buildings_path=buildings_path,
+        roads_path=roads_path,
         out_dir=Path(args.out),
     )
 
