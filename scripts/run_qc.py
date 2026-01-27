@@ -2,7 +2,6 @@ from pathlib import Path
 import argparse
 import sys
 
-# Add project root to PYTHONPATH
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -33,28 +32,27 @@ def resolve_boundary(boundary_arg: str) -> Path:
 def main():
     logger.info("OVC started. Preparing your data...")
 
-    parser = argparse.ArgumentParser(
-        description="OVC – OpenStreetMap Building Quality Control"
-    )
+    parser = argparse.ArgumentParser(description="OVC – Spatial Data Quality Control")
 
     parser.add_argument(
         "--boundary",
-        required=True,
-        help="Path to boundary file (shp/geojson/gpkg) or boundary name",
+        required=False,
+        help="Optional: path to boundary file (shp/geojson/gpkg). "
+        "Required only when downloading data from OpenStreetMap.",
     )
 
     parser.add_argument(
         "--buildings",
         required=False,
         help="Optional: path to buildings file (shp/geojson/gpkg). "
-        "If not provided, OSM buildings will be downloaded.",
+        "If not provided, buildings will be downloaded from OpenStreetMap.",
     )
 
     parser.add_argument(
         "--roads",
         required=False,
         help="Optional: path to roads file (shp/geojson/gpkg). "
-        "If not provided, OSM roads will be downloaded.",
+        "If not provided, roads will be downloaded from OpenStreetMap.",
     )
 
     parser.add_argument(
@@ -65,17 +63,24 @@ def main():
 
     args = parser.parse_args()
 
-    logger.info("Resolving boundary...")
-    try:
-        boundary_path = resolve_boundary(args.boundary)
-    except FileNotFoundError as e:
-        logger.error(str(e))
-        sys.exit(1)
+    boundary_path = None
+    if args.boundary:
+        logger.info("Resolving boundary...")
+        try:
+            boundary_path = resolve_boundary(args.boundary)
+        except FileNotFoundError as e:
+            logger.error(str(e))
+            sys.exit(1)
 
     if args.buildings:
         buildings_path = Path(args.buildings)
         logger.info("Using provided buildings file")
     else:
+        if not boundary_path:
+            logger.error(
+                "Boundary is required when downloading buildings from OpenStreetMap"
+            )
+            sys.exit(1)
         buildings_path = None
         logger.info("Downloading buildings from OpenStreetMap")
 
@@ -83,8 +88,19 @@ def main():
         roads_path = Path(args.roads)
         logger.info("Using provided roads file")
     else:
-        roads_path = None
-        logger.info("Downloading roads from OpenStreetMap")
+        if boundary_path:
+            roads_path = None
+            logger.info("Downloading roads from OpenStreetMap")
+        else:
+            roads_path = None
+            logger.warning(
+                "No boundary or roads provided. Road conflict checks will be skipped."
+            )
+
+    if boundary_path:
+        logger.info("Using boundary as analysis area")
+    else:
+        logger.info("Using buildings extent as analysis area")
 
     logger.info("Running QC pipeline...")
     outputs = run_pipeline(
