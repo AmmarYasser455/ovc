@@ -170,7 +170,7 @@ This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for d
 
 ## Contributing
 
-Contributions, issues, and feature requests are welcome! 
+Contributions, issues, and feature requests are welcome!
 
 Please read our **[CONTRIBUTING.md](CONTRIBUTING.md)** guide for:
 - How to report bugs and request features

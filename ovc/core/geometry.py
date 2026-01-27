@@ -1,6 +1,7 @@
 from __future__ import annotations
 import geopandas as gpd
 
+
 def drop_empty_and_fix(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     if gdf is None or gdf.empty:
         return gpd.GeoDataFrame(geometry=[], crs=4326)
@@ -13,7 +14,10 @@ def drop_empty_and_fix(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         pass
     return gdf
 
-def clip_to_boundary(gdf: gpd.GeoDataFrame, boundary: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+
+def clip_to_boundary(
+    gdf: gpd.GeoDataFrame, boundary: gpd.GeoDataFrame
+) -> gpd.GeoDataFrame:
     if gdf is None or gdf.empty:
         return gdf
     if boundary is None or boundary.empty:

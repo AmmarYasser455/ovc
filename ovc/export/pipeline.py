@@ -122,8 +122,12 @@ def run_pipeline(
         sev = {"sliver": 1, "partial": 2, "duplicate": 3}
         inv = {1: "sliver", 2: "partial", 3: "duplicate"}
 
-        a = overlaps_metric[["bldg_a", "overlap_type"]].rename(columns={"bldg_a": "bldg_id"})
-        b = overlaps_metric[["bldg_b", "overlap_type"]].rename(columns={"bldg_b": "bldg_id"})
+        a = overlaps_metric[["bldg_a", "overlap_type"]].rename(
+            columns={"bldg_a": "bldg_id"}
+        )
+        b = overlaps_metric[["bldg_b", "overlap_type"]].rename(
+            columns={"bldg_b": "bldg_id"}
+        )
         per_bldg = pd.concat([a, b], ignore_index=True)
 
         per_bldg["sev"] = per_bldg["overlap_type"].map(sev).fillna(1).astype(int)
@@ -131,14 +135,18 @@ def run_pipeline(
         per_bldg["error_class"] = per_bldg["sev"].map(inv)
 
         ids = set(per_bldg["bldg_id"].astype(int))
-        overlap_buildings_metric = buildings_metric[buildings_metric["bldg_id"].isin(ids)].copy()
+        overlap_buildings_metric = buildings_metric[
+            buildings_metric["bldg_id"].isin(ids)
+        ].copy()
         overlap_buildings_metric["error_type"] = "building_overlap"
         overlap_buildings_metric = overlap_buildings_metric.merge(
             per_bldg[["bldg_id", "error_class"]],
             on="bldg_id",
             how="left",
         )
-        overlap_buildings_metric["error_class"] = overlap_buildings_metric["error_class"].fillna("sliver")
+        overlap_buildings_metric["error_class"] = overlap_buildings_metric[
+            "error_class"
+        ].fillna("sliver")
 
     road_conflicts_metric = find_buildings_on_roads(
         buildings_metric=buildings_metric[["bldg_id", "geometry"]],
@@ -147,10 +155,14 @@ def run_pipeline(
         min_intersection_area_m2=config.road_conflict.min_intersection_area_m2,
     )
 
-    road_conflict_buildings_metric = gpd.GeoDataFrame(geometry=[], crs=buildings_metric.crs)
+    road_conflict_buildings_metric = gpd.GeoDataFrame(
+        geometry=[], crs=buildings_metric.crs
+    )
     if road_conflicts_metric is not None and not road_conflicts_metric.empty:
         ids = set(road_conflicts_metric["bldg_id"])
-        road_conflict_buildings_metric = buildings_metric[buildings_metric["bldg_id"].isin(ids)].copy()
+        road_conflict_buildings_metric = buildings_metric[
+            buildings_metric["bldg_id"].isin(ids)
+        ].copy()
         road_conflict_buildings_metric["error_type"] = "building_on_road"
         road_conflict_buildings_metric["error_class"] = "road_buffer"
 
@@ -162,7 +174,9 @@ def run_pipeline(
         boundary_buffer_m=0.5,
     )
 
-    outside_boundary_metric = buildings_4326[~buildings_4326.within(boundary_union_4326)].copy()
+    outside_boundary_metric = buildings_4326[
+        ~buildings_4326.within(boundary_union_4326)
+    ].copy()
     outside_boundary_metric = outside_boundary_metric.to_crs(crs_pair.crs_metric)
     outside_boundary_metric["bldg_id"] = outside_boundary_metric.index.astype(int)
     outside_boundary_metric = _ensure_osmid(outside_boundary_metric)
@@ -172,11 +186,15 @@ def run_pipeline(
     errors_metric = _merge_errors(
         overlap_buildings_metric,
         road_conflict_buildings_metric,
-        outside_boundary_metric[["osmid", "bldg_id", "error_type", "error_class", "geometry"]],
+        outside_boundary_metric[
+            ["osmid", "bldg_id", "error_type", "error_class", "geometry"]
+        ],
     )
 
     error_ids = set(errors_metric["bldg_id"])
-    buildings_clean_metric = buildings_metric[~buildings_metric["bldg_id"].isin(error_ids)]
+    buildings_clean_metric = buildings_metric[
+        ~buildings_metric["bldg_id"].isin(error_ids)
+    ]
 
     buildings_clean_4326 = buildings_clean_metric.to_crs(4326)
     overlap_buildings_4326 = overlap_buildings_metric.to_crs(4326)

@@ -5,10 +5,12 @@ import geopandas as gpd
 from ovc.core.crs import ensure_wgs84
 from ovc.core.geometry import drop_empty_and_fix
 
+
 @dataclass(frozen=True)
 class BoundaryResult:
     name: str
     gdf_4326: gpd.GeoDataFrame
+
 
 def load_boundary_shapefile(path: Path) -> BoundaryResult:
     gdf = gpd.read_file(path)

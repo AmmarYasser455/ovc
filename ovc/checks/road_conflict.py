@@ -1,16 +1,29 @@
 from __future__ import annotations
 import geopandas as gpd
 
-def find_buildings_on_roads(buildings_metric: gpd.GeoDataFrame, roads_metric: gpd.GeoDataFrame, road_buffer_m: float, min_intersection_area_m2: float) -> gpd.GeoDataFrame:
+
+def find_buildings_on_roads(
+    buildings_metric: gpd.GeoDataFrame,
+    roads_metric: gpd.GeoDataFrame,
+    road_buffer_m: float,
+    min_intersection_area_m2: float,
+) -> gpd.GeoDataFrame:
     if buildings_metric is None or roads_metric is None:
-        return gpd.GeoDataFrame(geometry=[], crs=buildings_metric.crs if buildings_metric is not None else 3857)
+        return gpd.GeoDataFrame(
+            geometry=[],
+            crs=buildings_metric.crs if buildings_metric is not None else 3857,
+        )
     if buildings_metric.empty or roads_metric.empty:
         return gpd.GeoDataFrame(geometry=[], crs=buildings_metric.crs)
 
     rb = roads_metric.copy()
     rb["geometry"] = rb.geometry.buffer(float(road_buffer_m))
 
-    inter = gpd.overlay(buildings_metric[["bldg_id", "geometry"]], rb[["osmid", "geometry"]], how="intersection")
+    inter = gpd.overlay(
+        buildings_metric[["bldg_id", "geometry"]],
+        rb[["osmid", "geometry"]],
+        how="intersection",
+    )
     if inter is None or inter.empty:
         return gpd.GeoDataFrame(geometry=[], crs=buildings_metric.crs)
 
@@ -22,7 +35,10 @@ def find_buildings_on_roads(buildings_metric: gpd.GeoDataFrame, roads_metric: gp
     inter["error_type"] = "building_on_road"
     return inter
 
-def build_road_conflict_buildings_layer(buildings_metric: gpd.GeoDataFrame, conflicts: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+
+def build_road_conflict_buildings_layer(
+    buildings_metric: gpd.GeoDataFrame, conflicts: gpd.GeoDataFrame
+) -> gpd.GeoDataFrame:
     if conflicts is None or conflicts.empty:
         return gpd.GeoDataFrame(geometry=[], crs=buildings_metric.crs)
     ids = set(conflicts["bldg_id"].astype(int).tolist())
