@@ -18,6 +18,10 @@
 
 ## Overview
 
+<div align="center">
+<img src="assets/ov.png" alt="OVC Workflow" width="800"/>
+</div>
+
 OVC is designed to identify overlapping buildings, boundary violations, and road-related conflicts in geospatial datasets. It produces analysis-ready outputs and interactive web maps, making it ideal for real-world GIS quality assurance and data validation workflows.
 
 The tool is built with modularity and extensibility in mind, allowing seamless integration into automated spatial data pipelines.
