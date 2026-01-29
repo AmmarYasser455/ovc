@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo.png" alt="OVC Logo" width="400"/>
+<img src="docs/assets/logo.png" alt="OVC Logo" width="400"/>
 
 # Overlap Violation Checker (OVC)
 
@@ -19,7 +19,7 @@
 ## Overview
 
 <div align="center">
-<img src="assets/ov.png" alt="OVC Workflow" width="800"/>
+<img src="docs/assets/ov.png" alt="OVC Workflow" width="800"/>
 </div>
 
 OVC is designed to identify overlapping buildings, boundary violations, and road-related conflicts in geospatial datasets. It produces analysis-ready outputs and interactive web maps, making it ideal for real-world GIS quality assurance and data validation workflows.
