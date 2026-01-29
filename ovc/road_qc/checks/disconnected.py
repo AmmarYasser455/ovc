@@ -2,9 +2,28 @@ from __future__ import annotations
 
 import geopandas as gpd
 import pandas as pd
-from shapely.geometry import Point
+from shapely.geometry import Point, LineString, MultiLineString
 
 from ovc.road_qc.config import RoadQCConfig
+
+
+def _extract_endpoints(geom) -> list[Point]:
+    """Extract start and end points from LineString or MultiLineString."""
+    endpoints = []
+
+    if isinstance(geom, LineString):
+        coords = list(geom.coords)
+        if len(coords) >= 2:
+            endpoints.append(Point(coords[0]))
+            endpoints.append(Point(coords[-1]))
+    elif isinstance(geom, MultiLineString):
+        for line in geom.geoms:
+            coords = list(line.coords)
+            if len(coords) >= 2:
+                endpoints.append(Point(coords[0]))
+                endpoints.append(Point(coords[-1]))
+
+    return endpoints
 
 
 def find_disconnected_segments(
@@ -42,14 +61,9 @@ def find_disconnected_segments(
         if geom is None or geom.is_empty:
             continue
 
-        coords = list(geom.coords)
-        if len(coords) < 2:
-            continue
-
-        start = Point(coords[0])
-        end = Point(coords[-1])
-        endpoints.append({"road_id": row["road_id"], "point": start, "end_type": "start"})
-        endpoints.append({"road_id": row["road_id"], "point": end, "end_type": "end"})
+        pts = _extract_endpoints(geom)
+        for pt in pts:
+            endpoints.append({"road_id": row["road_id"], "point": pt})
 
     if not endpoints:
         return gpd.GeoDataFrame(

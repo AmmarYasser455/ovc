@@ -208,9 +208,9 @@ def run_pipeline(
         outside_boundary_buildings_metric=outside_boundary_metric,
     )
 
-    gpkg_path = out_dir / "gpkg" / f"{boundary.name}.gpkg"
-    metrics_csv = out_dir / "reports" / f"{boundary.name}_metrics.csv"
-    webmap_html = out_dir / "maps" / f"{boundary.name}.html"
+    gpkg_path = out_dir / "building_qc" / "building_qc.gpkg"
+    metrics_csv = out_dir / "building_qc" / "building_qc_metrics.csv"
+    webmap_html = out_dir / "building_qc" / "building_qc_map.html"
 
     write_geopackage(
         gpkg_path=gpkg_path,

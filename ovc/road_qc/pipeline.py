@@ -10,12 +10,15 @@ from ovc.core.logging import get_logger
 from ovc.core.crs import get_crs_pair, ensure_wgs84
 from ovc.core.geometry import drop_empty_and_fix
 from ovc.loaders.roads import load_roads
+from ovc.export.geopackage import _write_layer
+from ovc.export.tables import write_metrics_csv
 
 from ovc.road_qc.config import RoadQCConfig
 from ovc.road_qc.checks.disconnected import find_disconnected_segments
 from ovc.road_qc.checks.self_intersection import find_self_intersections
 from ovc.road_qc.checks.dangles import find_dangles
 from ovc.road_qc.metrics import compute_road_qc_metrics, merge_errors
+from ovc.road_qc.webmap import generate_road_qc_webmap
 
 
 @dataclass(frozen=True)
@@ -24,6 +27,7 @@ class RoadQCOutputs:
 
     gpkg_path: Path
     metrics_csv: Path
+    webmap_html: Path
     total_errors: int
     top_3_errors: list
 
@@ -43,6 +47,7 @@ def run_road_qc(
     roads_path: Path | None = None,
     roads_gdf: gpd.GeoDataFrame | None = None,
     boundary_path: Path | None = None,
+    boundary_gdf: gpd.GeoDataFrame | None = None,
     out_dir: Path = Path("outputs/road_qc"),
     config: RoadQCConfig = RoadQCConfig(),
 ) -> RoadQCOutputs:
@@ -58,6 +63,7 @@ def run_road_qc(
         roads_path: Path to road dataset file
         roads_gdf: Pre-loaded road GeoDataFrame
         boundary_path: Path to boundary for OSM download
+        boundary_gdf: Optional boundary GeoDataFrame for filtering edge dangles
         out_dir: Output directory for results
         config: Road QC configuration
 
@@ -68,6 +74,14 @@ def run_road_qc(
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    # Load boundary if provided
+    boundary_4326 = None
+    if boundary_gdf is not None:
+        boundary_4326 = ensure_wgs84(boundary_gdf)
+    elif boundary_path is not None:
+        boundary_4326 = gpd.read_file(boundary_path)
+        boundary_4326 = ensure_wgs84(boundary_4326)
+
     # Load roads from one of the sources
     if roads_gdf is not None:
         log.info("Using provided road GeoDataFrame")
@@ -76,22 +90,20 @@ def run_road_qc(
         log.info(f"Loading roads from {roads_path}")
         roads_4326 = gpd.read_file(roads_path)
         roads_4326 = ensure_wgs84(roads_4326)
-    elif boundary_path is not None:
+    elif boundary_4326 is not None:
         log.info(f"Downloading roads from OSM within boundary {boundary_path}")
-        boundary = gpd.read_file(boundary_path)
-        boundary = ensure_wgs84(boundary)
-        roads_4326 = load_roads(boundary, {"highway": True})
+        roads_4326 = load_roads(boundary_4326, {"highway": True})
     else:
         raise ValueError(
             "Must provide one of: roads_path, roads_gdf, or boundary_path"
         )
 
+    gpkg_path = out_dir / "road_qc.gpkg"
+    metrics_csv = out_dir / "road_qc_metrics.csv"
+    webmap_html = out_dir / "road_qc_map.html"
+
     if roads_4326 is None or roads_4326.empty:
         log.warning("No roads found")
-        # Return empty results
-        gpkg_path = out_dir / "road_qc_errors.gpkg"
-        metrics_csv = out_dir / "road_qc_metrics.csv"
-
         empty_gdf = gpd.GeoDataFrame(
             {"road_id": [], "error_type": [], "geometry": []},
             geometry="geometry",
@@ -99,7 +111,6 @@ def run_road_qc(
         )
         empty_gdf.to_file(gpkg_path, layer="errors", driver="GPKG")
 
-        metrics = {"total_errors": 0, "error_counts": {}, "top_3_errors": []}
         pd.DataFrame([
             {"metric": "total_errors", "value": 0},
         ]).to_csv(metrics_csv, index=False)
@@ -107,6 +118,7 @@ def run_road_qc(
         return RoadQCOutputs(
             gpkg_path=gpkg_path,
             metrics_csv=metrics_csv,
+            webmap_html=webmap_html,
             total_errors=0,
             top_3_errors=[],
         )
@@ -122,6 +134,11 @@ def run_road_qc(
     crs_pair = get_crs_pair(roads_4326)
     roads_metric = roads_4326.to_crs(crs_pair.crs_metric)
 
+    # Project boundary to metric CRS if available
+    boundary_metric = None
+    if boundary_4326 is not None:
+        boundary_metric = boundary_4326.to_crs(crs_pair.crs_metric)
+
     log.info(f"Analyzing {len(roads_metric)} road segments")
 
     # Run all checks
@@ -134,7 +151,7 @@ def run_road_qc(
     log.info(f"  Found {len(self_intersections)} self-intersections")
 
     log.info("Checking for dangles...")
-    dangles = find_dangles(roads_metric, config)
+    dangles = find_dangles(roads_metric, config, boundary_metric)
     log.info(f"  Found {len(dangles)} dangles")
 
     # Merge all errors
@@ -145,48 +162,48 @@ def run_road_qc(
     log.info(f"Total errors: {metrics['total_errors']}")
     log.info(f"Top 3 errors: {metrics['top_3_errors']}")
 
-    # Export results
-    gpkg_path = out_dir / "road_qc_errors.gpkg"
-    metrics_csv = out_dir / "road_qc_metrics.csv"
-
     # Convert errors to WGS84 for export
     if not all_errors.empty:
         all_errors_4326 = all_errors.to_crs(4326)
     else:
-        all_errors_4326 = all_errors
-
-    # Write GeoPackage
-    gpkg_path.parent.mkdir(parents=True, exist_ok=True)
-    if not all_errors_4326.empty:
-        all_errors_4326.to_file(gpkg_path, layer="errors", driver="GPKG")
-    else:
-        # Write empty layer with schema
-        gpd.GeoDataFrame(
+        all_errors_4326 = gpd.GeoDataFrame(
             {"road_id": [], "error_type": [], "geometry": []},
             geometry="geometry",
             crs=4326,
-        ).to_file(gpkg_path, layer="errors", driver="GPKG")
+        )
 
-    # Write roads layer for reference
-    roads_4326[["road_id", "geometry"]].to_file(gpkg_path, layer="roads", driver="GPKG")
+    # Write GeoPackage
+    _write_layer(gpkg_path, "errors", all_errors_4326)
+    _write_layer(gpkg_path, "roads", roads_4326[["road_id", "geometry"]])
+    if boundary_4326 is not None:
+        _write_layer(gpkg_path, "boundary", boundary_4326)
 
     # Write metrics CSV
-    metrics_rows = [
-        {"metric": "total_errors", "value": metrics["total_errors"]},
-    ]
-    for error_type, count in metrics["error_counts"].items():
-        metrics_rows.append({"metric": f"count_{error_type}", "value": count})
+    flat_metrics = {
+        "total_errors": metrics["total_errors"],
+        **{f"count_{k}": v for k, v in metrics["error_counts"].items()},
+    }
     for i, (error_type, count) in enumerate(metrics["top_3_errors"], 1):
-        metrics_rows.append({"metric": f"top_{i}_error_type", "value": error_type})
-        metrics_rows.append({"metric": f"top_{i}_count", "value": count})
+        flat_metrics[f"top_{i}_error_type"] = error_type
+        flat_metrics[f"top_{i}_count"] = count
+    write_metrics_csv(metrics_csv, flat_metrics)
 
-    pd.DataFrame(metrics_rows).to_csv(metrics_csv, index=False)
+    # Generate webmap
+    log.info("Generating web map...")
+    generate_road_qc_webmap(
+        roads_gdf=roads_4326,
+        errors_gdf=all_errors_4326,
+        boundary_gdf=boundary_4326,
+        out_path=webmap_html,
+        title="Road QC Results",
+    )
 
-    log.info(f"Results saved to {gpkg_path}")
+    log.info(f"Results saved to {out_dir}")
 
     return RoadQCOutputs(
         gpkg_path=gpkg_path,
         metrics_csv=metrics_csv,
+        webmap_html=webmap_html,
         total_errors=metrics["total_errors"],
         top_3_errors=metrics["top_3_errors"],
     )

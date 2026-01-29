@@ -1,90 +1,72 @@
 # Road QC Module
 
-Road quality control checks for the OVC framework.
+Road quality control module for OVC. Detects spatial errors in road networks.
 
-## Overview
+## Checks
 
-The Road QC module detects common spatial errors in road datasets, whether digitized manually or imported from OpenStreetMap. It identifies and ranks the **top 3 most frequent road-related errors**.
-
-## Checks Performed
-
-| Check | Description |
-|-------|-------------|
-| **Disconnected Segments** | Roads not connected to the network |
-| **Self-Intersections** | Roads that cross themselves |
-| **Dangles** | Dead-end endpoints (potential incomplete digitization) |
+| Check | Error Type | Description |
+|-------|------------|-------------|
+| Disconnected | `disconnected_segment` | Roads not connected to any other road |
+| Self-Intersection | `self_intersection` | Roads that cross themselves |
+| Dangles | `dangle` | Dead-end endpoints (excludes boundary edges) |
 
 ## Usage
-
-### Python API
-
-```python
-from pathlib import Path
-from ovc.road_qc import run_road_qc, RoadQCConfig
-
-# Run with local road file
-outputs = run_road_qc(
-    roads_path=Path("data/roads.geojson"),
-    out_dir=Path("outputs/road_qc")
-)
-
-# Or download from OSM
-outputs = run_road_qc(
-    boundary_path=Path("data/boundary.geojson"),
-    out_dir=Path("outputs/road_qc")
-)
-
-# Or with custom config
-config = RoadQCConfig(
-    dangle_tolerance_m=2.0,
-    disconnect_tolerance_m=5.0
-)
-outputs = run_road_qc(
-    roads_path=Path("data/roads.geojson"),
-    out_dir=Path("outputs/road_qc"),
-    config=config
-)
-
-print(f"Total errors: {outputs.total_errors}")
-print(f"Top 3 errors: {outputs.top_3_errors}")
-```
 
 ### CLI
 
 ```bash
 python scripts/run_qc.py \
-  --roads data/roads.geojson \
+  --boundary path/to/boundary.shp \
   --road-qc \
   --out outputs
 ```
 
-## Configuration
+### Python API
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `dangle_tolerance_m` | 1.0 | Max gap to consider endpoints connected |
-| `disconnect_tolerance_m` | 2.0 | Max distance to nearest road endpoint |
-| `self_intersection_buffer_m` | 0.1 | Buffer for intersection detection |
-| `min_segment_length_m` | 0.5 | Ignore shorter segments |
+```python
+from pathlib import Path
+from ovc.road_qc import run_road_qc
+
+outputs = run_road_qc(
+    boundary_path=Path("boundary.shp"),
+    out_dir=Path("outputs/road_qc"),
+)
+
+print(f"Total errors: {outputs.total_errors}")
+print(f"Top 3: {outputs.top_3_errors}")
+```
 
 ## Outputs
 
-| File | Description |
-|------|-------------|
-| `road_qc_errors.gpkg` | GeoPackage with error geometries |
-| `road_qc_metrics.csv` | Error counts and top-3 ranking |
+```
+outputs/road_qc/
+├── road_qc.gpkg            # GeoPackage with roads, errors, boundary
+├── road_qc_map.html        # Interactive web map with legend
+└── road_qc_metrics.csv     # Summary metrics
+```
+
+## Configuration
+
+```python
+from ovc.road_qc.config import RoadQCConfig
+
+config = RoadQCConfig(
+    disconnect_tolerance_m=5.0,   # Endpoint connection tolerance
+    dangle_tolerance_m=2.0,       # Dangle grouping tolerance
+)
+```
 
 ## Module Structure
 
 ```
 ovc/road_qc/
-├── __init__.py       # Public exports
-├── config.py         # RoadQCConfig
+├── __init__.py           # Exports: run_road_qc, RoadQCConfig
+├── config.py             # RoadQCConfig dataclass
 ├── checks/
-│   ├── disconnected.py
+│   ├── disconnected.py   # Disconnected segment detection
 │   ├── self_intersection.py
-│   └── dangles.py
-├── metrics.py        # Error aggregation
-├── pipeline.py       # run_road_qc()
-└── README.md
+│   └── dangles.py        # Dangle detection (filters boundary edges)
+├── metrics.py            # Error counting and ranking
+├── pipeline.py           # run_road_qc() orchestration
+└── webmap.py             # Interactive map generation
 ```

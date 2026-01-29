@@ -7,7 +7,7 @@
 **A Python-based spatial quality control tool for detecting geometric and topological issues in OpenStreetMap-like datasets**
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v1.0.0-blue.svg" />
+  <img src="https://img.shields.io/badge/version-v1.0.2-blue.svg" />
   <img src="https://img.shields.io/badge/license-MIT-green.svg" />
   <img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" />
 </p>
@@ -24,12 +24,20 @@ The tool is built with modularity and extensibility in mind, allowing seamless i
 
 ## Key Features
 
-- **Building Overlap Detection** — Identify duplicate and partial overlaps in building geometries
+### Building QC
+- **Overlap Detection** — Identify duplicate and partial overlaps in building geometries
 - **Boundary Compliance** — Validate building footprints against administrative boundaries
-- **Road Conflict Analysis** — Detect road–building and road–road intersections
-- **Multi-Format Export** — Generate GeoJSON and CSV outputs for further analysis
-- **Interactive Visualization** — Produce web-based maps for visual inspection
-- **Modular Architecture** — Easily extend and customize validation workflows
+- **Road Conflict Analysis** — Detect buildings conflicting with roads
+
+### Road QC
+- **Disconnected Segments** — Detect roads not connected to the network
+- **Self-Intersections** — Find roads that cross themselves
+- **Dangles** — Identify dead-end endpoints (incomplete digitization)
+
+### Shared
+- **Multi-Format Export** — GeoPackage, CSV, and HTML outputs
+- **Interactive Visualization** — Web-based maps with legends
+- **Modular Architecture** — Easily extend and customize workflows
 
 ---
 
@@ -53,34 +61,14 @@ venv\Scripts\activate       # Windows
 ### 3. Install dependencies
 
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ---
 
 ## Quick Start
 
-OVC can be used in two simple ways depending on the data you have. You do not need to write Python code — just run a single command.
-
-### ✅ Option 1: You already have your own GeoJSON buildings (and optionally roads)
-
-If you have your own datasets (e.g., buildings you digitized manually), you can run OVC by providing both the boundary and buildings files:
-
-```bash
-python scripts/run_qc.py \
-  --boundary path/to/boundary.geojson \
-  --buildings path/to/buildings.geojson \
-  --out outputs
-```
-
-- If you also have your own roads file, you can pass it the same way
-- If you don't provide roads, OVC will download roads from OSM automatically
-
-This mode skips OSM buildings and uses your own data.
-
-### ✅ Option 2: You only have a boundary (Shapefile or GeoJSON)
-
-If you only have a boundary file (e.g., a governorate, district, or AOI), OVC will automatically download buildings and roads from OpenStreetMap:
+### Building QC Only
 
 ```bash
 python scripts/run_qc.py \
@@ -88,47 +76,73 @@ python scripts/run_qc.py \
   --out outputs
 ```
 
-This is the simplest mode. Just give OVC your boundary, and it handles everything else.
+### Building + Road QC
 
-### ℹ️ Notes
+```bash
+python scripts/run_qc.py \
+  --boundary path/to/boundary.shp \
+  --road-qc \
+  --out outputs
+```
 
-- The boundary file must be a Polygon (WGS84 recommended)
-- If you pass `--buildings`, OVC will use your buildings and skip OSM buildings
-- If you pass `--roads`, OVC will use your roads and skip OSM roads
-- If you don't pass them, OVC downloads everything automatically
+### With Custom Data
+
+```bash
+python scripts/run_qc.py \
+  --boundary path/to/boundary.shp \
+  --buildings path/to/buildings.geojson \
+  --roads path/to/roads.geojson \
+  --road-qc \
+  --out outputs
+```
 
 ---
 
 ## Outputs
 
-The pipeline generates the following:
+Both modules produce outputs in a unified folder structure:
+
+```
+outputs/
+├── building_qc/
+│   ├── building_qc.gpkg          # GeoPackage with layers
+│   ├── building_qc_map.html      # Interactive web map
+│   └── building_qc_metrics.csv   # Summary metrics
+└── road_qc/
+    ├── road_qc.gpkg
+    ├── road_qc_map.html
+    └── road_qc_metrics.csv
+```
 
 | Output Type | Description |
 |------------|-------------|
-| **GeoJSON files** | Spatial layers containing detected issues |
-| **CSV reports** | Summary statistics and metrics |
-| **HTML web map** | Interactive map for visual inspection |
-
-All outputs are saved to the specified `output_dir`.
+| **GeoPackage** | Spatial layers with detected issues |
+| **CSV metrics** | Summary statistics and top errors |
+| **HTML web map** | Interactive map with legend and layer control |
 
 ---
 
 ## Configuration
 
-Runtime thresholds and validation settings can be customized in:
+Configuration is managed through dataclasses:
 
+```python
+# Building QC
+from ovc.core.config import OverlapConfig
+
+# Road QC
+from ovc.road_qc.config import RoadQCConfig
 ```
-ovc/core/config.py
-```
+
+See [ovc/core/config.py](ovc/core/config.py) and [ovc/road_qc/config.py](ovc/road_qc/config.py).
 
 ---
 
 ## Testing
 
-Run the full test suite:
-
 ```bash
-pytest
+source venv/bin/activate
+pytest tests/ -v
 ```
 
 ---
@@ -149,8 +163,9 @@ For detailed design decisions and module responsibilities, see:
 - PyProj
 - Pandas
 - Folium
+- OSMnx
 
-For the complete dependency list, refer to `requirements.txt`.
+For the complete dependency list, refer to `pyproject.toml`.
 
 ---
 
