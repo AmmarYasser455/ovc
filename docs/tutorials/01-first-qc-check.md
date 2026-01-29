@@ -79,10 +79,10 @@ start validation_report.html
 ### Step 5: Interpret the Results
 
 **In the map:**
-- 🔴 Red buildings = Overlapping buildings
-- 🟡 Yellow buildings = Road conflicts
-- 🔵 Blue lines = Roads
-- Green polygons = Clean buildings
+- Overlapping buildings
+- Road conflicts
+- Roads
+- Clean buildings
 
 **In the CSV files:**
 
