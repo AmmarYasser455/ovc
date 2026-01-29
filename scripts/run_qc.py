@@ -47,6 +47,12 @@ def main():
     )
 
     parser.add_argument(
+        "--road-qc",
+        action="store_true",
+        help="Enable road quality control checks (detect disconnected segments, self-intersections, dangles)",
+    )
+
+    parser.add_argument(
         "--out",
         default="outputs",
         help="Output directory",
@@ -65,7 +71,7 @@ def main():
     buildings_path = Path(args.buildings) if args.buildings else None
     roads_path = Path(args.roads) if args.roads else None
 
-    # Run pipeline
+    # Run building QC pipeline
     outputs = run_pipeline(
         boundary_path=boundary_path,
         buildings_path=buildings_path,
@@ -78,6 +84,27 @@ def main():
     print(f"- Metrics CSV: {outputs.metrics_csv}")
     print(f"- Web map: {outputs.webmap_html}")
 
+    # Run road QC if enabled
+    if args.road_qc:
+        from ovc.road_qc import run_road_qc
+
+        print("\nRunning Road QC checks...")
+        road_qc_outputs = run_road_qc(
+            roads_path=roads_path,
+            boundary_path=boundary_path if roads_path is None else None,
+            out_dir=Path(args.out) / "road_qc",
+        )
+
+        print("\nRoad QC finished:")
+        print(f"- GeoPackage: {road_qc_outputs.gpkg_path}")
+        print(f"- Metrics CSV: {road_qc_outputs.metrics_csv}")
+        print(f"- Total errors: {road_qc_outputs.total_errors}")
+        if road_qc_outputs.top_3_errors:
+            print("- Top 3 errors:")
+            for error_type, count in road_qc_outputs.top_3_errors:
+                print(f"    • {error_type}: {count}")
+
 
 if __name__ == "__main__":
     main()
+
