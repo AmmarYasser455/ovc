@@ -5,29 +5,38 @@ import folium
 import geopandas as gpd
 
 
+# Colors (from main branch styling)
+OVERLAP_COLOR = "#ff0000"         # Red
+ROAD_CONFLICT_COLOR = "#ffff00"   # Yellow
+OUTSIDE_BOUNDARY_COLOR = "#ff8c00"  # Orange
+CLEAN_BUILDINGS_COLOR = "#90ee90"  # Light green
+BOUNDARY_COLOR = "#1e1e1e"
+ROADS_COLOR = "#8b4513"
+
+
 def _style_boundary(_):
-    return {"color": "#1e1e1e", "weight": 2.5, "fillOpacity": 0.02}
+    return {"color": BOUNDARY_COLOR, "weight": 2.5, "fillOpacity": 0.02}
 
 
 def _style_roads(_):
-    return {"color": "#b08968", "weight": 1.4, "fillOpacity": 0.0}
+    return {"color": ROADS_COLOR, "weight": 1.4, "fillOpacity": 0.0}
 
 
 def _style_buildings_clean(_):
-    return {"color": "#9ca3af", "weight": 1, "fillOpacity": 0.12}
+    return {"color": CLEAN_BUILDINGS_COLOR, "weight": 1, "fillOpacity": 0.4}
 
 
 def _style_overlap_errors(_):
-    return {"color": "#ef4444", "weight": 2, "fillOpacity": 0.6}
+    return {"color": OVERLAP_COLOR, "weight": 2, "fillOpacity": 0.6}
 
 
 def _style_error_buildings(feature):
     et = (feature.get("properties") or {}).get("error_type", "")
-    color = "#ef4444"
+    color = OVERLAP_COLOR
     if et == "building_on_road":
-        color = "#8b5cf6"
+        color = ROAD_CONFLICT_COLOR
     elif et == "outside_boundary":
-        color = "#0ea5e9"
+        color = OUTSIDE_BOUNDARY_COLOR
     return {"color": color, "weight": 2, "fillOpacity": 0.6}
 
 
@@ -62,8 +71,14 @@ def write_webmap(
 ):
     html_path.parent.mkdir(parents=True, exist_ok=True)
 
-    b = boundary_4326.to_crs(4326)
-    c = b.unary_union.centroid
+    # Determine center
+    if boundary_4326 is not None and not boundary_4326.empty:
+        b = boundary_4326.to_crs(4326)
+        c = b.unary_union.centroid
+    elif buildings_clean_4326 is not None and not buildings_clean_4326.empty:
+        c = buildings_clean_4326.to_crs(4326).unary_union.centroid
+    else:
+        c = type("obj", (object,), {"x": 31.0, "y": 30.0})()
 
     m = folium.Map(
         location=[float(c.y), float(c.x)],
@@ -73,11 +88,12 @@ def write_webmap(
         prefer_canvas=True,
     )
 
-    folium.GeoJson(
-        b,
-        name="Boundary",
-        style_function=_style_boundary,
-    ).add_to(m)
+    if boundary_4326 is not None and not boundary_4326.empty:
+        folium.GeoJson(
+            boundary_4326.to_crs(4326),
+            name="Boundary",
+            style_function=_style_boundary,
+        ).add_to(m)
 
     if roads_4326 is not None and not roads_4326.empty:
         folium.GeoJson(
@@ -141,10 +157,10 @@ def write_webmap(
     background:white;padding:12px;border-radius:8px;
     box-shadow:0 0 15px rgba(0,0,0,0.2);font-size:13px;max-width:360px;">
       <b>OVC – Building QC</b><br><br>
-      <div><span style="background:#ef4444;width:12px;height:12px;display:inline-block;"></span> overlap errors</div>
-      <div><span style="background:#8b5cf6;width:12px;height:12px;display:inline-block;"></span> building on road</div>
-      <div><span style="background:#0ea5e9;width:12px;height:12px;display:inline-block;"></span> outside boundary</div>
-      <div><span style="background:#9ca3af;width:12px;height:12px;display:inline-block;"></span> clean buildings</div>
+      <div><span style="background:{OVERLAP_COLOR};width:12px;height:12px;display:inline-block;"></span> overlap errors</div>
+      <div><span style="background:{ROAD_CONFLICT_COLOR};width:12px;height:12px;display:inline-block;"></span> building on road</div>
+      <div><span style="background:{OUTSIDE_BOUNDARY_COLOR};width:12px;height:12px;display:inline-block;"></span> outside boundary</div>
+      <div><span style="background:{CLEAN_BUILDINGS_COLOR};width:12px;height:12px;display:inline-block;"></span> clean buildings</div>
       <hr style="margin:10px 0;border:none;border-top:1px solid #e5e7eb;">
       <div style="font-size:11px;color:#6b7280;">© OVC — Overlap Violation Checker</div>
     </div>

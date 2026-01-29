@@ -1,14 +1,11 @@
 import geopandas as gpd
 from shapely.geometry import Polygon
-from ovc.checks.overlap import find_building_overlaps
-from ovc.core.config import OverlapThresholds
+from ovc.checks.overlap import find_building_overlaps, OverlapThresholds
 
 THRESHOLDS = OverlapThresholds(
-    duplicate_min_ratio=0.95,
-    partial_min_ratio=0.2,
-    sliver_max_ratio=0.2,
+    duplicate_ratio_min=0.95,
+    partial_ratio_min=0.2,
     min_intersection_area_m2=0.5,
-    sliver_max_intersection_area_m2=10.0,
 )
 
 

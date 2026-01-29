@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo.png" alt="OVC Logo" width="400"/>
+<img src="docs/assets/logo.png" alt="OVC Logo" width="400"/>
 
 # Overlap Violation Checker (OVC)
 
@@ -18,6 +18,10 @@
 
 ## Overview
 
+<div align="center">
+<img src="docs/assets/ov.png" alt="OVC Workflow" width="800"/>
+</div>
+
 OVC is designed to identify overlapping buildings, boundary violations, and road-related conflicts in geospatial datasets. It produces analysis-ready outputs and interactive web maps, making it ideal for real-world GIS quality assurance and data validation workflows.
 
 The tool is built with modularity and extensibility in mind, allowing seamless integration into automated spatial data pipelines.
@@ -29,7 +33,7 @@ The tool is built with modularity and extensibility in mind, allowing seamless i
 - **Boundary Compliance** — Validate building footprints against administrative boundaries
 - **Road Conflict Analysis** — Detect buildings conflicting with roads
 
-### Road QC
+### Road QC (New in v1.0.2)
 - **Disconnected Segments** — Detect roads not connected to the network
 - **Self-Intersections** — Find roads that cross themselves
 - **Dangles** — Identify dead-end endpoints (incomplete digitization)
@@ -38,6 +42,39 @@ The tool is built with modularity and extensibility in mind, allowing seamless i
 - **Multi-Format Export** — GeoPackage, CSV, and HTML outputs
 - **Interactive Visualization** — Web-based maps with legends
 - **Modular Architecture** — Easily extend and customize workflows
+
+---
+
+## Documentation
+
+📚 **[Full Documentation](docs/index.md)** — User Guide, Tutorials, Examples, and API Reference
+
+---
+
+## Requirements
+
+### Python
+
+OVC requires Python 3.10 or newer.
+
+**Recommended version:**
+```
+Python 3.11
+```
+
+**Minimum supported version:**
+```
+Python 3.10
+```
+
+### Git
+
+OVC requires Git 2.30 or newer.
+
+**Recommended version:**
+```
+Git 2.40+
+```
 
 ---
 
@@ -61,40 +98,88 @@ venv\Scripts\activate       # Windows
 ### 3. Install dependencies
 
 ```bash
-pip install -e .
+pip install -r requirements.txt
 ```
 
 ---
 
 ## Quick Start
 
-### Building QC Only
+OVC can be run in multiple flexible modes depending on the data you already have. You do not need to write any Python code — just run a single command.
+
+### ✅ Option 1: You have your own buildings only (no boundary required)
+
+If you already have a buildings dataset (e.g., digitized manually or from another source), you can run OVC directly on it:
 
 ```bash
 python scripts/run_qc.py \
-  --boundary path/to/boundary.shp \
+  --buildings path/to/buildings.shp \
   --out outputs
 ```
 
-### Building + Road QC
+**In this mode:**
+- OVC uses your buildings as the analysis area
+- Roads are automatically downloaded from OpenStreetMap using the buildings extent
+- Building overlaps and building–road conflicts are detected
+- No boundary checks are performed
+
+This is the simplest way to run QC on local datasets.
+
+### ✅ Option 2: You have your own buildings and roads
+
+If you already have both buildings and roads datasets:
 
 ```bash
 python scripts/run_qc.py \
-  --boundary path/to/boundary.shp \
+  --buildings path/to/buildings.shp \
+  --roads path/to/roads.shp \
+  --out outputs
+```
+
+**In this mode:**
+- OVC uses only your provided data
+- No OpenStreetMap downloads are performed
+- All overlap and road conflict checks are enabled
+
+### ✅ Option 3: You have a boundary and want OSM data
+
+If you provide a boundary file (e.g., governorate, district, or AOI), OVC will automatically download buildings and roads from OpenStreetMap:
+
+```bash
+python scripts/run_qc.py \
+  --boundary path/to/boundary.geojson \
+  --out outputs
+```
+
+**This mode:**
+- Downloads buildings and roads from OSM
+- Runs all QC checks, including boundary-related checks
+- Requires the boundary to be a polygon (WGS84 recommended)
+
+### ✅ Option 4: Enable Road QC (New in v1.0.2)
+
+Add the `--road-qc` flag to also run road network quality checks:
+
+```bash
+python scripts/run_qc.py \
+  --boundary path/to/boundary.geojson \
   --road-qc \
   --out outputs
 ```
 
-### With Custom Data
+**Road QC checks:**
+- Disconnected road segments
+- Self-intersecting roads
+- Dead-end endpoints (dangles)
 
-```bash
-python scripts/run_qc.py \
-  --boundary path/to/boundary.shp \
-  --buildings path/to/buildings.geojson \
-  --roads path/to/roads.geojson \
-  --road-qc \
-  --out outputs
-```
+### ℹ️ Notes
+
+- The boundary file must be a polygon geometry
+- If `--buildings` is provided, OVC skips downloading OSM buildings
+- If `--roads` is provided, OVC skips downloading OSM roads
+- If no boundary is provided, OVC automatically derives the analysis area from the buildings extent
+- Road conflict checks are always enabled when roads are available
+- The `--road-qc` flag enables road network quality checks
 
 ---
 
@@ -108,7 +193,7 @@ outputs/
 │   ├── building_qc.gpkg          # GeoPackage with layers
 │   ├── building_qc_map.html      # Interactive web map
 │   └── building_qc_metrics.csv   # Summary metrics
-└── road_qc/
+└── road_qc/                      # Only when --road-qc is enabled
     ├── road_qc.gpkg
     ├── road_qc_map.html
     └── road_qc_metrics.csv
@@ -116,33 +201,30 @@ outputs/
 
 | Output Type | Description |
 |------------|-------------|
-| **GeoPackage** | Spatial layers with detected issues |
-| **CSV metrics** | Summary statistics and top errors |
-| **HTML web map** | Interactive map with legend and layer control |
+| **GeoPackage** | Spatial layers containing detected issues |
+| **CSV reports** | Summary statistics and metrics |
+| **HTML web map** | Interactive map for visual inspection |
+
+All outputs are saved to the specified `output_dir`.
 
 ---
 
 ## Configuration
 
-Configuration is managed through dataclasses:
+Runtime thresholds and validation settings can be customized in:
 
-```python
-# Building QC
-from ovc.core.config import OverlapConfig
-
-# Road QC
-from ovc.road_qc.config import RoadQCConfig
 ```
-
-See [ovc/core/config.py](ovc/core/config.py) and [ovc/road_qc/config.py](ovc/road_qc/config.py).
+ovc/core/config.py
+```
 
 ---
 
 ## Testing
 
+Run the full test suite:
+
 ```bash
-source venv/bin/activate
-pytest tests/ -v
+pytest
 ```
 
 ---
@@ -152,20 +234,6 @@ pytest tests/ -v
 For detailed design decisions and module responsibilities, see:
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)**
-
----
-
-## Requirements
-
-- Python 3.10+
-- GeoPandas
-- Shapely
-- PyProj
-- Pandas
-- Folium
-- OSMnx
-
-For the complete dependency list, refer to `pyproject.toml`.
 
 ---
 
@@ -185,7 +253,7 @@ This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for d
 
 ## Contributing
 
-Contributions, issues, and feature requests are welcome!
+Contributions, issues, and feature requests are welcome! 
 
 Please read our **[CONTRIBUTING.md](CONTRIBUTING.md)** guide for:
 - How to report bugs and request features

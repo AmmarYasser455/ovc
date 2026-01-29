@@ -1,6 +1,7 @@
 fiona>=1.9
 folium>=0.15
 geopandas>=0.14
+osmnx>=1.9
 pandas>=2.0
 pyproj>=3.6
 pytest>=8.0

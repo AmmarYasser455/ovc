@@ -5,6 +5,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
+from shapely.geometry import box
 
 from ovc.core.logging import get_logger
 from ovc.core.config import DEFAULT_CONFIG
@@ -31,10 +32,6 @@ class PipelineOutputs:
 
 
 def _ensure_osmid(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    """
-    Ensure a stable string osmid column exists.
-    Falls back to index-based IDs if missing.
-    """
     if "osmid" not in gdf.columns:
         gdf = gdf.copy()
         gdf["osmid"] = gdf.index.astype(str)
@@ -70,7 +67,7 @@ def _merge_errors(*layers: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def run_pipeline(
-    boundary_path: Path,
+    boundary_path: Path | None,
     out_dir: Path,
     buildings_path: Path | None = None,
     roads_path: Path | None = None,
@@ -81,14 +78,30 @@ def run_pipeline(
 
     attribution_text = "© OpenStreetMap contributors | OVC by Ammar"
 
-    boundary = load_boundary_shapefile(boundary_path)
-    crs_pair = get_crs_pair(boundary.gdf_4326)
-    boundary_union_4326 = boundary.gdf_4326.unary_union
+    boundary = None
+    boundary_union_4326 = None
+    boundary_metric_for_checks = None
+    boundary_name = "custom_data"
 
-    # Buildings
+    if boundary_path is not None:
+        boundary = load_boundary_shapefile(boundary_path)
+        crs_pair = get_crs_pair(boundary.gdf_4326)
+        boundary_union_4326 = boundary.gdf_4326.unary_union
+        boundary_name = boundary.name
+        boundary_4326_for_outputs = boundary.gdf_4326
+        boundary_metric_for_checks = boundary.gdf_4326.to_crs(crs_pair.crs_metric)[
+            ["geometry"]
+        ]
+    else:
+        boundary_4326_for_outputs = None
+
     if buildings_path is not None:
         buildings_4326 = gpd.read_file(buildings_path).to_crs(4326)
     else:
+        if boundary is None:
+            raise ValueError(
+                "boundary_path is required when buildings_path is not provided"
+            )
         buildings_4326 = load_buildings(
             boundary.gdf_4326,
             config.tags.buildings,
@@ -98,23 +111,39 @@ def run_pipeline(
     buildings_4326 = buildings_4326.reset_index(drop=True)
     buildings_4326 = _ensure_osmid(buildings_4326)
 
+    if boundary is None:
+        crs_pair = get_crs_pair(buildings_4326)
+        boundary_4326_for_outputs = gpd.GeoDataFrame(
+            geometry=[buildings_4326.unary_union],
+            crs=4326,
+        )
+
     buildings_metric = buildings_4326.to_crs(crs_pair.crs_metric).copy()
     buildings_metric["bldg_id"] = buildings_metric.index.astype(int)
     buildings_metric["osmid"] = buildings_4326["osmid"].values
 
-    # Roads
     if roads_path is not None:
         roads_4326 = gpd.read_file(roads_path).to_crs(4326)
     else:
-        roads_4326 = load_roads(
-            boundary.gdf_4326,
-            config.tags.roads,
-        )
+        if boundary is not None:
+            roads_4326 = load_roads(
+                boundary.gdf_4326,
+                config.tags.roads,
+            )
+        else:
+            minx, miny, maxx, maxy = buildings_4326.total_bounds
+            bbox_geom = gpd.GeoDataFrame(
+                geometry=[box(minx, miny, maxx, maxy)],
+                crs=4326,
+            )
+            roads_4326 = load_roads(
+                bbox_geom,
+                config.tags.roads,
+            )
 
     roads_4326 = _ensure_osmid(roads_4326)
     roads_metric = roads_4326.to_crs(crs_pair.crs_metric)
 
-    # Checks
     overlaps_metric = find_building_overlaps(buildings_metric, config.overlap)
 
     overlap_buildings_metric = gpd.GeoDataFrame(geometry=[], crs=buildings_metric.crs)
@@ -166,22 +195,35 @@ def run_pipeline(
         road_conflict_buildings_metric["error_type"] = "building_on_road"
         road_conflict_buildings_metric["error_class"] = "road_buffer"
 
-    boundary_metric = boundary.gdf_4326.to_crs(crs_pair.crs_metric)
+    boundary_overlap_metric = None
+    if boundary_metric_for_checks is not None:
+        boundary_overlap_metric = find_buildings_touching_boundary(
+            buildings_metric=buildings_metric[["bldg_id", "osmid", "geometry"]],
+            boundary_metric=boundary_metric_for_checks,
+            boundary_buffer_m=0.5,
+        )
 
-    boundary_overlap_metric = find_buildings_touching_boundary(
-        buildings_metric=buildings_metric[["bldg_id", "osmid", "geometry"]],
-        boundary_metric=boundary_metric[["geometry"]],
-        boundary_buffer_m=0.5,
+    outside_boundary_metric = gpd.GeoDataFrame(
+        {
+            "osmid": [],
+            "bldg_id": [],
+            "error_type": [],
+            "error_class": [],
+            "geometry": [],
+        },
+        geometry="geometry",
+        crs=buildings_metric.crs,
     )
 
-    outside_boundary_metric = buildings_4326[
-        ~buildings_4326.within(boundary_union_4326)
-    ].copy()
-    outside_boundary_metric = outside_boundary_metric.to_crs(crs_pair.crs_metric)
-    outside_boundary_metric["bldg_id"] = outside_boundary_metric.index.astype(int)
-    outside_boundary_metric = _ensure_osmid(outside_boundary_metric)
-    outside_boundary_metric["error_type"] = "outside_boundary"
-    outside_boundary_metric["error_class"] = "outside"
+    if boundary_union_4326 is not None:
+        outside_boundary_metric = buildings_4326[
+            ~buildings_4326.within(boundary_union_4326)
+        ].copy()
+        outside_boundary_metric = outside_boundary_metric.to_crs(crs_pair.crs_metric)
+        outside_boundary_metric["bldg_id"] = outside_boundary_metric.index.astype(int)
+        outside_boundary_metric = _ensure_osmid(outside_boundary_metric)
+        outside_boundary_metric["error_type"] = "outside_boundary"
+        outside_boundary_metric["error_class"] = "outside"
 
     errors_metric = _merge_errors(
         overlap_buildings_metric,
@@ -214,7 +256,7 @@ def run_pipeline(
 
     write_geopackage(
         gpkg_path=gpkg_path,
-        boundary_4326=boundary.gdf_4326,
+        boundary_4326=boundary_4326_for_outputs,
         roads_4326=roads_4326,
         buildings_clean_4326=buildings_clean_4326,
         errors_4326=errors_4326,
@@ -224,7 +266,7 @@ def run_pipeline(
 
     write_webmap(
         html_path=webmap_html,
-        boundary_4326=boundary.gdf_4326,
+        boundary_4326=boundary_4326_for_outputs,
         roads_4326=roads_4326,
         buildings_clean_4326=buildings_clean_4326,
         overlap_buildings_4326=overlap_buildings_4326,
