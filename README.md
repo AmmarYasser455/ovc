@@ -7,7 +7,7 @@
 **A Python-based spatial quality control tool for detecting geometric and topological issues in OpenStreetMap-like datasets**
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v1.0.0-blue.svg" />
+  <img src="https://img.shields.io/badge/version-v1.0.1-blue.svg" />
   <img src="https://img.shields.io/badge/license-MIT-green.svg" />
   <img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" />
 </p>
@@ -34,6 +34,12 @@ The tool is built with modularity and extensibility in mind, allowing seamless i
 - **Multi-Format Export** — Generate GeoJSON and CSV outputs for further analysis
 - **Interactive Visualization** — Produce web-based maps for visual inspection
 - **Modular Architecture** — Easily extend and customize validation workflows
+
+---
+
+## Documentation
+
+📚 **[Full Documentation](docs/index.md)** — User Guide, Tutorials, Examples, and API Reference
 
 ---
 
@@ -191,19 +197,6 @@ pytest
 For detailed design decisions and module responsibilities, see:
 
 **[ARCHITECTURE.md](ARCHITECTURE.md)**
-
----
-
-## Requirements
-
-- Python 3.10+
-- GeoPandas
-- Shapely
-- PyProj
-- Pandas
-- Folium
-
-For the complete dependency list, refer to `requirements.txt`.
 
 ---
 

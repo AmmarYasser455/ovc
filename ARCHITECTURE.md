@@ -8,6 +8,8 @@
 
 </div>
 
+> 📚 **For user documentation, see the [Full Documentation](docs/index.md)**
+
 ---
 
 ## Table of Contents
