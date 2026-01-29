@@ -12,7 +12,7 @@ title: OVC – Overlap Violation Checker
 **A modular spatial quality control framework for detecting geometric and topological issues in OpenStreetMap‑like datasets**
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v1.0.0-blue.svg" />
+  <img src="https://img.shields.io/badge/version-v1.0.1-blue.svg" />
   <img src="https://img.shields.io/badge/license-MIT-green.svg" />
   <img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" />
 </p>
