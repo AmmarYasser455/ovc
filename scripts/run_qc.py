@@ -91,13 +91,14 @@ def main():
         print("\nRunning Road QC checks...")
         road_qc_outputs = run_road_qc(
             roads_path=roads_path,
-            boundary_path=boundary_path if roads_path is None else None,
+            boundary_path=boundary_path,  # Always pass for dangle filtering
             out_dir=Path(args.out) / "road_qc",
         )
 
         print("\nRoad QC finished:")
         print(f"- GeoPackage: {road_qc_outputs.gpkg_path}")
         print(f"- Metrics CSV: {road_qc_outputs.metrics_csv}")
+        print(f"- Web map: {road_qc_outputs.webmap_html}")
         print(f"- Total errors: {road_qc_outputs.total_errors}")
         if road_qc_outputs.top_3_errors:
             print("- Top 3 errors:")

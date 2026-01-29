@@ -140,13 +140,13 @@ def write_webmap(
     <div style="position:fixed;bottom:22px;left:22px;z-index:9999;
     background:white;padding:12px;border-radius:8px;
     box-shadow:0 0 15px rgba(0,0,0,0.2);font-size:13px;max-width:360px;">
-      <b>OVC – Classic view</b><br><br>
+      <b>OVC – Building QC</b><br><br>
       <div><span style="background:#ef4444;width:12px;height:12px;display:inline-block;"></span> overlap errors</div>
       <div><span style="background:#8b5cf6;width:12px;height:12px;display:inline-block;"></span> building on road</div>
       <div><span style="background:#0ea5e9;width:12px;height:12px;display:inline-block;"></span> outside boundary</div>
       <div><span style="background:#9ca3af;width:12px;height:12px;display:inline-block;"></span> clean buildings</div>
-      <hr style="margin:10px 0;">
-      <div style="font-size:11px;color:#374151;">{attribution_text}</div>
+      <hr style="margin:10px 0;border:none;border-top:1px solid #e5e7eb;">
+      <div style="font-size:11px;color:#6b7280;">© OVC — Overlap Violation Checker</div>
     </div>
     """
     m.get_root().html.add_child(folium.Element(legend))

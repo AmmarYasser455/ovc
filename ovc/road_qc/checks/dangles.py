@@ -2,15 +2,35 @@ from __future__ import annotations
 
 import geopandas as gpd
 import pandas as pd
-from shapely.geometry import Point
+from shapely.geometry import Point, LineString, MultiLineString
 from collections import Counter
 
 from ovc.road_qc.config import RoadQCConfig
 
 
+def _extract_endpoints(geom) -> list[Point]:
+    """Extract start and end points from LineString or MultiLineString."""
+    endpoints = []
+
+    if isinstance(geom, LineString):
+        coords = list(geom.coords)
+        if len(coords) >= 2:
+            endpoints.append(Point(coords[0]))
+            endpoints.append(Point(coords[-1]))
+    elif isinstance(geom, MultiLineString):
+        for line in geom.geoms:
+            coords = list(line.coords)
+            if len(coords) >= 2:
+                endpoints.append(Point(coords[0]))
+                endpoints.append(Point(coords[-1]))
+
+    return endpoints
+
+
 def find_dangles(
     roads_metric: gpd.GeoDataFrame,
     config: RoadQCConfig,
+    boundary_metric: gpd.GeoDataFrame | None = None,
 ) -> gpd.GeoDataFrame:
     """
     Detect dangling endpoints (dead ends) in the road network.
@@ -18,9 +38,13 @@ def find_dangles(
     A dangle is an endpoint that connects to only one road segment,
     indicating a potential incomplete digitization or actual dead end.
 
+    Endpoints near the boundary are excluded (they may connect to roads
+    outside the study area).
+
     Parameters:
         roads_metric: Road geometries in metric CRS
         config: Road QC configuration
+        boundary_metric: Optional boundary to filter out edge endpoints
 
     Returns:
         GeoDataFrame with dangle points, includes error_type column
@@ -38,6 +62,13 @@ def find_dangles(
 
     tolerance = config.dangle_tolerance_m
 
+    # Get boundary buffer for filtering edge endpoints
+    boundary_buffer = None
+    if boundary_metric is not None and not boundary_metric.empty:
+        # Buffer the boundary line by tolerance
+        boundary_union = boundary_metric.union_all() if hasattr(boundary_metric, 'union_all') else boundary_metric.unary_union
+        boundary_buffer = boundary_union.boundary.buffer(tolerance * 3)
+
     # Extract all endpoints with their coordinates (rounded for matching)
     endpoints = []
     for _, row in roads.iterrows():
@@ -45,29 +76,20 @@ def find_dangles(
         if geom is None or geom.is_empty:
             continue
 
-        coords = list(geom.coords)
-        if len(coords) < 2:
-            continue
+        pts = _extract_endpoints(geom)
+        for pt in pts:
+            # Skip endpoints near the boundary (they likely connect to external roads)
+            if boundary_buffer is not None and boundary_buffer.contains(pt):
+                continue
 
-        start = Point(coords[0])
-        end = Point(coords[-1])
-
-        # Round to tolerance for grouping
-        start_key = (round(start.x / tolerance) * tolerance,
-                     round(start.y / tolerance) * tolerance)
-        end_key = (round(end.x / tolerance) * tolerance,
-                   round(end.y / tolerance) * tolerance)
-
-        endpoints.append({
-            "road_id": row["road_id"],
-            "point": start,
-            "key": start_key,
-        })
-        endpoints.append({
-            "road_id": row["road_id"],
-            "point": end,
-            "key": end_key,
-        })
+            # Round to tolerance for grouping
+            key = (round(pt.x / tolerance) * tolerance,
+                   round(pt.y / tolerance) * tolerance)
+            endpoints.append({
+                "road_id": row["road_id"],
+                "point": pt,
+                "key": key,
+            })
 
     if not endpoints:
         return gpd.GeoDataFrame(
