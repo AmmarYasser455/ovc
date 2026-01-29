@@ -30,6 +30,7 @@ ovc/
 ├── core/        # Core utilities and shared infrastructure
 ├── loaders/     # Data loading and preprocessing
 ├── checks/      # Quality checks and validation logic
+├── metrics/     # Statistics and summary computation
 ├── export/      # Output generation (files, web maps, reports)
 tests/           # Test suite
 ```
@@ -107,6 +108,24 @@ Responsible for:
 - ✅ Orchestrates the entire workflow
 - ✅ Handles all output operations
 - ❌ Does not contain QC algorithms
+- ❌ Does not perform data validation
+
+---
+
+### `metrics/`
+
+**Purpose:** Statistics computation and summary generation
+
+Responsible for:
+- Computing overlap statistics (counts, areas)
+- Generating summary metrics for reports
+- Aggregating error counts by type
+- Calculating error ratios and percentages
+
+**Constraints:**
+- ✅ Pure computation, no side effects
+- ✅ Takes prepared GeoDataFrames as input
+- ❌ Does not perform I/O operations
 - ❌ Does not perform data validation
 
 ---

@@ -119,68 +119,72 @@ You should see the help message with available options.
 
 ## Configuration
 
-### Configuration File
+### Configuration System
 
-OVC uses a centralized configuration file located at:
+OVC uses a dataclass-based configuration system defined in:
 
 ```
 ovc/core/config.py
 ```
 
-### Key Configuration Parameters
+### Configuration Classes
 
-**Overlap Detection:**
+OVC provides three main configuration dataclasses:
+
+**OverlapConfig** — Controls building overlap detection:
 ```python
-# Minimum area overlap threshold (square meters)
-MIN_OVERLAP_AREA = 1.0
-
-# Overlap percentage threshold
-OVERLAP_PERCENTAGE_THRESHOLD = 5.0
+@dataclass(frozen=True)
+class OverlapConfig:
+    duplicate_ratio_min: float = 0.98    # Ratio >= 0.98 = duplicate
+    partial_ratio_min: float = 0.30      # Ratio >= 0.30 = partial overlap
+    min_intersection_area_m2: float = 0.5  # Ignore smaller overlaps
 ```
 
-**Road Conflict Detection:**
+**RoadConflictThresholds** — Controls road conflict detection:
 ```python
-# Buffer distance for road-building conflicts (meters)
-ROAD_BUFFER_DISTANCE = 2.0
-
-# Road intersection tolerance (meters)
-ROAD_INTERSECTION_TOLERANCE = 0.5
+@dataclass(frozen=True)
+class RoadConflictThresholds:
+    road_buffer_m: float = 1.0           # Buffer around roads
+    min_intersection_area_m2: float = 0.5  # Minimum overlap to flag
 ```
 
-**Boundary Validation:**
+**Config** — Main configuration container:
 ```python
-# Boundary containment tolerance (meters)
-BOUNDARY_TOLERANCE = 0.1
-
-# Check partial overlaps with boundary
-CHECK_PARTIAL_BOUNDARY_OVERLAP = True
-```
-
-**Output Settings:**
-```python
-# Output coordinate reference system
-OUTPUT_CRS = "EPSG:4326"
-
-# Export formats
-EXPORT_GEOJSON = True
-EXPORT_CSV = True
-EXPORT_HTML_MAP = True
+@dataclass(frozen=True)
+class Config:
+    overlap: OverlapConfig = OverlapConfig()
+    road_conflict: RoadConflictThresholds = RoadConflictThresholds()
+    tags: Tags = Tags(
+        buildings={"building": True},
+        roads={"highway": True},
+    )
 ```
 
 ### Customizing Configuration
 
-1. Open `ovc/core/config.py` in a text editor
-2. Modify the desired parameters
-3. Save the file
-4. Run OVC with your new configuration
+Create a custom Config object and pass it to `run_pipeline`:
 
-**Example: Adjust overlap threshold**
 ```python
-# Original
-MIN_OVERLAP_AREA = 1.0
+from ovc.core.config import Config, OverlapConfig, RoadConflictThresholds
+from ovc.export.pipeline import run_pipeline
 
-# Modified for stricter detection
-MIN_OVERLAP_AREA = 0.5
+# Create custom config
+custom_config = Config(
+    overlap=OverlapConfig(
+        min_intersection_area_m2=0.1,  # Stricter detection
+        partial_ratio_min=0.15         # Flag smaller overlaps
+    ),
+    road_conflict=RoadConflictThresholds(
+        road_buffer_m=2.0              # Larger road buffer
+    )
+)
+
+# Run with custom config
+run_pipeline(
+    boundary_path=...,
+    out_dir=...,
+    config=custom_config
+)
 ```
 
 ---
