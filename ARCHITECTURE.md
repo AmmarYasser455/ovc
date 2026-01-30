@@ -29,11 +29,34 @@
 ovc/
 ├── core/        # Core utilities and shared infrastructure
 ├── loaders/     # Data loading and preprocessing
-├── checks/      # Quality checks and validation logic
+├── checks/      # Building quality checks and validation logic
 ├── metrics/     # Statistics and summary computation
 ├── export/      # Output generation (files, web maps, reports)
+├── road_qc/     # Road QC module (New in v1.0.2)
+│   ├── checks/  # Road-specific checks
+│   ├── config.py
+│   ├── metrics.py
+│   ├── pipeline.py
+│   └── webmap.py
 tests/           # Test suite
 ```
+
+---
+
+### Module: `road_qc/` (New in v1.0.2)
+
+**Purpose:** Road network quality control
+
+Contains:
+- Disconnected segment detection
+- Self-intersection detection
+- Dangle (dead-end) detection with boundary filtering
+- Road-specific web map generation
+
+**Architecture:**
+- Follows the same patterns as Building QC
+- Modular checks in `road_qc/checks/`
+- Unified output structure
 
 ---
 
@@ -220,7 +243,12 @@ OVC follows these core architectural principles:
 
 ## Future Considerations
 
-### Planned Improvements
+### Completed in v1.0.2
+
+- ✅ Road QC module with disconnected, self-intersection, and dangle detection
+- ✅ Unified output structure (`building_qc/`, `road_qc/`)
+- ✅ Boundary-aware dangle filtering
+- ✅ Road QC web maps with legends
 
 **Short-term:**
 - Deprecation of legacy configuration wrappers
@@ -228,8 +256,7 @@ OVC follows these core architectural principles:
 - Enhanced logging and error reporting
 
 **Medium-term:**
-- Additional QC checks as independent modules:
-  - Self-intersection detection
+- Additional Building QC checks:
   - Minimum area validation
   - Attribute completeness checks
 - Plugin system for custom validators

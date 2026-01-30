@@ -7,6 +7,8 @@ title: User Guide - OVC
 
 Complete guide to installing, configuring, and using the Overlap Violation Checker.
 
+**Version:** v1.0.2
+
 ---
 
 ## Table of Contents
@@ -15,11 +17,12 @@ Complete guide to installing, configuring, and using the Overlap Violation Check
 2. [System Requirements](#system-requirements)
 3. [Configuration](#configuration)
 4. [Command-Line Usage](#command-line-usage)
-5. [Input Data Formats](#input-data-formats)
-6. [Output Formats](#output-formats)
-7. [Troubleshooting](#troubleshooting)
-8. [Programmatic Usage](#programmatic-usage)
-9. [Best Practices](#best-practices)
+5. [Road QC Module](#road-qc-module)
+6. [Input Data Formats](#input-data-formats)
+7. [Output Formats](#output-formats)
+8. [Troubleshooting](#troubleshooting)
+9. [Programmatic Usage](#programmatic-usage)
+10. [Best Practices](#best-practices)
 
 ---
 
@@ -78,7 +81,7 @@ venv\Scripts\activate
 ### Step 4: Install Dependencies
 
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ### Step 5: Verify Installation
@@ -124,12 +127,11 @@ You should see the help message with available options.
 OVC uses a dataclass-based configuration system defined in:
 
 ```
-ovc/core/config.py
+ovc/core/config.py       # Building QC configuration
+ovc/road_qc/config.py    # Road QC configuration
 ```
 
-### Configuration Classes
-
-OVC provides three main configuration dataclasses:
+### Building QC Configuration
 
 **OverlapConfig** — Controls building overlap detection:
 ```python
@@ -148,43 +150,41 @@ class RoadConflictThresholds:
     min_intersection_area_m2: float = 0.5  # Minimum overlap to flag
 ```
 
-**Config** — Main configuration container:
+### Road QC Configuration (New in v1.0.2)
+
+**RoadQCConfig** — Controls road network checks:
 ```python
 @dataclass(frozen=True)
-class Config:
-    overlap: OverlapConfig = OverlapConfig()
-    road_conflict: RoadConflictThresholds = RoadConflictThresholds()
-    tags: Tags = Tags(
-        buildings={"building": True},
-        roads={"highway": True},
-    )
+class RoadQCConfig:
+    disconnect_tolerance_m: float = 5.0   # Endpoint connection tolerance
+    dangle_tolerance_m: float = 2.0       # Dangle grouping tolerance
 ```
 
 ### Customizing Configuration
 
-Create a custom Config object and pass it to `run_pipeline`:
-
 ```python
-from ovc.core.config import Config, OverlapConfig, RoadConflictThresholds
+from ovc.core.config import Config, OverlapConfig
+from ovc.road_qc.config import RoadQCConfig
 from ovc.export.pipeline import run_pipeline
+from ovc.road_qc import run_road_qc
 
-# Create custom config
+# Building QC with custom config
 custom_config = Config(
     overlap=OverlapConfig(
         min_intersection_area_m2=0.1,  # Stricter detection
         partial_ratio_min=0.15         # Flag smaller overlaps
-    ),
-    road_conflict=RoadConflictThresholds(
-        road_buffer_m=2.0              # Larger road buffer
     )
 )
 
-# Run with custom config
-run_pipeline(
-    boundary_path=...,
-    out_dir=...,
-    config=custom_config
+run_pipeline(..., config=custom_config)
+
+# Road QC with custom config
+road_config = RoadQCConfig(
+    disconnect_tolerance_m=10.0,  # More tolerant
+    dangle_tolerance_m=5.0
 )
+
+run_road_qc(..., config=road_config)
 ```
 
 ---
@@ -204,9 +204,8 @@ python scripts/run_qc.py [OPTIONS]
 | `--buildings` | Path | Path to buildings dataset (Shapefile, GeoJSON, GPKG) |
 | `--roads` | Path | Path to roads dataset (optional) |
 | `--boundary` | Path | Path to boundary polygon (optional) |
+| `--road-qc` | Flag | Enable Road QC checks (New in v1.0.2) |
 | `--out` | Path | Output directory for results |
-| `--crs` | String | Target coordinate reference system (default: EPSG:4326) |
-| `--verbose` | Flag | Enable detailed logging |
 | `--help` | Flag | Show help message |
 
 ### Usage Modes
@@ -260,49 +259,100 @@ python scripts/run_qc.py \
 - Performs all checks including boundary validation
 - Analyzes OSM data quality
 
-#### Mode 4: Mixed Mode
+#### Mode 4: Building + Road QC (New in v1.0.2)
 
-Provide buildings and boundary; roads are downloaded from OSM.
+Run both Building QC and Road QC together.
 
 ```bash
 python scripts/run_qc.py \
-  --buildings data/my_buildings.shp \
-  --boundary data/district.geojson \
+  --boundary data/city_boundary.geojson \
+  --road-qc \
   --out results/mode4
 ```
 
 **What happens:**
-- Uses your buildings
-- Downloads roads from OSM
-- Validates buildings against boundary
-- Performs road conflict checks
+- Runs full Building QC pipeline
+- Also runs Road QC checks:
+  - Disconnected road segments
+  - Self-intersecting roads
+  - Dangle endpoints (dead ends)
+- Outputs to unified folder structure
 
-### Advanced Options
+---
 
-**Specify coordinate system:**
+## Road QC Module
+
+### Overview
+
+The Road QC module (new in v1.0.2) detects spatial errors in road networks:
+
+| Check | Error Type | Description |
+|-------|------------|-------------|
+| Disconnected | `disconnected_segment` | Roads not connected to any other road |
+| Self-Intersection | `self_intersection` | Roads that cross themselves |
+| Dangles | `dangle` | Dead-end endpoints (excludes boundary edges) |
+
+### CLI Usage
+
 ```bash
 python scripts/run_qc.py \
-  --buildings data/buildings.shp \
-  --crs EPSG:32633 \
-  --out results
+  --boundary path/to/boundary.shp \
+  --road-qc \
+  --out outputs
 ```
 
-**Enable verbose logging:**
-```bash
-python scripts/run_qc.py \
-  --buildings data/buildings.shp \
-  --out results \
-  --verbose
+### Python API
+
+```python
+from pathlib import Path
+from ovc.road_qc import run_road_qc
+
+outputs = run_road_qc(
+    boundary_path=Path("boundary.shp"),
+    out_dir=Path("outputs/road_qc"),
+)
+
+print(f"Total errors: {outputs.total_errors}")
+print(f"Top 3: {outputs.top_3_errors}")
 ```
 
-**Process multiple areas:**
-```bash
-for boundary in boundaries/*.geojson; do
-  python scripts/run_qc.py \
-    --boundary "$boundary" \
-    --out "results/$(basename $boundary .geojson)"
-done
+### Outputs
+
 ```
+outputs/road_qc/
+├── road_qc.gpkg            # GeoPackage with roads, errors, boundary
+├── road_qc_map.html        # Interactive web map with legend
+└── road_qc_metrics.csv     # Summary metrics
+```
+
+### GeoPackage Layers
+
+| Layer | Description |
+|-------|-------------|
+| `roads` | All roads in the analysis area |
+| `errors` | Detected errors (with `error_type` column) |
+| `boundary` | Analysis boundary |
+
+### Metrics CSV
+
+```csv
+category,metric,value
+summary,total_errors,142
+error_counts,count_dangle,89
+error_counts,count_disconnected_segment,38
+error_counts,count_self_intersection,15
+ranking,top_1_error_type,dangle
+ranking,top_1_count,89
+```
+
+### Understanding Dangle Detection
+
+Dangles are endpoints that connect to only one road segment. OVC intelligently filters out:
+
+- **Boundary edges:** Endpoints near the study area boundary (roads exiting the area)
+- **Network endpoints:** True network endpoints are correctly identified as issues
+
+This prevents false positives for roads that naturally exit the analysis area.
 
 ---
 
@@ -331,13 +381,6 @@ OVC supports the following geospatial formats:
 - `building` — Building type
 - Any additional attributes are preserved in outputs
 
-**Example structure:**
-```
-buildings.shp
-├── POLYGON geometries
-└── attributes: id, name, building_type
-```
-
 #### Roads Dataset
 
 **Required fields:**
@@ -359,30 +402,6 @@ buildings.shp
 - WGS84 (EPSG:4326) recommended
 - Any projected CRS is acceptable
 
-### Data Preparation Tips
-
-**1. Ensure valid geometries:**
-```bash
-# Using GDAL/OGR
-ogr2ogr -makevalid output.shp input.shp
-```
-
-**2. Reproject if needed:**
-```bash
-ogr2ogr -t_srs EPSG:4326 output.shp input.shp
-```
-
-**3. Merge multiple files:**
-```bash
-ogr2ogr merged.gpkg file1.shp
-ogr2ogr -update -append merged.gpkg file2.shp
-```
-
-**4. Simplify complex geometries:**
-```bash
-ogr2ogr -simplify 0.5 simplified.shp complex.shp
-```
-
 ---
 
 ## Output Formats
@@ -393,102 +412,58 @@ When OVC completes, your output directory contains:
 
 ```
 outputs/
-├── building_overlaps.geojson       # Overlapping building pairs
-├── building_overlaps.csv           # Overlap statistics
-├── boundary_violations.geojson     # Buildings outside boundary
-├── boundary_violations.csv         # Boundary violation details
-├── road_conflicts.geojson          # Road-building intersections
-├── road_conflicts.csv              # Road conflict metrics
-├── validation_report.html          # Interactive web map
-└── summary_statistics.csv          # Overall QC summary
+├── building_qc/
+│   ├── building_qc.gpkg          # All building layers
+│   ├── building_qc_map.html      # Interactive web map
+│   └── building_qc_metrics.csv   # Summary metrics
+└── road_qc/                      # Only when --road-qc enabled
+    ├── road_qc.gpkg
+    ├── road_qc_map.html
+    └── road_qc_metrics.csv
 ```
 
-### GeoJSON Files
+### GeoPackage Files
 
-**Purpose:** Spatial visualization and analysis in GIS software
+Building QC GeoPackage layers:
+- `buildings` — All buildings analyzed
+- `errors` — Buildings with issues (overlap, road conflict, boundary violation)
+- `roads` — Road network
+- `boundary` — Analysis boundary
 
-**Structure:**
-```json
-{
-  "type": "FeatureCollection",
-  "features": [
-    {
-      "type": "Feature",
-      "geometry": {...},
-      "properties": {
-        "building_id": "123",
-        "overlap_area": 45.2,
-        "overlap_percentage": 12.5,
-        "severity": "medium"
-      }
-    }
-  ]
-}
-```
-
-**Usage:**
-- Load into QGIS, ArcGIS, or other GIS software
-- Process with Python (GeoPandas, Fiona)
-- Visualize in web mapping libraries (Leaflet, Mapbox)
+Road QC GeoPackage layers:
+- `roads` — All roads analyzed
+- `errors` — Road errors (disconnected, self-intersection, dangle)
+- `boundary` — Analysis boundary
 
 ### CSV Reports
 
-**Purpose:** Statistical analysis and reporting
-
-**Building Overlaps CSV:**
+Metrics CSV format:
 ```csv
-building_a,building_b,overlap_area,overlap_pct_a,overlap_pct_b,severity
-101,102,45.23,12.5,8.3,medium
-103,104,120.45,35.2,33.8,high
+category,metric,value
+summary,total_errors,45
+error_counts,count_overlap,23
+error_counts,count_road_conflict,15
+ranking,top_1_error_type,overlap
+ranking,top_1_count,23
 ```
 
-**Boundary Violations CSV:**
-```csv
-building_id,violation_type,distance_from_boundary,area_outside
-201,outside_boundary,15.3,78.5
-202,partial_overlap,0.0,22.1
-```
-
-**Road Conflicts CSV:**
-```csv
-building_id,road_id,conflict_type,intersection_area,distance
-301,R45,intersection,5.2,0.0
-302,R46,proximity,0.0,1.8
-```
-
-### Interactive HTML Map
-
-**Purpose:** Visual inspection and stakeholder communication
+### Interactive HTML Maps
 
 **Features:**
 - Pan and zoom controls
-- Layer toggles (buildings, roads, violations)
+- Layer toggles (toggle visibility)
 - Click features for attribute information
-- Color-coded by severity
-- Basemap options (OSM, satellite)
+- Color-coded by error type
+- Legend with error type definitions
+- Copyright: © OVC — Overlap Violation Checker
 
 **Opening the map:**
 ```bash
 # Linux/macOS
-open outputs/validation_report.html
+open outputs/building_qc/building_qc_map.html
 
 # Windows
-start outputs/validation_report.html
-```
-
-### Summary Statistics
-
-**Purpose:** High-level QC metrics
-
-**Example content:**
-```csv
-metric,value
-total_buildings,1523
-overlapping_buildings,87
-boundary_violations,12
-road_conflicts,34
-overlap_percentage,5.7
-critical_issues,8
+start outputs/building_qc/building_qc_map.html
 ```
 
 ---
@@ -516,20 +491,7 @@ brew install gdal
 conda install -c conda-forge gdal
 ```
 
-#### 2. Projection Errors
-
-**Error:**
-```
-CRS mismatch: buildings are in EPSG:4326 but roads are in EPSG:32633
-```
-
-**Solution:**
-OVC automatically reprojects data, but you can manually ensure consistency:
-```bash
-ogr2ogr -t_srs EPSG:4326 roads_wgs84.shp roads.shp
-```
-
-#### 3. Memory Issues
+#### 2. Memory Issues
 
 **Error:**
 ```
@@ -544,7 +506,7 @@ MemoryError: Unable to allocate array
 ogr2ogr -clipsrc minx miny maxx maxy subset.shp large.shp
 ```
 
-#### 4. Invalid Geometries
+#### 3. Invalid Geometries
 
 **Error:**
 ```
@@ -557,7 +519,7 @@ TopologyException: Invalid geometry
 ogr2ogr -makevalid fixed.shp broken.shp
 ```
 
-#### 5. OSM Download Fails
+#### 4. OSM Download Fails
 
 **Error:**
 ```
@@ -570,34 +532,12 @@ OSM download timeout or connection error
 - Use local OSM extracts instead
 - Wait and retry (OSM servers may be busy)
 
-### Performance Optimization
-
-**For large datasets:**
-
-1. **Use GeoPackage instead of Shapefile:**
-```bash
-ogr2ogr buildings.gpkg buildings.shp
-```
-
-2. **Simplify geometries before processing:**
-```bash
-ogr2ogr -simplify 1.0 simplified.shp original.shp
-```
-
-3. **Process in batches:**
-```bash
-# Split large dataset
-ogr2ogr -where "id < 10000" batch1.shp large.shp
-ogr2ogr -where "id >= 10000" batch2.shp large.shp
-```
-
 ### Getting Help
 
 If you encounter issues not covered here:
 
 1. **Check existing issues:** [GitHub Issues](https://github.com/AmmarYasser455/ovc/issues)
-2. **Search documentation:** [OVC Documentation](https://ammaryasser455.github.io/ovc)
-3. **Ask the community:** Open a new issue with:
+2. **Open a new issue** with:
    - Your command/code
    - Error message
    - System information (OS, Python version)
@@ -607,38 +547,63 @@ If you encounter issues not covered here:
 
 ## Programmatic Usage
 
-While this User Guide focuses on command-line usage, OVC can also be used as a Python library for integration into custom workflows, automated pipelines, and advanced use cases.
-
-### When to Use the Python API
-
-- **Automated pipelines:** Integrate QC checks into ETL or CI/CD workflows
-- **Custom processing:** Chain OVC with other Python geospatial libraries
-- **Batch operations:** Process multiple datasets programmatically
-- **Custom reporting:** Generate tailored reports from QC results
-
-### Quick Example
+### Building QC API
 
 ```python
 from pathlib import Path
 from ovc.export.pipeline import run_pipeline
 
-# Configure and run pipeline
 outputs = run_pipeline(
-    boundary_path=None,
-    buildings_path=Path("data/buildings.shp"),
-    roads_path=Path("data/roads.shp"),
+    boundary_path=Path("data/boundary.shp"),
+    buildings_path=None,  # Download from OSM
+    roads_path=None,      # Download from OSM
     out_dir=Path("results")
 )
 
-print(f"Results saved to: {outputs.metrics_csv}")
+print(f"GeoPackage: {outputs.gpkg_path}")
+print(f"Web map: {outputs.webmap_html}")
 ```
 
-### Learn More
+### Road QC API
 
-For complete Python API documentation, see:
-- **[API Reference](api-reference.md)** — Full class and method documentation
-- **[Examples](examples.md)** — Python integration examples
-- **[Tutorial 7: Automating QC with Python](tutorials/07-automating-qc-with-python.md)** — Step-by-step automation guide
+```python
+from pathlib import Path
+from ovc.road_qc import run_road_qc
+
+outputs = run_road_qc(
+    boundary_path=Path("data/boundary.shp"),
+    out_dir=Path("results/road_qc")
+)
+
+print(f"Total errors: {outputs.total_errors}")
+print(f"Top 3 errors: {outputs.top_3_errors}")
+```
+
+### Combined Pipeline
+
+```python
+from pathlib import Path
+from ovc.export.pipeline import run_pipeline
+from ovc.road_qc import run_road_qc
+
+boundary = Path("data/boundary.shp")
+out = Path("results")
+
+# Run Building QC
+building_outputs = run_pipeline(
+    boundary_path=boundary,
+    out_dir=out
+)
+
+# Run Road QC
+road_outputs = run_road_qc(
+    boundary_path=boundary,
+    out_dir=out / "road_qc"
+)
+
+print(f"Building errors: see {building_outputs.gpkg_path}")
+print(f"Road errors: {road_outputs.total_errors}")
+```
 
 ---
 
@@ -672,36 +637,6 @@ For complete Python API documentation, see:
 2. **Process in projected CRS** for accurate area calculations
 3. **Limit analysis extent** to areas of interest
 4. **Close unnecessary applications** to free memory
-
-### Integration with GIS Software
-
-**QGIS:**
-```
-1. Drag and drop GeoJSON files into QGIS
-2. Style by severity attribute
-3. Use "Identify Features" tool to inspect violations
-```
-
-**ArcGIS Pro:**
-```
-1. Add Data → Navigate to output directory
-2. Import GeoJSON or convert to Shapefile
-3. Symbolize by attributes
-```
-
-**Python/GeoPandas:**
-```python
-import geopandas as gpd
-
-# Load results
-overlaps = gpd.read_file('outputs/building_overlaps.geojson')
-
-# Filter high severity
-critical = overlaps[overlaps['severity'] == 'high']
-
-# Spatial join with original data
-result = gpd.sjoin(buildings, overlaps, how='left')
-```
 
 ---
 
