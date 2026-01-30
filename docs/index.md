@@ -12,7 +12,7 @@ title: OVC – Overlap Violation Checker
 **A modular spatial quality control framework for detecting geometric and topological issues in OpenStreetMap‑like datasets**
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v1.0.1-blue.svg" />
+  <img src="https://img.shields.io/badge/version-v1.0.2-blue.svg" />
   <img src="https://img.shields.io/badge/license-MIT-green.svg" />
   <img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" />
 </p>
@@ -29,17 +29,21 @@ title: OVC – Overlap Violation Checker
 
 OVC is a **Python‑based spatial quality control framework** designed to identify geometric and topological issues in geospatial datasets, with a strong focus on OpenStreetMap‑derived data.
 
-It detects:
-- overlapping and duplicate building geometries
-- boundary containment violations
-- road–building and road–road conflicts
-- common topology errors affecting spatial integrity
+**Building QC** detects:
+- Overlapping and duplicate building geometries
+- Boundary containment violations
+- Road–building conflicts
+
+**Road QC** (New in v1.0.2) detects:
+- Disconnected road segments not connected to the network
+- Self-intersecting roads
+- Dangle endpoints (dead ends, incomplete digitization)
 
 OVC is built around **clear architectural boundaries**, making it suitable for:
-- command‑line usage
-- automated QC pipelines
-- integration into GIS and ETL workflows
-- extension by contributors and advanced users
+- Command‑line usage
+- Automated QC pipelines
+- Integration into GIS and ETL workflows
+- Extension by contributors and advanced users
 
 ---
 
@@ -72,11 +76,21 @@ For architectural details, see:
 
 ## Core Capabilities
 
-### Geometry Validation
-- Detect overlapping and duplicate building footprints
-- Identify partial and full containment violations
-- Flag self‑intersections and invalid geometries
-- Classify issues by severity and impact
+### Building QC
+
+| Check | Description |
+|-------|-------------|
+| **Overlap Detection** | Identify duplicate and partial building overlaps |
+| **Boundary Compliance** | Flag buildings outside or crossing boundaries |
+| **Road Conflicts** | Detect buildings intersecting road buffers |
+
+### Road QC (New in v1.0.2)
+
+| Check | Description |
+|-------|-------------|
+| **Disconnected Segments** | Roads not connected to the network |
+| **Self-Intersections** | Roads that cross themselves |
+| **Dangles** | Dead-end endpoints (filters boundary edges) |
 
 ### Data Handling
 - Accept user‑provided datasets or fetch data from OpenStreetMap
@@ -85,8 +99,8 @@ For architectural details, see:
 - Scale to large datasets through spatial indexing
 
 ### Output & Reporting
-- Export violations as **GeoJSON** and **CSV**
-- Generate interactive **HTML web maps** for visual inspection
+- Export violations as **GeoPackage** and **CSV**
+- Generate interactive **HTML web maps** with legends
 - Produce analysis‑ready outputs for GIS software
 - Maintain consistent, structured result schemas
 
@@ -104,6 +118,11 @@ For architectural details, see:
 - Pre‑publication validation of OSM contributions
 - Continuous QC for institutional OSM deployments
 - Compliance checks against administrative boundaries
+
+### Road Network Analysis
+- Detect disconnected road segments
+- Find incomplete digitization (dangles)
+- Identify self-intersecting roads
 
 ### GIS & ETL Workflows
 - Cleaning building inventories before analysis
@@ -136,16 +155,23 @@ venv\Scripts\activate       # Windows
 
 Install dependencies:
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ### Quick Start
 
-Run a basic overlap check on your building data:
-
+**Building QC only:**
 ```bash
 python scripts/run_qc.py \
   --buildings path/to/buildings.shp \
+  --out outputs
+```
+
+**Building + Road QC:**
+```bash
+python scripts/run_qc.py \
+  --boundary path/to/boundary.geojson \
+  --road-qc \
   --out outputs
 ```
 
@@ -155,15 +181,25 @@ For more usage options, see the **[User Guide](user-guide.md)**.
 
 ## Outputs
 
-The pipeline generates the following:
+Both modules produce outputs in a unified folder structure:
+
+```
+outputs/
+├── building_qc/
+│   ├── building_qc.gpkg          # GeoPackage with layers
+│   ├── building_qc_map.html      # Interactive web map
+│   └── building_qc_metrics.csv   # Summary metrics
+└── road_qc/                      # Only when --road-qc is enabled
+    ├── road_qc.gpkg
+    ├── road_qc_map.html
+    └── road_qc_metrics.csv
+```
 
 | Output Type | Description |
 |------------|-------------|
-| **GeoJSON files** | Spatial layers containing detected issues |
+| **GeoPackage** | Spatial layers containing detected issues |
 | **CSV reports** | Summary statistics and metrics |
 | **HTML web map** | Interactive map for visual inspection |
-
-All outputs are saved to the specified `output_dir`.
 
 ---
 
@@ -175,8 +211,9 @@ All outputs are saved to the specified `output_dir`.
 - PyProj
 - Pandas
 - Folium
+- OSMnx
 
-For the complete dependency list, refer to `requirements.txt`.
+For the complete dependency list, refer to `pyproject.toml`.
 
 ---
 
