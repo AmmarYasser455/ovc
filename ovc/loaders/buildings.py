@@ -31,7 +31,7 @@ def load_buildings(
     boundary_4326: gpd.GeoDataFrame, tags: dict, parts: int = 9
 ) -> gpd.GeoDataFrame:
     boundary_4326 = ensure_wgs84(boundary_4326)
-    aoi = boundary_4326.unary_union
+    aoi = boundary_4326.union_all()
 
     nx, ny = 3, 3
     cells = _split_bounds(aoi.bounds, nx, ny)

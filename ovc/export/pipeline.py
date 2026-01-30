@@ -86,7 +86,7 @@ def run_pipeline(
     if boundary_path is not None:
         boundary = load_boundary_shapefile(boundary_path)
         crs_pair = get_crs_pair(boundary.gdf_4326)
-        boundary_union_4326 = boundary.gdf_4326.unary_union
+        boundary_union_4326 = boundary.gdf_4326.union_all()
         boundary_name = boundary.name
         boundary_4326_for_outputs = boundary.gdf_4326
         boundary_metric_for_checks = boundary.gdf_4326.to_crs(crs_pair.crs_metric)[
@@ -114,7 +114,7 @@ def run_pipeline(
     if boundary is None:
         crs_pair = get_crs_pair(buildings_4326)
         boundary_4326_for_outputs = gpd.GeoDataFrame(
-            geometry=[buildings_4326.unary_union],
+            geometry=[buildings_4326.union_all()],
             crs=4326,
         )
 

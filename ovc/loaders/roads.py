@@ -22,7 +22,7 @@ def load_roads(boundary_4326: gpd.GeoDataFrame, tags: dict) -> gpd.GeoDataFrame:
 
     boundary_4326 = ensure_wgs84(boundary_4326)
 
-    aoi_geom = boundary_4326.unary_union
+    aoi_geom = boundary_4326.union_all()
 
     try:
         gdf = ox.features_from_polygon(aoi_geom, tags)

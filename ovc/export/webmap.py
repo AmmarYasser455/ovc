@@ -74,9 +74,9 @@ def write_webmap(
     # Determine center
     if boundary_4326 is not None and not boundary_4326.empty:
         b = boundary_4326.to_crs(4326)
-        c = b.unary_union.centroid
+        c = b.union_all().centroid
     elif buildings_clean_4326 is not None and not buildings_clean_4326.empty:
-        c = buildings_clean_4326.to_crs(4326).unary_union.centroid
+        c = buildings_clean_4326.to_crs(4326).union_all().centroid
     else:
         c = type("obj", (object,), {"x": 31.0, "y": 30.0})()
 
