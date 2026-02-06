@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo.png" alt="OVC Logo" width="300"/>
+<img src="docs/assets/logo.png" alt="OVC Logo" width="300"/>
 
 # OVC Architecture Overview
 
