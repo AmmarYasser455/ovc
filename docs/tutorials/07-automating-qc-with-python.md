@@ -35,30 +35,30 @@ class AutomatedQC:
         """Initialize automated QC system"""
         self.config = self.load_config(config_file)
         self.pipeline_outputs = None
-        
+
     def load_config(self, config_file):
         """Load configuration from YAML file"""
         with open(config_file) as f:
             return yaml.safe_load(f)
-    
+
     def run_qc(self):
         """Execute quality control checks"""
         print("Running QC checks...")
-        
+
         from ovc.export.pipeline import run_pipeline
-        
+
         # Convert string paths to Path objects
         buildings_path = Path(self.config['buildings_path'])
         output_dir = Path(self.config['output_dir'])
-        
+
         roads_path = self.config.get('roads_path')
         if roads_path:
             roads_path = Path(roads_path)
-            
+
         boundary_path = self.config.get('boundary_path')
         if boundary_path:
             boundary_path = Path(boundary_path)
-        
+
         # Run the pipeline
         self.pipeline_outputs = run_pipeline(
             boundary_path=boundary_path,
@@ -66,27 +66,27 @@ class AutomatedQC:
             roads_path=roads_path,
             out_dir=output_dir
         )
-        
+
         print(f"Pipeline finished. Results at: {self.pipeline_outputs.gpkg_path}")
         return self.pipeline_outputs
-    
+
     def analyze_results(self):
         """Analyze QC results from the generated GeoPackage"""
         print("Analyzing results...")
-        
+
         if not self.pipeline_outputs:
             print("Error: Pipeline has not run yet.")
             return {}
 
         gpkg_path = self.pipeline_outputs.gpkg_path
-        
+
         try:
             # Read errors layer from GeoPackage
             errors = gpd.read_file(gpkg_path, layer='errors')
         except Exception:
             # Layer might not exist if no errors found
             errors = gpd.GeoDataFrame()
-            
+
         self.metrics = {
             'total_issues': len(errors),
             'building_overlaps': len(errors[errors['error_type'] == 'building_overlap']),
@@ -94,31 +94,31 @@ class AutomatedQC:
             'road_conflicts': len(errors[errors['error_type'] == 'building_on_road']),
             'critical_count': len(errors[errors['error_class'] == 'duplicate']) if not errors.empty else 0,
         }
-        
+
         # Print summary
         for k, v in self.metrics.items():
             print(f"- {k}: {v}")
-            
+
         return self.metrics
-    
+
     def check_thresholds(self):
         """Check if results exceed acceptable thresholds"""
         thresholds = self.config.get('thresholds', {})
-        
+
         issues = []
-        
+
         if self.metrics['critical_count'] > thresholds.get('max_critical', 0):
             issues.append(
                 f"Critical errors ({self.metrics['critical_count']}) exceed threshold"
             )
-        
+
         if self.metrics['total_issues'] > thresholds.get('max_total', 100):
             issues.append(
                 f"Total issues ({self.metrics['total_issues']}) exceed threshold"
             )
-        
+
         return issues
-    
+
     def generate_report(self):
         """Generate simple HTML report"""
         html = f"""
@@ -127,7 +127,7 @@ class AutomatedQC:
         <body>
             <h1>Quality Control Report</h1>
             <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-            
+
             <h2>Summary</h2>
             <table border="1">
                 <tr><td>Total Issues</td><td>{self.metrics['total_issues']}</td></tr>
@@ -135,39 +135,39 @@ class AutomatedQC:
                 <tr><td>Boundary Violations</td><td>{self.metrics['boundary_violations']}</td></tr>
                 <tr><td>Road Conflicts</td><td>{self.metrics['road_conflicts']}</td></tr>
             </table>
-            
+
             <h2>Status</h2>
             <p>{'✅ PASSED' if len(self.check_thresholds()) == 0 else '❌ FAILED'}</p>
         </body>
         </html>
         """
-        
+
         report_path = self.pipeline_outputs.webmap_html.parent / 'email_report.html'
         with open(report_path, 'w') as f:
             f.write(html)
-        
+
         return report_path
-    
+
     def send_notification(self, report_path):
         """Send email notification (Simulated)"""
         if 'email' not in self.config:
             print("Email configuration not found, skipping notification")
             return
-            
+
         print(f"📧 Sending notification to {self.config['email']['to']}...")
         # (Email sending logic...)
         print("✅ Notification sent successfully")
-    
+
     def run(self):
         """Run complete automated QC workflow"""
         print("="*60)
         print("Automated QC System")
         print("="*60)
-        
+
         self.run_qc()
         self.analyze_results()
         report_path = self.generate_report()
-        
+
         issues = self.check_thresholds()
         if issues:
             print("\n⚠️ Threshold violations:")
@@ -175,9 +175,9 @@ class AutomatedQC:
                 print(f"  - {issue}")
         else:
             print("\n✅ All thresholds passed")
-        
+
         self.send_notification(report_path)
-        
+
         print("\n" + "="*60)
         print("QC complete!")
         return len(issues) == 0

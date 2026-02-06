@@ -66,7 +66,11 @@ def find_dangles(
     boundary_buffer = None
     if boundary_metric is not None and not boundary_metric.empty:
         # Buffer the boundary line by tolerance
-        boundary_union = boundary_metric.union_all() if hasattr(boundary_metric, 'union_all') else boundary_metric.unary_union
+        boundary_union = (
+            boundary_metric.union_all()
+            if hasattr(boundary_metric, "union_all")
+            else boundary_metric.unary_union
+        )
         boundary_buffer = boundary_union.boundary.buffer(tolerance * 3)
 
     # Extract all endpoints with their coordinates (rounded for matching)
@@ -83,13 +87,17 @@ def find_dangles(
                 continue
 
             # Round to tolerance for grouping
-            key = (round(pt.x / tolerance) * tolerance,
-                   round(pt.y / tolerance) * tolerance)
-            endpoints.append({
-                "road_id": row["road_id"],
-                "point": pt,
-                "key": key,
-            })
+            key = (
+                round(pt.x / tolerance) * tolerance,
+                round(pt.y / tolerance) * tolerance,
+            )
+            endpoints.append(
+                {
+                    "road_id": row["road_id"],
+                    "point": pt,
+                    "key": key,
+                }
+            )
 
     if not endpoints:
         return gpd.GeoDataFrame(
@@ -108,11 +116,13 @@ def find_dangles(
     for ep in endpoints:
         key = ep["key"]
         if key_counts[key] == 1 and key not in seen_keys:
-            dangles.append({
-                "road_id": ep["road_id"],
-                "error_type": "dangle",
-                "geometry": ep["point"],
-            })
+            dangles.append(
+                {
+                    "road_id": ep["road_id"],
+                    "error_type": "dangle",
+                    "geometry": ep["point"],
+                }
+            )
             seen_keys.add(key)
 
     if not dangles:

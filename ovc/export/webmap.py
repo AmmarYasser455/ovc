@@ -4,10 +4,9 @@ from pathlib import Path
 import folium
 import geopandas as gpd
 
-
 # Colors (from main branch styling)
-OVERLAP_COLOR = "#ff0000"         # Red
-ROAD_CONFLICT_COLOR = "#ffff00"   # Yellow
+OVERLAP_COLOR = "#ff0000"  # Red
+ROAD_CONFLICT_COLOR = "#ffff00"  # Yellow
 OUTSIDE_BOUNDARY_COLOR = "#ff8c00"  # Orange
 CLEAN_BUILDINGS_COLOR = "#90ee90"  # Light green
 BOUNDARY_COLOR = "#1e1e1e"

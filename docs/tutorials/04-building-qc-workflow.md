@@ -151,7 +151,7 @@ from datetime import datetime
 def generate_report(results_dir, output_file):
     """Generate comprehensive QC report"""
     results_dir = Path(results_dir)
-    
+
     # Load results
     try:
         overlaps = gpd.read_file(results_dir / 'building_overlaps.geojson')
@@ -160,7 +160,7 @@ def generate_report(results_dir, output_file):
     except Exception as e:
         print(f"Error loading results: {e}")
         return
-    
+
     # Calculate statistics
     stats = {
         'Report Date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -175,21 +175,21 @@ def generate_report(results_dir, output_file):
         'Average Overlap Area': overlaps['overlap_area'].mean() if len(overlaps) > 0 else 0,
         'Max Overlap Area': overlaps['overlap_area'].max() if len(overlaps) > 0 else 0,
     }
-    
+
     # Create DataFrame
     report_df = pd.DataFrame([stats]).T
     report_df.columns = ['Value']
-    
+
     # Save report
     report_df.to_csv(output_file)
-    
+
     # Print summary
     print("\n" + "="*60)
     print("QC SUMMARY REPORT")
     print("="*60)
     print(report_df.to_string())
     print("="*60 + "\n")
-    
+
     # Generate recommendations
     if stats['Critical Overlaps'] > 0:
         print("⚠️  CRITICAL: Immediate action required for critical overlaps")
@@ -197,14 +197,14 @@ def generate_report(results_dir, output_file):
         print("⚠️  WARNING: Buildings outside boundary detected")
     if stats['Total Issues'] == 0:
         print("✅ SUCCESS: No issues detected!")
-    
+
     print(f"\nDetailed report saved to: {output_file}")
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Usage: python generate_report.py <results_dir> <output_file>")
         sys.exit(1)
-    
+
     generate_report(sys.argv[1], sys.argv[2])
 ```
 

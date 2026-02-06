@@ -8,7 +8,6 @@ from ovc.road_qc.checks.self_intersection import find_self_intersections
 from ovc.road_qc.checks.dangles import find_dangles
 from ovc.road_qc.metrics import compute_road_qc_metrics, merge_errors
 
-
 CONFIG = RoadQCConfig()
 
 
@@ -93,7 +92,13 @@ def test_metrics_computation():
     errors = gpd.GeoDataFrame(
         {
             "road_id": ["r1", "r2", "r3", "r4", "r5"],
-            "error_type": ["dangle", "dangle", "dangle", "disconnected_segment", "self_intersection"],
+            "error_type": [
+                "dangle",
+                "dangle",
+                "dangle",
+                "disconnected_segment",
+                "self_intersection",
+            ],
         },
         geometry=[Point(0, 0)] * 5,
         crs=3857,

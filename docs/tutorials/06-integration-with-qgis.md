@@ -81,7 +81,7 @@ nav_order: 6
 
 1. Open Attribute Table for "building_overlaps"
 2. Select by Expression
-3. Expression: 
+3. Expression:
    ```sql
    "building_a" IN (
      SELECT "building_a"
