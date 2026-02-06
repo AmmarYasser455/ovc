@@ -111,7 +111,7 @@ After editing in OSM:
 python scripts/run_qc.py \
   --boundary data/my_area.geojson \
   --out results/osm_qc_after_fixes
-  
+
 # Compare results
 diff results/osm_qc/summary_statistics.csv \
      results/osm_qc_after_fixes/summary_statistics.csv

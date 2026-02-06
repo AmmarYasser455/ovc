@@ -46,10 +46,10 @@ def calculate_priority_score(row):
         'medium': 50,
         'low': 25
     }
-    
+
     base_score = severity_scores.get(row['severity'], 0)
     area_score = min(row['overlap_area'] / 10, 50)  # Max 50 points for area
-    
+
     return base_score + area_score
 
 # Add priority scores
@@ -99,7 +99,7 @@ for cluster_id in cluster_counts.head(5).index:
 def categorize_overlap(row):
     pct_a = row['overlap_pct_a']
     pct_b = row['overlap_pct_b']
-    
+
     if pct_a > 95 and pct_b > 95:
         return 'duplicate'
     elif pct_a > 90 or pct_b > 90:
@@ -127,14 +127,14 @@ for issue_type in overlaps['issue_type'].unique():
 def recommend_fix(row):
     """Generate fix recommendation based on issue type"""
     issue_type = row['issue_type']
-    
+
     recommendations = {
         'duplicate': 'DELETE: Remove one of the duplicate buildings',
         'near_duplicate': 'MERGE: Combine geometries and verify',
         'major_overlap': 'EDIT: Adjust boundaries to remove overlap',
         'minor_overlap': 'REVIEW: Verify if overlap is acceptable'
     }
-    
+
     return recommendations.get(issue_type, 'REVIEW: Manual inspection needed')
 
 overlaps['recommendation'] = overlaps.apply(recommend_fix, axis=1)

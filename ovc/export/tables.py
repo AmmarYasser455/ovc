@@ -26,11 +26,13 @@ def write_metrics_csv(path: Path, metrics: dict) -> None:
         else:
             category = "other"
 
-        rows.append({
-            "category": category,
-            "metric": key,
-            "value": value,
-        })
+        rows.append(
+            {
+                "category": category,
+                "metric": key,
+                "value": value,
+            }
+        )
 
     df = pd.DataFrame(rows)
     df.to_csv(path, index=False)

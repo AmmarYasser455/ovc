@@ -55,21 +55,27 @@ def find_self_intersections(
             if boundary is not None and not boundary.is_empty:
                 # For non-simple lines, the intersection points can be found
                 # by detecting where the line crosses itself
-                inter = geom.intersection(geom.buffer(config.self_intersection_buffer_m))
+                inter = geom.intersection(
+                    geom.buffer(config.self_intersection_buffer_m)
+                )
                 if inter is not None and not inter.is_empty:
                     # Extract centroid as representative point
-                    errors.append({
-                        "road_id": road_id,
-                        "error_type": "self_intersection",
-                        "geometry": geom.centroid,
-                    })
+                    errors.append(
+                        {
+                            "road_id": road_id,
+                            "error_type": "self_intersection",
+                            "geometry": geom.centroid,
+                        }
+                    )
         except Exception:
             # Fallback: just mark the road as having self-intersection
-            errors.append({
-                "road_id": road_id,
-                "error_type": "self_intersection",
-                "geometry": geom.centroid,
-            })
+            errors.append(
+                {
+                    "road_id": road_id,
+                    "error_type": "self_intersection",
+                    "geometry": geom.centroid,
+                }
+            )
 
     if not errors:
         return gpd.GeoDataFrame(

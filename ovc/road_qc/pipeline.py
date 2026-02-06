@@ -94,9 +94,7 @@ def run_road_qc(
         log.info(f"Downloading roads from OSM within boundary {boundary_path}")
         roads_4326 = load_roads(boundary_4326, {"highway": True})
     else:
-        raise ValueError(
-            "Must provide one of: roads_path, roads_gdf, or boundary_path"
-        )
+        raise ValueError("Must provide one of: roads_path, roads_gdf, or boundary_path")
 
     gpkg_path = out_dir / "road_qc.gpkg"
     metrics_csv = out_dir / "road_qc_metrics.csv"
@@ -111,9 +109,11 @@ def run_road_qc(
         )
         empty_gdf.to_file(gpkg_path, layer="errors", driver="GPKG")
 
-        pd.DataFrame([
-            {"metric": "total_errors", "value": 0},
-        ]).to_csv(metrics_csv, index=False)
+        pd.DataFrame(
+            [
+                {"metric": "total_errors", "value": 0},
+            ]
+        ).to_csv(metrics_csv, index=False)
 
         return RoadQCOutputs(
             gpkg_path=gpkg_path,

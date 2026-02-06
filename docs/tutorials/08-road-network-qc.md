@@ -8,8 +8,8 @@ parent: Tutorials
 
 Learn how to detect and analyze road network issues using OVC's Road QC module.
 
-**Difficulty:** Intermediate  
-**Time:** 20 minutes  
+**Difficulty:** Intermediate
+**Time:** 20 minutes
 **Version:** v1.0.2
 
 ---

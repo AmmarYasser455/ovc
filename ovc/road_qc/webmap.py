@@ -9,10 +9,10 @@ from folium.plugins import Fullscreen
 # Color scheme for road QC errors
 ROAD_QC_COLORS = {
     "disconnected_segment": "#e74c3c",  # Red
-    "self_intersection": "#9b59b6",      # Purple
-    "dangle": "#f39c12",                 # Orange
-    "road": "#3498db",                   # Blue (for reference roads layer)
-    "boundary": "#1e1e1e",               # Dark gray
+    "self_intersection": "#9b59b6",  # Purple
+    "dangle": "#f39c12",  # Orange
+    "road": "#3498db",  # Blue (for reference roads layer)
+    "boundary": "#1e1e1e",  # Dark gray
 }
 
 COPYRIGHT = "© OVC — Overlap Violation Checker"
@@ -62,7 +62,10 @@ def generate_road_qc_webmap(
     # Ensure WGS84
     if roads_gdf is not None and not roads_gdf.empty:
         roads_4326 = roads_gdf.to_crs(4326) if roads_gdf.crs != 4326 else roads_gdf
-        center = [roads_4326.geometry.centroid.y.mean(), roads_4326.geometry.centroid.x.mean()]
+        center = [
+            roads_4326.geometry.centroid.y.mean(),
+            roads_4326.geometry.centroid.x.mean(),
+        ]
     else:
         center = [30.0, 31.0]  # Default: Egypt
 
@@ -81,7 +84,9 @@ def generate_road_qc_webmap(
 
     # Add boundary layer if provided
     if boundary_gdf is not None and not boundary_gdf.empty:
-        boundary_4326 = boundary_gdf.to_crs(4326) if boundary_gdf.crs != 4326 else boundary_gdf
+        boundary_4326 = (
+            boundary_gdf.to_crs(4326) if boundary_gdf.crs != 4326 else boundary_gdf
+        )
         folium.GeoJson(
             boundary_4326,
             name="Boundary",
@@ -96,7 +101,11 @@ def generate_road_qc_webmap(
     if roads_gdf is not None and not roads_gdf.empty:
         roads_layer = folium.FeatureGroup(name="Roads (reference)", show=True)
         folium.GeoJson(
-            roads_4326[["road_id", "geometry"]] if "road_id" in roads_4326.columns else roads_4326[["geometry"]],
+            (
+                roads_4326[["road_id", "geometry"]]
+                if "road_id" in roads_4326.columns
+                else roads_4326[["geometry"]]
+            ),
             style_function=lambda x: {
                 "color": ROAD_QC_COLORS["road"],
                 "weight": 2,
@@ -115,7 +124,9 @@ def generate_road_qc_webmap(
 
         for error_type in error_types:
             error_subset = errors_4326[errors_4326["error_type"] == error_type]
-            layer = folium.FeatureGroup(name=f"{error_type.replace('_', ' ').title()} ({len(error_subset)})")
+            layer = folium.FeatureGroup(
+                name=f"{error_type.replace('_', ' ').title()} ({len(error_subset)})"
+            )
 
             # Check if points or lines
             geom_types = error_subset.geometry.type.unique()

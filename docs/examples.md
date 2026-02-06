@@ -264,14 +264,14 @@ DISTRICTS=(
 
 for district in "${DISTRICTS[@]}"; do
   name=$(basename "$district" .geojson)
-  
+
   echo "Processing $name..."
-  
+
   python scripts/run_qc.py \
     --boundary "boundaries/$district" \
     --out "results/$name" \
     --verbose
-    
+
   echo "Completed $name"
 done
 
@@ -360,19 +360,19 @@ def main():
             roads_path=Path("data/roads.gpkg"),
             out_dir=Path("results/automated_qc")
         )
-        
+
         # Note: Analysis would normally read the generated GPKG/CSV here
         # For simplicity we just report success
-        
+
         message = f"""
         QC Complete!
         ============
         Results saved to: {outputs.gpkg_path}
         Report: {outputs.webmap_html}
         """
-        
+
         send_notification(f"✅ Workflow finished!\n{message}")
-            
+
     except Exception as e:
         send_notification(f"❌ QC Failed: {str(e)}")
         sys.exit(1)
@@ -493,34 +493,34 @@ on:
 jobs:
   quality-control:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-      
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-        
+
     - name: Install GDAL
       run: |
         sudo apt-get update
         sudo apt-get install -y gdal-bin libgdal-dev
-        
+
     - name: Install OVC
       run: |
         git clone https://github.com/AmmarYasser455/ovc.git
         cd ovc
         pip install -r requirements.txt
-        
+
     - name: Run QC
       run: |
         python ovc/scripts/run_qc.py \
           --buildings data/buildings/latest.gpkg \
           --boundary data/boundaries/aoi.geojson \
           --out results/qc
-          
+
     - name: Check for issues
       run: |
         OVERLAPS=$(wc -l < results/qc/building_overlaps.csv)
@@ -528,7 +528,7 @@ jobs:
           echo "::error::Found $OVERLAPS overlapping buildings"
           exit 1
         fi
-        
+
     - name: Upload results
       uses: actions/upload-artifact@v3
       with:
@@ -558,11 +558,11 @@ BOUNDARIES=(
 run_qc() {
   boundary=$1
   name=$(basename "$boundary" .geojson)
-  
+
   python scripts/run_qc.py \
     --boundary "boundaries/$boundary" \
     --out "results/$name"
-  
+
   echo "✅ Completed $name"
 }
 
@@ -644,12 +644,12 @@ from pathlib import Path
 
 def generate_report(results_dir):
     results_dir = Path(results_dir)
-    
+
     # Load results
     overlaps = gpd.read_file(results_dir / 'building_overlaps.geojson')
     boundaries = gpd.read_file(results_dir / 'boundary_violations.geojson')
     roads = gpd.read_file(results_dir / 'road_conflicts.geojson')
-    
+
     # Generate statistics
     report = {
         'Total Overlaps': len(overlaps),
@@ -661,21 +661,21 @@ def generate_report(results_dir):
         'Road Conflicts': len(roads),
         'Total Issues': len(overlaps) + len(boundaries) + len(roads)
     }
-    
+
     # Create report
     report_df = pd.DataFrame([report]).T
     report_df.columns = ['Count']
-    
+
     # Save to CSV
     report_df.to_csv(results_dir / 'qc_summary_report.csv')
-    
+
     # Print summary
     print("\n" + "="*50)
     print("QC SUMMARY REPORT")
     print("="*50)
     print(report_df)
     print("="*50 + "\n")
-    
+
     return report
 
 # Run
@@ -709,7 +709,7 @@ large_overlaps = overlaps[overlaps['overlap_area'] > 50]
 
 # Filter high percentage overlaps (>30%)
 high_pct_overlaps = overlaps[
-    (overlaps['overlap_pct_a'] > 30) | 
+    (overlaps['overlap_pct_a'] > 30) |
     (overlaps['overlap_pct_b'] > 30)
 ]
 
@@ -749,12 +749,12 @@ DATES=("2024-01" "2024-06" "2024-12")
 
 for date in "${DATES[@]}"; do
   echo "Processing $date..."
-  
+
   # Extract buildings for this date
   ogr2ogr -where "date_created <= '$date-31'" \
     "buildings_$date.shp" \
     all_buildings.shp
-  
+
   # Run QC
   python scripts/run_qc.py \
     --buildings "buildings_$date.shp" \
