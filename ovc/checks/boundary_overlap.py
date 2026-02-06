@@ -14,7 +14,7 @@ def find_buildings_touching_boundary(
     if boundary_metric is None or boundary_metric.empty:
         return gpd.GeoDataFrame(geometry=[], crs=buildings_metric.crs)
 
-    boundary_union = boundary_metric.unary_union
+    boundary_union = boundary_metric.union_all()
     boundary_line = getattr(boundary_union, "boundary", boundary_union)
 
     buf = (
