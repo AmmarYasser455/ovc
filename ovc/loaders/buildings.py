@@ -33,7 +33,8 @@ def load_buildings(
     boundary_4326 = ensure_wgs84(boundary_4326)
     aoi = boundary_4326.union_all()
 
-    nx, ny = 3, 3
+    side = max(1, int(parts ** 0.5))
+    nx, ny = side, side
     cells = _split_bounds(aoi.bounds, nx, ny)
     chunks = []
 
@@ -53,14 +54,29 @@ def load_buildings(
 
         gdf = gdf[gdf.geometry.type.isin(["Polygon", "MultiPolygon"])].copy()
         gdf = drop_empty_and_fix(gdf)
+
+        # Preserve real OSM IDs from osmnx MultiIndex before concat
+        gdf = gdf.reset_index(drop=False)
+        if "osmid" not in gdf.columns:
+            if "element_type" in gdf.columns and "osmid" in gdf.columns:
+                pass  # already present
+            elif gdf.index.name == "osmid":
+                gdf = gdf.reset_index()
+            else:
+                gdf["osmid"] = gdf.index.astype(str)
+        gdf["osmid"] = gdf["osmid"].astype(str)
+
         chunks.append(gdf)
 
     if not chunks:
         return gpd.GeoDataFrame(geometry=[], crs=4326)
 
     out = gpd.GeoDataFrame(pd.concat(chunks, ignore_index=True), crs=4326)
-    out = out.reset_index(drop=False).rename(columns={"index": "osmid"})
-    out["osmid"] = out["osmid"].astype(str)
+
+    # Deduplicate buildings fetched from overlapping grid cells
+    if "osmid" in out.columns:
+        out = out.drop_duplicates(subset="osmid", keep="first")
+
     out = out[out.intersects(aoi)].copy()
     out = out.reset_index(drop=True)
     return out

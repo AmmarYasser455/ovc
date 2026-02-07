@@ -61,6 +61,8 @@ def find_dangles(
         roads["road_id"] = roads.index.astype(str)
 
     tolerance = config.dangle_tolerance_m
+    if tolerance <= 0:
+        tolerance = 1.0  # Guard against zero division
 
     # Get boundary buffer for filtering edge endpoints
     boundary_buffer = None

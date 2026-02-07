@@ -123,6 +123,12 @@ def main():
 
     # Run road QC if enabled
     if args.road_qc:
+        if roads_path is None and boundary_path is None:
+            logger.error(
+                "Road QC requires either --roads or --boundary to be provided."
+            )
+            sys.exit(1)
+
         from ovc.road_qc import run_road_qc
 
         logger.info("Running Road QC checks...")

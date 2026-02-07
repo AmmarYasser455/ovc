@@ -79,23 +79,30 @@ def find_disconnected_segments(
     tolerance = config.disconnect_tolerance_m
     disconnected_ids = set()
 
+    # Use spatial index for efficient neighbor lookup
+    sindex = ep_gdf.sindex
+
     for road_id in roads["road_id"].unique():
         road_endpoints = ep_gdf[ep_gdf["road_id"] == road_id]
-        other_endpoints = ep_gdf[ep_gdf["road_id"] != road_id]
 
-        if other_endpoints.empty:
-            # Only one road, always disconnected
-            disconnected_ids.add(road_id)
-            continue
-
-        # Check if any endpoint connects to another road
+        # Check if any endpoint connects to another road via spatial index
         connected = False
         for _, ep in road_endpoints.iterrows():
             pt = ep["point"]
-            # Check distance to all other endpoints
-            distances = other_endpoints.geometry.distance(pt)
-            if (distances <= tolerance).any():
-                connected = True
+            # Query spatial index with buffered bounds
+            minx, miny, maxx, maxy = (
+                pt.x - tolerance, pt.y - tolerance,
+                pt.x + tolerance, pt.y + tolerance,
+            )
+            candidates = list(sindex.intersection((minx, miny, maxx, maxy)))
+            for idx in candidates:
+                candidate = ep_gdf.iloc[idx]
+                if candidate["road_id"] == road_id:
+                    continue
+                if pt.distance(candidate["point"]) <= tolerance:
+                    connected = True
+                    break
+            if connected:
                 break
 
         if not connected:

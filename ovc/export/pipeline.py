@@ -225,12 +225,22 @@ def run_pipeline(
         outside_boundary_metric["error_type"] = "outside_boundary"
         outside_boundary_metric["error_class"] = "outside"
 
+    # Include boundary overlap buildings in merged errors
+    boundary_overlap_buildings_metric = gpd.GeoDataFrame(
+        geometry=[], crs=buildings_metric.crs
+    )
+    if boundary_overlap_metric is not None and not boundary_overlap_metric.empty:
+        boundary_overlap_buildings_metric = boundary_overlap_metric.copy()
+        if "error_class" not in boundary_overlap_buildings_metric.columns:
+            boundary_overlap_buildings_metric["error_class"] = "boundary"
+
     errors_metric = _merge_errors(
         overlap_buildings_metric,
         road_conflict_buildings_metric,
         outside_boundary_metric[
             ["osmid", "bldg_id", "error_type", "error_class", "geometry"]
         ],
+        boundary_overlap_buildings_metric,
     )
 
     error_ids = set(errors_metric["bldg_id"])

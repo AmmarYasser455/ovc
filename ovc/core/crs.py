@@ -16,6 +16,7 @@ def choose_utm_crs_from_gdf(gdf_4326: gpd.GeoDataFrame) -> CRS:
     c = gdf_4326.union_all().centroid
     lon, lat = float(c.x), float(c.y)
     zone = int((lon + 180) // 6) + 1
+    zone = max(1, min(zone, 60))  # Clamp to valid UTM zone range
     epsg = 32600 + zone if lat >= 0 else 32700 + zone
     return CRS.from_epsg(epsg)
 
