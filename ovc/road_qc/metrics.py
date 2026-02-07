@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import geopandas as gpd
 import pandas as pd
-from collections import Counter
 
 
 def compute_road_qc_metrics(errors: gpd.GeoDataFrame) -> dict:

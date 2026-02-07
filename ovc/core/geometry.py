@@ -22,11 +22,11 @@ def clip_to_boundary(
         return gdf
     if boundary is None or boundary.empty:
         return gdf
-    boundary_union = boundary.unary_union
+    boundary_union = boundary.union_all()
     try:
         out = gdf[gdf.intersects(boundary_union)].copy()
         out["geometry"] = out.geometry.intersection(boundary_union)
-        out = out[out.geometry.notna()].copy()
+        out = out[out.geometry.notna() & ~out.geometry.is_empty].copy()
         return out
     except Exception:
         return gdf

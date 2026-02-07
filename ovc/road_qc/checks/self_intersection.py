@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import geopandas as gpd
-from shapely.geometry import Point, MultiPoint
 
 from ovc.road_qc.config import RoadQCConfig
 
@@ -45,37 +44,15 @@ def find_self_intersections(
         if geom.is_simple:
             continue
 
-        # Non-simple geometry: find intersection points
+        # Non-simple geometry: mark as self-intersecting
         road_id = row["road_id"]
-
-        # Get the self-intersection point(s) using unary_union trick
-        try:
-            # Buffer slightly and get boundary intersections
-            boundary = geom.boundary
-            if boundary is not None and not boundary.is_empty:
-                # For non-simple lines, the intersection points can be found
-                # by detecting where the line crosses itself
-                inter = geom.intersection(
-                    geom.buffer(config.self_intersection_buffer_m)
-                )
-                if inter is not None and not inter.is_empty:
-                    # Extract centroid as representative point
-                    errors.append(
-                        {
-                            "road_id": road_id,
-                            "error_type": "self_intersection",
-                            "geometry": geom.centroid,
-                        }
-                    )
-        except Exception:
-            # Fallback: just mark the road as having self-intersection
-            errors.append(
-                {
-                    "road_id": road_id,
-                    "error_type": "self_intersection",
-                    "geometry": geom.centroid,
-                }
-            )
+        errors.append(
+            {
+                "road_id": road_id,
+                "error_type": "self_intersection",
+                "geometry": geom.centroid,
+            }
+        )
 
     if not errors:
         return gpd.GeoDataFrame(
