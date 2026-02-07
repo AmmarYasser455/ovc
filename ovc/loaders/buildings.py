@@ -33,7 +33,7 @@ def load_buildings(
     boundary_4326 = ensure_wgs84(boundary_4326)
     aoi = boundary_4326.union_all()
 
-    side = max(1, int(parts ** 0.5))
+    side = max(1, int(parts**0.5))
     nx, ny = side, side
     cells = _split_bounds(aoi.bounds, nx, ny)
     chunks = []

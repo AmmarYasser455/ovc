@@ -91,8 +91,10 @@ def find_disconnected_segments(
             pt = ep["point"]
             # Query spatial index with buffered bounds
             minx, miny, maxx, maxy = (
-                pt.x - tolerance, pt.y - tolerance,
-                pt.x + tolerance, pt.y + tolerance,
+                pt.x - tolerance,
+                pt.y - tolerance,
+                pt.x + tolerance,
+                pt.y + tolerance,
             )
             candidates = list(sindex.intersection((minx, miny, maxx, maxy)))
             for idx in candidates:

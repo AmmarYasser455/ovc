@@ -61,7 +61,11 @@ def generate_road_qc_webmap(
     """
     # Ensure WGS84
     if roads_gdf is not None and not roads_gdf.empty:
-        roads_4326 = roads_gdf.to_crs(4326) if (roads_gdf.crs is not None and roads_gdf.crs.to_epsg() != 4326) else roads_gdf
+        roads_4326 = (
+            roads_gdf.to_crs(4326)
+            if (roads_gdf.crs is not None and roads_gdf.crs.to_epsg() != 4326)
+            else roads_gdf
+        )
         center = [
             roads_4326.geometry.centroid.y.mean(),
             roads_4326.geometry.centroid.x.mean(),
@@ -70,7 +74,11 @@ def generate_road_qc_webmap(
         center = [30.0, 31.0]  # Default: Egypt
 
     if errors_gdf is not None and not errors_gdf.empty:
-        errors_4326 = errors_gdf.to_crs(4326) if (errors_gdf.crs is not None and errors_gdf.crs.to_epsg() != 4326) else errors_gdf
+        errors_4326 = (
+            errors_gdf.to_crs(4326)
+            if (errors_gdf.crs is not None and errors_gdf.crs.to_epsg() != 4326)
+            else errors_gdf
+        )
     else:
         errors_4326 = gpd.GeoDataFrame(
             {"road_id": [], "error_type": [], "geometry": []},
@@ -85,7 +93,9 @@ def generate_road_qc_webmap(
     # Add boundary layer if provided
     if boundary_gdf is not None and not boundary_gdf.empty:
         boundary_4326 = (
-            boundary_gdf.to_crs(4326) if (boundary_gdf.crs is not None and boundary_gdf.crs.to_epsg() != 4326) else boundary_gdf
+            boundary_gdf.to_crs(4326)
+            if (boundary_gdf.crs is not None and boundary_gdf.crs.to_epsg() != 4326)
+            else boundary_gdf
         )
         folium.GeoJson(
             boundary_4326,
