@@ -49,3 +49,6 @@ temp/
 !examples/**/*.geojson
 # Generated outputs
 outputs_*/
+
+# Nested repo (ovc-arcgis-pro)
+arcgis_pro/
