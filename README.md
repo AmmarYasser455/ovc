@@ -1,3 +1,4 @@
+![Maintained](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
 <div align="center">
 
 <img src="docs/assets/logo.png" alt="OVC Logo" width="400"/>
