@@ -5,6 +5,7 @@ import osmnx as ox
 
 from ovc.core.crs import ensure_wgs84
 from ovc.core.geometry import drop_empty_and_fix, clip_to_boundary
+from ovc.core.logging import get_logger
 
 
 def load_roads(boundary_4326: gpd.GeoDataFrame, tags: dict) -> gpd.GeoDataFrame:
@@ -23,6 +24,9 @@ def load_roads(boundary_4326: gpd.GeoDataFrame, tags: dict) -> gpd.GeoDataFrame:
     boundary_4326 = ensure_wgs84(boundary_4326)
 
     aoi_geom = boundary_4326.union_all()
+
+    logger = get_logger("ovc.loaders.roads")
+    logger.info("Downloading road network (this may take a few minutes)...")
 
     try:
         gdf = ox.features_from_polygon(aoi_geom, tags)

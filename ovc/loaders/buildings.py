@@ -7,6 +7,7 @@ from shapely.geometry import box
 
 from ovc.core.crs import ensure_wgs84
 from ovc.core.geometry import drop_empty_and_fix
+from ovc.core.logging import get_logger
 
 
 def _split_bounds(bounds, nx: int, ny: int):
@@ -36,9 +37,11 @@ def load_buildings(
     side = max(1, int(parts**0.5))
     nx, ny = side, side
     cells = _split_bounds(aoi.bounds, nx, ny)
+    logger = get_logger("ovc.loaders.buildings")
     chunks = []
 
-    for cell in cells:
+    for i, cell in enumerate(cells):
+        logger.info(f"Downloading buildings chunk {i+1}/{len(cells)}...")
         try:
             gdf = ox.features_from_polygon(cell, tags)
         except Exception:
