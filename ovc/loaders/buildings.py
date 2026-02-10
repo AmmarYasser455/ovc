@@ -9,6 +9,11 @@ from ovc.core.crs import ensure_wgs84
 from ovc.core.geometry import drop_empty_and_fix
 from ovc.core.logging import get_logger
 
+# Configure osmnx
+ox.settings.use_cache = True
+ox.settings.log_console = False
+ox.settings.timeout = 30
+
 
 def _split_bounds(bounds, nx: int, ny: int):
     minx, miny, maxx, maxy = bounds
@@ -56,7 +61,12 @@ def load_buildings(
         try:
             gdf = ox.features_from_polygon(cell, tags)
         except Exception as e:
-            logger.warning(f"Failed to download chunk {i+1}: {e}")
+            msg = str(e)
+            if "No data found for query" in msg:
+                 # This is common in empty areas (desert, sea), don't warn
+                 logger.debug(f"Chunk {i+1}: No buildings found (expected for empty areas)")
+            else:
+                 logger.warning(f"Failed to download chunk {i+1}: {e}")
             continue
 
         if gdf is None or gdf.empty:
