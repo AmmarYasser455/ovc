@@ -1,3 +1,8 @@
-# Runtime dependencies
-# For development, use: pip install -e .[dev]
--e .
+geopandas>=0.14
+shapely>=2.0
+pyproj>=3.6
+pandas>=2.0
+folium>=0.15
+osmnx>=1.8
+fiona>=1.9
+rtree>=1.1
