@@ -60,9 +60,10 @@ def load_buildings(
         logger.info(f"Downloading buildings chunk {i+1}/{len(cells)}...")
         try:
             gdf = ox.features_from_polygon(cell, tags)
+            logger.info(f"Finished chunk {i+1}/{len(cells)}")
         except Exception as e:
             msg = str(e)
-            if "No data found for query" in msg:
+            if "No data found for query" in msg or "No matching features" in msg:
                  # This is common in empty areas (desert, sea), don't warn
                  logger.debug(f"Chunk {i+1}: No buildings found (expected for empty areas)")
             else:
