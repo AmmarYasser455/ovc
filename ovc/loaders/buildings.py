@@ -29,22 +29,34 @@ def _split_bounds(bounds, nx: int, ny: int):
 
 
 def load_buildings(
-    boundary_4326: gpd.GeoDataFrame, tags: dict, parts: int = 9
+    boundary_4326: gpd.GeoDataFrame, tags: dict, parts: int = 16
 ) -> gpd.GeoDataFrame:
     boundary_4326 = ensure_wgs84(boundary_4326)
     aoi = boundary_4326.union_all()
 
-    side = max(1, int(parts**0.5))
+    # Dynamic grid sizing: aim for ~2.0 km² chunks
+    # Reproject to metric for area calculation
+    aoi_metric = gpd.GeoSeries([aoi], crs=4326).to_crs(boundary_4326.estimate_utm_crs())
+    area_km2 = aoi_metric.area.iloc[0] / 1e6
+    
+    # Calculate required chunks (min 16 still applies as a baseline if small)
+    target_chunk_km2 = 2.0
+    required_chunks = max(parts, int(area_km2 / target_chunk_km2))
+    
+    side = max(1, int(required_chunks**0.5))
     nx, ny = side, side
+    
     cells = _split_bounds(aoi.bounds, nx, ny)
     logger = get_logger("ovc.loaders.buildings")
+    logger.info(f"Targeting {required_chunks} chunks ({side}x{side}) for {area_km2:.1f} km² area")
     chunks = []
 
     for i, cell in enumerate(cells):
         logger.info(f"Downloading buildings chunk {i+1}/{len(cells)}...")
         try:
             gdf = ox.features_from_polygon(cell, tags)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to download chunk {i+1}: {e}")
             continue
 
         if gdf is None or gdf.empty:
