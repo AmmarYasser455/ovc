@@ -54,6 +54,20 @@ def main():
     )
 
     parser.add_argument(
+        "--precheck",
+        action="store_true",
+        help="Run GeoQA pre-check on all input datasets before QC. "
+        "Generates quality reports and warns about data issues.",
+    )
+
+    parser.add_argument(
+        "--precheck-only",
+        action="store_true",
+        help="Run ONLY the GeoQA pre-check (skip all QC checks). "
+        "Generates quality assessment reports for each input dataset.",
+    )
+
+    parser.add_argument(
         "--out",
         default="outputs",
         help="Output directory (default: outputs)",
@@ -110,6 +124,37 @@ def main():
             for error_type, count in road_qc_outputs.top_3_errors:
                 logger.info(f"  • {error_type}: {count}")
         return
+
+    # --- Pre-check (if requested) ---
+    if args.precheck or args.precheck_only:
+        from ovc.precheck import precheck_all
+
+        logger.info("Running GeoQA pre-check on input datasets...")
+        precheck_summary = precheck_all(
+            buildings_path=buildings_path,
+            roads_path=roads_path,
+            boundary_path=boundary_path,
+            out_dir=Path(args.out),
+        )
+
+        if args.precheck_only:
+            if precheck_summary.overall_ready:
+                logger.info("Pre-check complete — all datasets are ready for QC.")
+            else:
+                logger.warning("Pre-check complete — some datasets have issues.")
+            # Print report paths
+            for r in precheck_summary.all_results:
+                if r.report_path:
+                    logger.info(f"  {r.dataset_name} report: {r.report_path}")
+            return
+
+        if precheck_summary.overall_ready:
+            logger.info("Pre-check passed — proceeding with QC pipeline.")
+        else:
+            logger.warning(
+                "Pre-check found issues — proceeding anyway. "
+                "Check the quality reports for details."
+            )
 
     # --- Building QC ---
     if buildings_path is None:
