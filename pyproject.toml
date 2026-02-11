@@ -9,7 +9,7 @@ description = "Quality control platform for detecting geometric and topological 
 requires-python = ">=3.10"
 
 authors = [
-  { name = "Ammar Yasser" }
+  { name = "Ammar Yasser Abdalazim" }
 ]
 
 readme = "README.md"

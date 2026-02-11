@@ -1,4 +1,7 @@
-"""Pre-check module: GeoQA-powered data quality assessment before OVC pipeline."""
+"""Pre-check module: GeoQA-powered data quality assessment before OVC pipeline.
+
+Author: Ammar Yasser Abdalazim
+"""
 
 from ovc.precheck.runner import (
     precheck_buildings,
