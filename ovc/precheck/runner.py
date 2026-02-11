@@ -22,6 +22,7 @@ log = get_logger("ovc.precheck")
 
 # ── Result dataclass ────────────────────────────────────────────────────
 
+
 @dataclass
 class PrecheckResult:
     """Structured result from a single dataset pre-check."""
@@ -78,6 +79,7 @@ class PrecheckSummary:
 
 
 # ── Core functions ──────────────────────────────────────────────────────
+
 
 def _run_geoqa_profile(
     data_path: Path,
@@ -171,9 +173,7 @@ def _run_geoqa_profile(
         result.warnings.append(f"{result.null_geom_count} null geometries")
 
     if result.duplicate_count > 0:
-        result.warnings.append(
-            f"{result.duplicate_count} duplicate geometries"
-        )
+        result.warnings.append(f"{result.duplicate_count} duplicate geometries")
 
     if result.sliver_count > 0:
         result.warnings.append(f"{result.sliver_count} sliver polygons")
