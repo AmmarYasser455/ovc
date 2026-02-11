@@ -5,7 +5,6 @@ from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
-from shapely.geometry import box
 
 from ovc.core.logging import get_logger
 from ovc.core.config import DEFAULT_CONFIG
@@ -67,17 +66,39 @@ def _merge_errors(*layers: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 
 def run_pipeline(
-    boundary_path: Path | None,
+    buildings_path: Path,
     out_dir: Path,
-    buildings_path: Path | None = None,
+    boundary_path: Path | None = None,
     roads_path: Path | None = None,
     config=DEFAULT_CONFIG,
 ) -> PipelineOutputs:
+    """Run the building QC pipeline on local data.
+
+    Parameters
+    ----------
+    buildings_path : Path
+        **Required.** Path to the buildings file (Shapefile, GeoJSON, GeoPackage).
+    out_dir : Path
+        Output directory for results.
+    boundary_path : Path, optional
+        Path to the study area boundary file. Enables boundary overlap and
+        outside-boundary checks.
+    roads_path : Path, optional
+        Path to the roads file. Enables building-on-road conflict checks.
+    config : Config
+        Runtime configuration (overlap thresholds, road buffer, etc.).
+
+    Returns
+    -------
+    PipelineOutputs
+        Paths to the generated GeoPackage, metrics CSV, and web map.
+    """
     log = get_logger()
     out_dir = Path(out_dir)
 
-    attribution_text = "© OpenStreetMap contributors | OVC by Ammar"
+    attribution_text = "OVC — Overlap Violation Checker by Ammar"
 
+    # --- Load boundary (optional) ---
     boundary = None
     boundary_union_4326 = None
     boundary_metric_for_checks = None
@@ -95,19 +116,8 @@ def run_pipeline(
     else:
         boundary_4326_for_outputs = None
 
-    if buildings_path is not None:
-        buildings_4326 = gpd.read_file(buildings_path).to_crs(4326)
-    else:
-        if boundary is None:
-            raise ValueError(
-                "boundary_path is required when buildings_path is not provided"
-            )
-        buildings_4326 = load_buildings(
-            boundary.gdf_4326,
-            config.tags.buildings,
-            parts=9,
-        )
-
+    # --- Load buildings (required) ---
+    buildings_4326 = load_buildings(buildings_path)
     buildings_4326 = buildings_4326.reset_index(drop=True)
     buildings_4326 = _ensure_osmid(buildings_4326)
 
@@ -122,28 +132,20 @@ def run_pipeline(
     buildings_metric["bldg_id"] = buildings_metric.index.astype(int)
     buildings_metric["osmid"] = buildings_4326["osmid"].values
 
+    # --- Load roads (optional) ---
     if roads_path is not None:
-        roads_4326 = gpd.read_file(roads_path).to_crs(4326)
+        roads_4326 = load_roads(
+            roads_path,
+            boundary_4326=boundary.gdf_4326 if boundary else None,
+        )
     else:
-        if boundary is not None:
-            roads_4326 = load_roads(
-                boundary.gdf_4326,
-                config.tags.roads,
-            )
-        else:
-            minx, miny, maxx, maxy = buildings_4326.total_bounds
-            bbox_geom = gpd.GeoDataFrame(
-                geometry=[box(minx, miny, maxx, maxy)],
-                crs=4326,
-            )
-            roads_4326 = load_roads(
-                bbox_geom,
-                config.tags.roads,
-            )
+        roads_4326 = gpd.GeoDataFrame(geometry=[], crs=4326)
+        log.info("No roads file provided — road conflict checks will be skipped")
 
     roads_4326 = _ensure_osmid(roads_4326)
     roads_metric = roads_4326.to_crs(crs_pair.crs_metric)
 
+    # --- Run checks ---
     overlaps_metric = find_building_overlaps(buildings_metric, config.overlap)
 
     overlap_buildings_metric = gpd.GeoDataFrame(geometry=[], crs=buildings_metric.crs)
@@ -177,23 +179,25 @@ def run_pipeline(
             "error_class"
         ].fillna("sliver")
 
-    road_conflicts_metric = find_buildings_on_roads(
-        buildings_metric=buildings_metric[["bldg_id", "geometry"]],
-        roads_metric=roads_metric[["osmid", "geometry"]],
-        road_buffer_m=config.road_conflict.road_buffer_m,
-        min_intersection_area_m2=config.road_conflict.min_intersection_area_m2,
-    )
-
+    road_conflicts_metric = gpd.GeoDataFrame(geometry=[], crs=buildings_metric.crs)
     road_conflict_buildings_metric = gpd.GeoDataFrame(
         geometry=[], crs=buildings_metric.crs
     )
-    if road_conflicts_metric is not None and not road_conflicts_metric.empty:
-        ids = set(road_conflicts_metric["bldg_id"])
-        road_conflict_buildings_metric = buildings_metric[
-            buildings_metric["bldg_id"].isin(ids)
-        ].copy()
-        road_conflict_buildings_metric["error_type"] = "building_on_road"
-        road_conflict_buildings_metric["error_class"] = "road_buffer"
+    if not roads_metric.empty:
+        road_conflicts_metric = find_buildings_on_roads(
+            buildings_metric=buildings_metric[["bldg_id", "geometry"]],
+            roads_metric=roads_metric[["osmid", "geometry"]],
+            road_buffer_m=config.road_conflict.road_buffer_m,
+            min_intersection_area_m2=config.road_conflict.min_intersection_area_m2,
+        )
+
+        if road_conflicts_metric is not None and not road_conflicts_metric.empty:
+            ids = set(road_conflicts_metric["bldg_id"])
+            road_conflict_buildings_metric = buildings_metric[
+                buildings_metric["bldg_id"].isin(ids)
+            ].copy()
+            road_conflict_buildings_metric["error_type"] = "building_on_road"
+            road_conflict_buildings_metric["error_class"] = "road_buffer"
 
     boundary_overlap_metric = None
     if boundary_metric_for_checks is not None:
@@ -260,6 +264,7 @@ def run_pipeline(
         outside_boundary_buildings_metric=outside_boundary_metric,
     )
 
+    # --- Write outputs ---
     gpkg_path = out_dir / "building_qc" / "building_qc.gpkg"
     metrics_csv = out_dir / "building_qc" / "building_qc_metrics.csv"
     webmap_html = out_dir / "building_qc" / "building_qc_map.html"

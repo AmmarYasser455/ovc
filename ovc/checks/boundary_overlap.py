@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import geopandas as gpd
+from ovc.core.logging import get_logger
 
 
 def find_buildings_touching_boundary(
@@ -8,6 +9,28 @@ def find_buildings_touching_boundary(
     boundary_metric: gpd.GeoDataFrame,
     boundary_buffer_m: float = 0.5,
 ) -> gpd.GeoDataFrame:
+    """Find buildings that touch or overlap the study area boundary.
+
+    This flags buildings that intersect a buffer around the boundary line,
+    which may indicate incomplete features or edge effects.
+
+    Parameters
+    ----------
+    buildings_metric : GeoDataFrame
+        Buildings in metric CRS with ``bldg_id`` and ``osmid`` columns.
+    boundary_metric : GeoDataFrame
+        Boundary polygon(s) in metric CRS.
+    boundary_buffer_m : float
+        Buffer distance (meters) around the boundary line.
+
+    Returns
+    -------
+    GeoDataFrame
+        Buildings intersecting the boundary buffer, with ``error_type``
+        and ``error_class`` columns.
+    """
+    logger = get_logger("ovc.checks.boundary")
+
     if buildings_metric is None or buildings_metric.empty:
         return gpd.GeoDataFrame(geometry=[], crs=getattr(buildings_metric, "crs", None))
 
@@ -28,4 +51,6 @@ def find_buildings_touching_boundary(
 
     out["error_type"] = "building_boundary_overlap"
     out["error_class"] = "boundary"
+
+    logger.info(f"Boundary overlap: {len(out)} buildings touch boundary")
     return out

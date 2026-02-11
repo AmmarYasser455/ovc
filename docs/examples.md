@@ -51,12 +51,14 @@ results/overlap_check/
 
 ---
 
-### Example 2: Complete QC with OSM Data
+### Example 2: Complete QC with Buildings, Roads, and Boundary
 
-**Scenario:** Download OSM data for a city and run complete QC.
+**Scenario:** Run complete QC with all three inputs.
 
 ```bash
 python scripts/run_qc.py \
+  --buildings data/my_buildings.shp \
+  --roads data/my_roads.shp \
   --boundary data/city_boundary.geojson \
   --out results/city_qc
 ```
@@ -82,21 +84,22 @@ results/city_qc/
 
 ---
 
-### Example 3: Custom Buildings with OSM Roads
+### Example 3: Buildings with Boundary Check
 
-**Scenario:** You have your own buildings but need road data from OSM.
+**Scenario:** Check buildings against a boundary for containment violations.
 
 ```bash
 python scripts/run_qc.py \
   --buildings data/field_survey_buildings.gpkg \
+  --boundary data/study_area.geojson \
   --out results/survey_qc
 ```
 
 **What happens:**
-- Your buildings are analyzed
-- Roads are automatically downloaded from OSM
-- Overlap and road conflict checks are performed
-- No boundary validation (since no boundary provided)
+- Your buildings are analyzed for overlaps
+- Boundary containment is checked
+- Buildings outside or crossing the boundary are flagged
+- No road conflict checks (no roads provided)
 
 ---
 
@@ -108,7 +111,8 @@ python scripts/run_qc.py \
 
 ```bash
 python scripts/run_qc.py \
-  --boundary data/city.geojson \
+  --buildings data/my_buildings.shp \
+  --roads data/my_roads.shp \
   --road-qc \
   --out results/road_check
 ```
@@ -140,7 +144,7 @@ from pathlib import Path
 from ovc.road_qc import run_road_qc
 
 outputs = run_road_qc(
-    boundary_path=Path("data/boundary.geojson"),
+    roads_path=Path("data/my_roads.shp"),
     out_dir=Path("results/road_qc")
 )
 
@@ -155,7 +159,7 @@ for error_type, count in outputs.top_3_errors:
 
 ### Example 6: Road QC with Custom Roads
 
-**Scenario:** Use your own road dataset instead of OSM.
+**Scenario:** Use a custom road dataset for Road QC.
 
 ```python
 from pathlib import Path
@@ -225,23 +229,26 @@ python scripts/run_qc.py \
 
 ---
 
-### Example 9: Extract Buildings from OSM Extract
+### Example 9: Convert and Merge Multiple Formats
 
-**Using a local OSM extract instead of API:**
+**Combining data from different formats into a single GeoPackage:**
 
 ```bash
-# Extract buildings using osmium
-osmium tags-filter egypt-latest.osm.pbf \
-  building \
-  -o buildings.osm.pbf
+# Convert Shapefile to GeoPackage
+ogr2ogr -f GPKG buildings.gpkg source_shapefile.shp
 
-# Convert to GeoPackage
-ogr2ogr -f GPKG buildings.gpkg buildings.osm.pbf
+# Append GeoJSON data
+ogr2ogr -update -append \
+  buildings.gpkg source_geojson.geojson
 
-# Run QC
+# Append KML data
+ogr2ogr -update -append \
+  buildings.gpkg source_kml.kml
+
+# Run QC on merged data
 python scripts/run_qc.py \
   --buildings buildings.gpkg \
-  --out results/osm_extract_qc
+  --out results/merged_qc
 ```
 
 ---
@@ -268,6 +275,7 @@ for district in "${DISTRICTS[@]}"; do
   echo "Processing $name..."
 
   python scripts/run_qc.py \
+    --buildings "buildings/$district" \
     --boundary "boundaries/$district" \
     --out "results/$name" \
     --verbose
@@ -355,10 +363,10 @@ def main():
     # Run QC
     try:
         outputs = run_pipeline(
-            boundary_path=None,
             buildings_path=Path("data/buildings.gpkg"),
+            out_dir=Path("results/automated_qc"),
             roads_path=Path("data/roads.gpkg"),
-            out_dir=Path("results/automated_qc")
+            boundary_path=None,
         )
 
         # Note: Analysis would normally read the generated GPKG/CSV here
@@ -560,6 +568,7 @@ run_qc() {
   name=$(basename "$boundary" .geojson)
 
   python scripts/run_qc.py \
+    --buildings "buildings/${name}.shp" \
     --boundary "boundaries/$boundary" \
     --out "results/$name"
 
@@ -617,11 +626,11 @@ custom_config = Config(
 
 # Run pipeline with custom config
 outputs = run_pipeline(
-    boundary_path=None,
     buildings_path=Path("data/downtown_buildings.gpkg"),
-    roads_path=Path("data/highways.gpkg"),
     out_dir=Path("results/urban_qc"),
-    config=custom_config
+    roads_path=Path("data/highways.gpkg"),
+    config=custom_config,
+    boundary_path=None,
 )
 
 print(f"Results saved to {outputs.gpkg_path}")
@@ -779,10 +788,7 @@ done
 **Quality control for humanitarian mapping project:**
 
 ```bash
-# Download HOT OSM data
-wget https://export.hotosm.org/downloads/region_buildings.geojson
-
-# Run comprehensive QC
+# Run comprehensive QC on local data
 python scripts/run_qc.py \
   --buildings region_buildings.geojson \
   --boundary affected_area.geojson \

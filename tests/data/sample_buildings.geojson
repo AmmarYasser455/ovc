@@ -1,0 +1,10 @@
+{
+"type": "FeatureCollection",
+"name": "sample_buildings",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "osmid": "b1" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 31.2, 30.0 ], [ 31.2, 30.01 ], [ 31.21, 30.01 ], [ 31.21, 30.0 ], [ 31.2, 30.0 ] ] ] } },
+{ "type": "Feature", "properties": { "osmid": "b2" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 31.22, 30.0 ], [ 31.22, 30.01 ], [ 31.23, 30.01 ], [ 31.23, 30.0 ], [ 31.22, 30.0 ] ] ] } },
+{ "type": "Feature", "properties": { "osmid": "b3" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 31.24, 30.02 ], [ 31.24, 30.03 ], [ 31.25, 30.03 ], [ 31.25, 30.02 ], [ 31.24, 30.02 ] ] ] } }
+]
+}

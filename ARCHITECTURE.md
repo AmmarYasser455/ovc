@@ -86,13 +86,15 @@ Contains:
 **Purpose:** Data ingestion and normalization
 
 Responsible for:
-- Reading input data (buildings, roads, boundaries)
+- Reading input data from local files (buildings, roads, boundaries)
+- Supporting multiple formats: Shapefile, GeoJSON, GeoPackage, etc.
 - Schema normalization across different sources
-- Reprojecting geometries to metric CRS
+- Reprojecting geometries to WGS 84
 - Data preprocessing and cleaning
 
 **Constraints:**
 - ✅ Handles all data reading operations
+- ✅ Works with local files only (no network/API calls)
 - ❌ Does not perform validation or QC checks
 - ❌ Does not contain business logic
 

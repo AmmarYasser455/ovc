@@ -7,7 +7,7 @@ title: API Reference - OVC
 
 This document details the Python API for the Overlap Violation Checker (OVC).
 
-**Version:** v1.0.2
+**Version:** v3.0.0
 
 > [!NOTE]
 > The API is designed around functional components and data classes rather than large stateful objects.
@@ -32,9 +32,9 @@ Main entry point for building quality control.
 
 ```python
 def run_pipeline(
-    boundary_path: Path | None,
+    buildings_path: Path,
     out_dir: Path,
-    buildings_path: Path | None = None,
+    boundary_path: Path | None = None,
     roads_path: Path | None = None,
     config: Config = DEFAULT_CONFIG,
 ) -> PipelineOutputs:
@@ -42,10 +42,10 @@ def run_pipeline(
 
 **Parameters:**
 
-- `boundary_path` (Path | None): Path to the boundary file (GeoJSON/SHP). Required for downloading OSM data.
+- `buildings_path` (Path): Path to local buildings file (Shapefile, GeoJSON, GPKG). **Required.**
 - `out_dir` (Path): Directory where results will be saved.
-- `buildings_path` (Path | None): Path to local buildings file. If None, buildings are downloaded from OSM.
-- `roads_path` (Path | None): Path to local roads file. If None, roads are downloaded from OSM (if boundary is provided).
+- `boundary_path` (Path | None): Path to the boundary file (GeoJSON/SHP). Optional; enables boundary containment checks.
+- `roads_path` (Path | None): Path to local roads file. Optional; enables road-building conflict checks.
 - `config` (Config): Configuration object controlling thresholds and behavior.
 
 **Returns:**
@@ -59,9 +59,9 @@ from pathlib import Path
 from ovc.export.pipeline import run_pipeline
 
 outputs = run_pipeline(
-    boundary_path=Path("data/boundary.geojson"),
+    buildings_path=Path("data/buildings.gpkg"),
     out_dir=Path("results/my_run"),
-    buildings_path=Path("data/buildings.gpkg")
+    boundary_path=Path("data/boundary.geojson"),
 )
 
 print(f"GeoPackage: {outputs.gpkg_path}")
@@ -92,7 +92,7 @@ def run_road_qc(
 
 - `roads_path` (Path | None): Path to road dataset file.
 - `roads_gdf` (GeoDataFrame | None): Pre-loaded road GeoDataFrame.
-- `boundary_path` (Path | None): Path to boundary for OSM download and dangle filtering.
+- `boundary_path` (Path | None): Path to boundary for dangle filtering.
 - `boundary_gdf` (GeoDataFrame | None): Pre-loaded boundary GeoDataFrame.
 - `out_dir` (Path): Output directory for results.
 - `config` (RoadQCConfig): Road QC configuration.
@@ -108,7 +108,7 @@ from pathlib import Path
 from ovc.road_qc import run_road_qc
 
 outputs = run_road_qc(
-    boundary_path=Path("data/boundary.geojson"),
+    roads_path=Path("data/my_roads.shp"),
     out_dir=Path("results/road_qc")
 )
 
@@ -118,7 +118,7 @@ print(f"Total errors: {outputs.total_errors}")
 print(f"Top 3 errors: {outputs.top_3_errors}")
 ```
 
-**With custom roads:**
+**With boundary for dangle filtering:**
 
 ```python
 outputs = run_road_qc(

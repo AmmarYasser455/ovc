@@ -129,9 +129,9 @@ Then open a Pull Request on GitHub with:
 ```
 ovc/
 ├── core/        # Core utilities and shared logic
-├── loaders/     # Data loading and preprocessing
 ├── checks/      # Quality control checks
 ├── export/      # Pipeline execution and outputs
+└── road_qc/     # Road network quality checks
 tests/           # Test suite
 ```
 

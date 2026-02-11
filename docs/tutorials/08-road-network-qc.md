@@ -26,7 +26,8 @@ Learn how to detect and analyze road network issues using OVC's Road QC module.
 ## Prerequisites
 
 - OVC installed and configured
-- A boundary file or road dataset
+- A local road dataset (Shapefile, GeoJSON, or GeoPackage)
+- Optionally, a boundary file for dangle filtering
 - Basic understanding of road network concepts
 
 ---
@@ -49,19 +50,21 @@ Road QC detects three types of issues in road networks:
 
 ```bash
 python scripts/run_qc.py \
-  --boundary data/boundary.geojson \
+  --buildings data/my_buildings.shp \
+  --roads data/my_roads.shp \
   --road-qc \
   --out outputs
 ```
 
-This downloads roads from OSM and runs all Road QC checks.
+This runs all Road QC checks on your local road dataset.
 
-### With Custom Roads
+### With Boundary for Dangle Filtering
 
 ```bash
 python scripts/run_qc.py \
-  --boundary data/boundary.geojson \
+  --buildings data/my_buildings.shp \
   --roads data/my_roads.shp \
+  --boundary data/boundary.geojson \
   --road-qc \
   --out outputs
 ```
@@ -119,6 +122,7 @@ from pathlib import Path
 from ovc.road_qc import run_road_qc
 
 outputs = run_road_qc(
+    roads_path=Path("data/my_roads.shp"),
     boundary_path=Path("data/boundary.geojson"),
     out_dir=Path("outputs/road_qc")
 )
@@ -196,6 +200,7 @@ OVC automatically filters out endpoints near the boundary:
 ```python
 # Boundary is passed for filtering
 outputs = run_road_qc(
+    roads_path=Path("my_roads.shp"),
     boundary_path=Path("boundary.geojson"),  # Used for filtering
     out_dir=Path("outputs/road_qc")
 )
@@ -231,6 +236,8 @@ Run both Building QC and Road QC together:
 
 ```bash
 python scripts/run_qc.py \
+  --buildings data/my_buildings.shp \
+  --roads data/my_roads.shp \
   --boundary data/boundary.geojson \
   --road-qc \
   --out outputs
