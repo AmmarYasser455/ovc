@@ -13,7 +13,6 @@ from ovc.checks.geometry_quality import (
     find_min_road_distance_violations,
 )
 
-
 # ── Duplicate geometry tests ──────────────────────────────────
 
 

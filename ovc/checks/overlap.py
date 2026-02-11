@@ -75,9 +75,7 @@ def find_building_overlaps(
     logger = get_logger("ovc.checks.overlap")
 
     if buildings_metric is None or buildings_metric.empty:
-        return gpd.GeoDataFrame(
-            geometry=[], crs=getattr(buildings_metric, "crs", None)
-        )
+        return gpd.GeoDataFrame(geometry=[], crs=getattr(buildings_metric, "crs", None))
 
     gdf = buildings_metric[["bldg_id", "geometry"]].copy().reset_index(drop=True)
     # Pre-compute areas once
