@@ -1,24 +1,36 @@
-![Maintained](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
-<div align="center">
-
-<img src="docs/assets/logo.png" alt="OVC Logo" width="400"/>
-
-# Overlap Violation Checker (OVC)
-
-**A Python-based spatial quality control tool for detecting geometric and topological issues in building and road datasets**
-
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v3.0.0-blue.svg" />
-  <img src="https://img.shields.io/badge/license-MIT-green.svg" />
-  <img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" />
-  <img src="https://github.com/AmmarYasser455/ovc/actions/workflows/ci.yml/badge.svg" />
+  <img src="https://raw.githubusercontent.com/AmmarYasser455/ovc/main/docs/assets/logo.png" alt="OVC Logo" width="200">
 </p>
 
-</div>
+<h1 align="center">OVC — Overlap Violation Checker</h1>
+
+<p align="center">
+  <strong>Spatial Quality Control for Building & Road Datasets</strong><br>
+  <em>Detect overlaps, conflicts, and topological issues — locally, offline, and fast</em>
+</p>
+
+<p align="center">
+  <a href="https://github.com/AmmarYasser455/ovc"><img src="https://img.shields.io/badge/version-v3.0.0-blue?style=flat-square" alt="Version"></a>
+  <a href="https://github.com/AmmarYasser455/ovc"><img src="https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square" alt="Python"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License"></a>
+  <a href="https://github.com/AmmarYasser455/ovc/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/AmmarYasser455/ovc/ci.yml?style=flat-square&label=CI" alt="CI"></a>
+</p>
 
 ---
 
-## Overview
+## What is OVC?
+
+**OVC** is a Python-based spatial quality control tool for detecting geometric and topological issues in **building and road datasets**. It validates your local geospatial data — Shapefiles, GeoJSON, GeoPackage — detecting overlapping buildings, boundary violations, road conflicts, and road network problems.
+
+- **Detect** building overlaps (duplicate and partial) with vectorized spatial joins
+- **Validate** boundary compliance and building-road conflicts
+- **Analyze** road networks — disconnected segments, self-intersections, dangles
+- **Check** geometry quality — invalid geometries, area reasonableness, compactness
+- **Visualize** results on interactive web maps with issue highlighting
+- **Export** GeoPackage, CSV reports, and HTML web maps
+- **Pre-check** data quality with [GeoQA](https://github.com/AmmarYasser455/geoqa) integration
+
+No internet connection required. No API rate limits. Just point OVC at your data files and get results.
 
 <div align="center">
 
@@ -30,152 +42,61 @@
 
 </div>
 
-OVC validates your local geospatial data — shapefiles, GeoJSON, GeoPackage — detecting overlapping buildings, boundary violations, road conflicts, and road network issues. It produces analysis-ready outputs and interactive web maps, making it ideal for GIS quality assurance and data validation workflows.
-
-No internet connection required. No API rate limits. Just point OVC at your data files and get results.
-
 ## Key Features
 
-### Building QC
-- **Overlap Detection** — Identify duplicate and partial overlaps in building geometries
-- **Boundary Compliance** — Validate building footprints against administrative boundaries
-- **Road Conflict Analysis** — Detect buildings conflicting with roads
-
-### Road QC
-- **Disconnected Segments** — Detect roads not connected to the network
-- **Self-Intersections** — Find roads that cross themselves
-- **Dangles** — Identify dead-end endpoints (incomplete digitization)
-
-### Geometry Quality
-- **Duplicate Geometry Detection** — Find identical building footprints
-- **Invalid Geometry Detection** — Self-intersections, topology errors
-- **Area Reasonableness** — Flag unreasonably small or large buildings
-- **Compactness Score** — Polsby-Popper shape regularity check
-- **Road Setback Violations** — Buildings too close to roads
-
-### Shared
-- **Multi-Format Input** — Shapefile, GeoJSON, GeoPackage, and more
-- **Multi-Format Export** — GeoPackage, CSV, and HTML outputs
-- **Interactive Visualization** — Web-based maps with legends
-- **Modular Architecture** — Easily extend and customize workflows
-- **No Internet Required** — Works entirely with local data
-
----
-
-## Performance
-
-| Operation | Typical Time |
-|-----------|-------------|
-| Building overlap detection (10k buildings) | ~20 sec |
-| Road conflict detection (10k buildings) | ~30 sec |
-| Full pipeline (10k buildings + roads + boundary) | ~1 min |
-
-Key optimizations:
-- Vectorized spatial joins (no Python-level loops)
-- Spatial pre-filtering reduces geometry comparison count
-
----
-
-## Documentation
-
-📚 **[Full Documentation](docs/index.md)** — User Guide, Tutorials, Examples, and API Reference
-
----
-
-## Requirements
-
-### Python
-
-OVC requires Python 3.10 or newer.
-
-**Recommended version:**
-```
-Python 3.11
-```
-
-### Dependencies
-
-OVC uses only standard geospatial Python libraries — no external APIs:
-
-- geopandas, shapely, pyproj, pandas, folium, fiona, rtree
-
----
+| Feature | Description |
+|---|---|
+| **Building Overlap Detection** | Identify duplicate and partial overlaps via vectorized spatial joins |
+| **Boundary Compliance** | Validate building footprints against administrative boundaries |
+| **Road Conflict Analysis** | Detect buildings conflicting with road geometries |
+| **Road Network QC** | Disconnected segments, self-intersections, and dangle detection |
+| **Geometry Quality** | Invalid geometry, area reasonableness, compactness score, setback violations |
+| **GeoQA Pre-Check** | Automated data-readiness gate before running QC pipeline |
+| **Interactive Web Maps** | Folium-based maps with legends and issue highlighting |
+| **Multi-Format I/O** | Shapefile, GeoJSON, GeoPackage input → GeoPackage, CSV, HTML output |
+| **Offline & Fast** | No internet required, vectorized spatial joins (10–50× faster than loops) |
 
 ## Installation
-
-### 1. Clone the repository
 
 ```bash
 git clone https://github.com/AmmarYasser455/ovc.git
 cd ovc
+pip install -e ".[dev]"
 ```
 
-### 2. Create a virtual environment (recommended)
-
-```bash
-python -m venv venv
-source venv/bin/activate    # Linux / macOS
-venv\Scripts\activate       # Windows
-```
-
-### 3. Install dependencies
+**Or install dependencies only:**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Install in development mode (optional)
-
-```bash
-pip install -e ".[dev]"
-```
-
----
+**Requirements:** Python 3.10+ — depends on geopandas, shapely, pyproj, pandas, folium, fiona, and rtree.
 
 ## Quick Start
 
-OVC works with your **local data files**. You provide the data — OVC runs the checks.
-
-### ✅ Option 1: Buildings only (minimum required)
+### CLI
 
 ```bash
-python scripts/run_qc.py \
-  --buildings path/to/buildings.shp \
-  --out outputs
+# Buildings only (minimum required)
+python scripts/run_qc.py --buildings buildings.shp --out outputs
+
+# Buildings + Roads
+python scripts/run_qc.py --buildings buildings.shp --roads roads.shp --out outputs
+
+# Buildings + Roads + Boundary
+python scripts/run_qc.py --buildings buildings.shp --roads roads.shp --boundary boundary.shp --out outputs
+
+# Enable Road QC
+python scripts/run_qc.py --buildings buildings.shp --roads roads.shp --road-qc --out outputs
+
+# Run GeoQA pre-check before QC
+python scripts/run_qc.py --buildings buildings.shp --roads roads.shp --precheck --out outputs
+
+# Run ONLY the pre-check (skip QC)
+python scripts/run_qc.py --buildings buildings.shp --precheck-only --out outputs
 ```
 
-In this mode OVC detects building overlaps. Road conflict and boundary checks are skipped.
-
-### ✅ Option 2: Buildings + Roads
-
-```bash
-python scripts/run_qc.py \
-  --buildings path/to/buildings.shp \
-  --roads path/to/roads.shp \
-  --out outputs
-```
-
-### ✅ Option 3: Buildings + Roads + Boundary
-
-```bash
-python scripts/run_qc.py \
-  --buildings path/to/buildings.shp \
-  --roads path/to/roads.shp \
-  --boundary path/to/boundary.geojson \
-  --out outputs
-```
-
-### ✅ Option 4: Enable Road QC
-
-```bash
-python scripts/run_qc.py \
-  --buildings path/to/buildings.shp \
-  --roads path/to/roads.shp \
-  --road-qc \
-  --out outputs
-```
-
-### ✅ Option 5: Use the Python API directly
+### Python API
 
 ```python
 from ovc.export.pipeline import run_pipeline
@@ -191,7 +112,7 @@ print(f"GeoPackage: {outputs.gpkg_path}")
 print(f"Web map:    {outputs.webmap_html}")
 ```
 
-### ✅ Option 6: Run geometry quality checks
+### Geometry Quality Checks API
 
 ```python
 from ovc.checks.geometry_quality import (
@@ -202,7 +123,6 @@ from ovc.checks.geometry_quality import (
     find_min_road_distance_violations,
 )
 
-# buildings_metric = ... (GeoDataFrame in metric CRS)
 dupes = find_duplicate_geometries(buildings_metric)
 invalid = find_invalid_geometries(buildings_metric)
 area_issues = find_unreasonable_areas(buildings_metric, min_area_m2=4.0)
@@ -210,7 +130,7 @@ compact = compute_compactness(buildings_metric, min_compactness=0.2)
 setback = find_min_road_distance_violations(buildings_metric, roads_metric, min_distance_m=3.0)
 ```
 
-### ℹ️ Notes
+### Notes
 
 - `--buildings` is **required** — this is the data OVC checks
 - `--boundary` is optional — enables boundary overlap and outside-boundary checks
@@ -218,116 +138,172 @@ setback = find_min_road_distance_violations(buildings_metric, roads_metric, min_
 - `--road-qc` requires `--roads` — runs road network quality checks
 - All input files can be Shapefile, GeoJSON, GeoPackage, or any format supported by Fiona
 
----
+## GeoQA Integration
+
+OVC integrates with [**GeoQA**](https://github.com/AmmarYasser455/geoqa) — a Python package for geospatial data quality assessment — as a **data-readiness gate** before running the QC pipeline.
+
+When you pass `--precheck`, OVC uses GeoQA to:
+
+1. **Profile** each input dataset (buildings, roads, boundary)
+2. **Compute** a quality score (0–100) based on geometry validity, attribute completeness, and CRS
+3. **Detect** invalid, empty, duplicate, and null geometries
+4. **Run** topology checks (slivers, bad rings, overlaps)
+5. **Classify** issues as **warnings** (proceed with caution) or **blockers** (stop — fix data first)
+6. **Generate** HTML quality reports for each dataset
+
+Only when all datasets pass the pre-check does OVC proceed with the full QC pipeline. This catches fundamental data issues early — missing CRS, invalid geometries, empty features — saving compute time and giving clear diagnostics.
+
+```bash
+# Install GeoQA for pre-check support
+pip install geoqa
+```
+
+| Workflow Step | Tool | What It Does |
+|---|---|---|
+| **Data Readiness** | GeoQA | Profile, validate, and score input datasets |
+| **Building QC** | OVC | Overlap, boundary, and road conflict detection |
+| **Road QC** | OVC | Disconnected segments, self-intersections, dangles |
+
+## Quality Checks
+
+### Building QC
+
+| Check | Description |
+|---|---|
+| Overlap Detection | Duplicate and partial overlaps via spatial join |
+| Boundary Compliance | Buildings touching or outside administrative boundary |
+| Road Conflict | Buildings conflicting with road geometries |
+| Duplicate Geometry | Identical building footprints (WKB comparison) |
+| Invalid Geometry | Self-intersections, topology errors |
+| Area Reasonableness | Unreasonably small or large buildings |
+| Compactness Score | Polsby-Popper shape regularity check |
+| Road Setback | Buildings too close to roads |
+
+### Road QC
+
+| Check | Description |
+|---|---|
+| Disconnected Segments | Roads not connected to the network |
+| Self-Intersections | Roads that cross themselves |
+| Dangles | Dead-end endpoints (incomplete digitization) |
 
 ## Outputs
 
-Both modules produce outputs in a unified folder structure:
-
 ```
 outputs/
+├── precheck/                      # GeoQA quality reports (when --precheck)
+│   ├── buildings_quality_report.html
+│   ├── roads_quality_report.html
+│   └── boundary_quality_report.html
 ├── building_qc/
-│   ├── building_qc.gpkg          # GeoPackage with layers
+│   ├── building_qc.gpkg          # GeoPackage with issue layers
 │   ├── building_qc_map.html      # Interactive web map
 │   └── building_qc_metrics.csv   # Summary metrics
-└── road_qc/                      # Only when --road-qc is enabled
+└── road_qc/                      # When --road-qc is enabled
     ├── road_qc.gpkg
     ├── road_qc_map.html
     └── road_qc_metrics.csv
 ```
 
 | Output Type | Description |
-|------------|-------------|
+|---|---|
 | **GeoPackage** | Spatial layers containing detected issues |
 | **CSV reports** | Summary statistics and metrics |
 | **HTML web map** | Interactive map for visual inspection |
-
----
+| **HTML quality report** | GeoQA pre-check assessment (when enabled) |
 
 ## Configuration
 
-Runtime thresholds and validation settings can be customized in:
-
-```
-ovc/core/config.py
-```
-
-Key configurable parameters:
+Runtime thresholds can be customized in `ovc/core/config.py`:
 
 | Parameter | Default | Description |
-|-----------|---------|-------------|
+|---|---|---|
 | `duplicate_ratio_min` | 0.98 | Minimum overlap ratio for duplicate classification |
 | `partial_ratio_min` | 0.30 | Minimum overlap ratio for partial classification |
 | `min_intersection_area_m2` | 0.5 | Minimum overlap area threshold |
 | `road_buffer_m` | 1.0 | Buffer distance around roads |
 
----
+## Performance
 
-## Troubleshooting
+| Operation | Typical Time |
+|---|---|
+| Building overlap detection (10k buildings) | ~20 sec |
+| Road conflict detection (10k buildings) | ~30 sec |
+| Full pipeline (10k buildings + roads + boundary) | ~1 min |
 
-### CRS warnings
-
-- All input data is automatically reprojected to WGS 84 and then to UTM
-- If your data uses a local CRS, ensure it has a `.prj` file
-
-### Out of memory
-
-- **Cause**: Very large areas (>500 km²) may exhaust RAM
-- **Fix**: Process in smaller boundary chunks or increase system RAM
-
-### Slow processing
-
-- **Cause**: Large building datasets with O(n²) overlap comparisons
-- **Fix**: Vectorized spatial joins are used automatically (10–50× faster than iterrows)
-- **Workaround**: Filter input data to area of interest before processing
-
----
-
-## Testing
-
-Run the full test suite:
-
-```bash
-pytest
-```
-
-Run with coverage:
-
-```bash
-pytest --cov=ovc --cov-report=html
-```
-
----
+Key optimizations:
+- Vectorized spatial joins (no Python-level loops)
+- Spatial pre-filtering reduces geometry comparison count
 
 ## Architecture
 
-For detailed design decisions and module responsibilities, see:
+```
+ovc/
+├── core/        # Shared utilities, CRS handling, config, spatial indexing
+├── loaders/     # Data loading and preprocessing (multi-format)
+├── checks/      # Building quality checks and validation logic
+├── metrics/     # Statistics and summary computation
+├── export/      # Output generation (GeoPackage, CSV, web maps)
+├── precheck/    # GeoQA-powered data quality assessment
+└── road_qc/    # Road network quality control
+    ├── checks/  # Disconnected, self-intersection, dangle detection
+    ├── config.py
+    ├── metrics.py
+    ├── pipeline.py
+    └── webmap.py
+```
 
-**[ARCHITECTURE.md](ARCHITECTURE.md)**
+For detailed design decisions, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
----
+## Supported Formats
 
-## License
+All vector formats readable by GeoPandas/Fiona: Shapefile, GeoJSON, GeoPackage, KML, GML, File Geodatabase, and more via GDAL/OGR drivers.
 
-This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
+## Troubleshooting
 
----
+| Issue | Cause | Fix |
+|---|---|---|
+| CRS warnings | Local CRS without `.prj` file | Ensure data has a valid `.prj` file |
+| Out of memory | Very large areas (>500 km²) | Process in smaller boundary chunks |
+| Slow processing | Large datasets with O(n²) comparisons | Vectorized joins used automatically; filter to area of interest |
 
-## Author
+## Testing
 
-**Ammar Yasser**
-
-- GitHub: [@AmmarYasser455](https://github.com/AmmarYasser455)
-
----
+```bash
+pytest                              # Run full test suite
+pytest --cov=ovc --cov-report=html  # Run with coverage
+```
 
 ## Contributing
 
-Contributions, issues, and feature requests are welcome!
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-Please read our **[CONTRIBUTING.md](CONTRIBUTING.md)** guide for details.
+```bash
+git clone https://github.com/AmmarYasser455/ovc.git
+cd ovc
+pip install -e ".[dev]"
+pytest
+```
 
-Feel free to check the [issues page](https://github.com/AmmarYasser455/ovc/issues) to get started.
+## License
+
+[MIT License](LICENSE)
+
+## Acknowledgments
+
+OVC is part of a geospatial quality control ecosystem alongside [GeoQA](https://github.com/AmmarYasser455/geoqa). The project uses vectorized spatial operations powered by [GeoPandas](https://geopandas.org/), [Shapely](https://shapely.readthedocs.io/), and [Folium](https://python-visualization.github.io/folium/) for interactive visualization.
+
+## Citation
+
+```bibtex
+@software{ovc2026,
+  title   = {OVC: Overlap Violation Checker for Geospatial Data},
+  author  = {Ammar Yasser},
+  year    = {2026},
+  url     = {https://github.com/AmmarYasser455/ovc},
+  license = {MIT}
+}
+```
 
 ---
 
