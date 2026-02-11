@@ -34,6 +34,14 @@ def load_buildings(path: Path) -> gpd.GeoDataFrame:
     if not path.exists():
         raise FileNotFoundError(f"Buildings file not found: {path}")
 
+    # Warn about large files before loading
+    file_size_mb = path.stat().st_size / 1e6
+    if file_size_mb > 500:
+        logger.warning(
+            f"Large buildings file ({file_size_mb:.0f} MB) — "
+            "loading may be slow and require significant memory"
+        )
+
     logger.info(f"Loading buildings from {path}")
     gdf = gpd.read_file(path)
 
@@ -57,6 +65,12 @@ def load_buildings(path: Path) -> gpd.GeoDataFrame:
         gdf["osmid"] = gdf.index.astype(str)
     else:
         gdf["osmid"] = gdf["osmid"].astype(str)
+
+    if len(gdf) > 100_000:
+        logger.warning(
+            f"Large dataset ({len(gdf):,} buildings) — "
+            "QC checks may take several minutes"
+        )
 
     logger.info(f"Loaded {len(gdf)} buildings")
     return gdf
