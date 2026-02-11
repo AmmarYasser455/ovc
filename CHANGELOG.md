@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2026-02-12
+
+### Fixed
+- **Critical**: `ensure_wgs84()` now raises `ValueError` when input data has no CRS defined, instead of silently assuming EPSG:4326. This prevents coordinate corruption when projected data (e.g. UTM) is loaded without a `.prj` file. (OVC-001 from audit)
+- **UX**: GeoPackage writer now logs a warning when a layer has no CRS, instead of silently setting EPSG:4326.
+- **UX**: Building and road loaders now warn when file size exceeds 500 MB or feature count exceeds 100,000, setting expectations for runtime and memory usage.
+
+### Added
+- 9 new tests in `tests/test_crs.py` covering `ensure_wgs84`, `choose_utm_crs_from_gdf`, and `get_crs_pair` with valid, projected, missing, and edge-case CRS inputs.
+
 ## [3.1.0] - 2026-02-11
 
 ### Added
