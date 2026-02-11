@@ -287,9 +287,10 @@ pytest
 
 ## Author
 
-**Ammar Yasser Abdalazim**
+**Ammar Yasser**
 
 - GitHub: [@AmmarYasser455](https://github.com/AmmarYasser455)
+- LinkedIn: [Ammar Yasser](https://www.linkedin.com/in/ammar-yasser522)
 
 ## License
 
