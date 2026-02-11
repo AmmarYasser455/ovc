@@ -5,6 +5,8 @@ Produces structured quality reports for each input dataset (buildings,
 roads, boundary) *before* the main QC pipeline runs. This catches
 fundamental data issues (missing CRS, invalid geometries, empty features,
 encoding problems) early, saving compute time and giving clear diagnostics.
+
+Author: Ammar Yasser Abdalazim
 """
 
 from __future__ import annotations

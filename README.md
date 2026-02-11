@@ -285,6 +285,12 @@ pip install -e ".[dev]"
 pytest
 ```
 
+## Author
+
+**Ammar Yasser Abdalazim**
+
+- GitHub: [@AmmarYasser455](https://github.com/AmmarYasser455)
+
 ## License
 
 [MIT License](LICENSE)
@@ -298,7 +304,7 @@ OVC is part of a geospatial quality control ecosystem alongside [GeoQA](https://
 ```bibtex
 @software{ovc2026,
   title   = {OVC: Overlap Violation Checker for Geospatial Data},
-  author  = {Ammar Yasser},
+  author  = {Ammar Yasser Abdalazim},
   year    = {2026},
   url     = {https://github.com/AmmarYasser455/ovc},
   license = {MIT}
