@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GeoQA + OVC Ecosystem</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:#0b1120;
+    color:#e2e8f0;
+    display:flex;justify-content:center;align-items:center;
+    min-height:100vh;padding:1.5rem;
+  }
+  .d{width:820px}
+
+  /* header */
+  .hd{text-align:center;margin-bottom:1.2rem}
+  .hd h1{font-size:1.15rem;font-weight:800;color:#f1f5f9;letter-spacing:-.02em}
+  .hd p{color:#64748b;font-size:.68rem;margin-top:.2rem}
+
+  /* wire */
+  .w{display:flex;align-items:center;justify-content:center;padding:.35rem 0}
+  .wv{width:2px;height:18px;border-radius:1px}
+  .wv-d{background:linear-gradient(180deg,#334155,#64748b)}
+  .wv-g{background:linear-gradient(180deg,#166534,#22c55e)}
+  .wv-r{background:linear-gradient(180deg,#7f1d1d,#ef4444)}
+  .wh{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent}
+  .wh-d{border-top:6px solid #64748b}
+  .wh-g{border-top:6px solid #22c55e}
+  .wh-r{border-top:6px solid #ef4444}
+  .wl{font-size:.6rem;font-weight:600;color:#94a3b8;padding:1px 6px;border-radius:3px;border:1px solid #1e293b;background:#0f172a;white-space:nowrap}
+  .wl-p{color:#4ade80;border-color:#166534}
+  .wl-f{color:#f87171;border-color:#7f1d1d}
+
+  /* node */
+  .n{border:1px solid #1e293b;border-radius:8px;background:#111827}
+  .nh{display:flex;align-items:center;gap:.5rem;padding:.55rem .8rem;border-bottom:1px solid #1e293b}
+  .nh img{width:28px;height:28px;border-radius:6px;object-fit:contain;background:rgba(255,255,255,.06);padding:2px}
+  .nh h2{font-size:.8rem;font-weight:700}
+  .nh .b{font-size:.5rem;font-weight:700;padding:1px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.05em;margin-left:auto}
+  .b-g{background:#14532d;color:#86efac}
+  .b-b{background:#172554;color:#93c5fd}
+  .nb{padding:.6rem .8rem}
+
+  /* themes */
+  .n-g{border-color:#166534;background:#071a0e}
+  .n-o{border-color:#1d4ed8;background:#0a1628}
+  .n-g .nh{border-color:#166534}
+  .n-o .nh{border-color:#1d4ed8}
+
+  /* inputs */
+  .ir{display:flex;gap:.5rem;justify-content:center}
+  .ic{display:flex;align-items:center;gap:.35rem;padding:.35rem .7rem;border-radius:6px;background:#111827;border:1px solid #1e293b;font-size:.68rem;font-weight:500}
+  .ic .d{width:6px;height:6px;border-radius:2px;flex-shrink:0}
+  .d-y{background:#f59e0b}.d-bl{background:#3b82f6}.d-v{background:#a78bfa}
+
+  /* check grid - compact 4-col */
+  .cg{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.4rem .8rem}
+  .cs h4{font-size:.52rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:.2rem}
+  .ci{font-size:.62rem;color:#cbd5e1;padding:.1rem 0;display:flex;align-items:center;gap:.25rem}
+  .ci::before{content:'';width:4px;height:4px;border-radius:50%;flex-shrink:0}
+  .n-g .ci::before{background:#22c55e}
+  .n-o .ci::before{background:#3b82f6}
+
+  /* 2-col for OVC */
+  .cg2{display:grid;grid-template-columns:1fr 1fr;gap:.4rem .8rem}
+
+  /* score */
+  .ss{display:flex;align-items:center;justify-content:center;gap:.7rem;margin-top:.5rem;padding:.4rem 0;border-top:1px solid #166534}
+  .sn{font-size:1.1rem;font-weight:800;color:#22c55e;line-height:1}
+  .sm{font-size:.58rem;color:#86efac}
+  .sb{width:80px;height:4px;border-radius:2px;background:#0f2a17;overflow:hidden}
+  .sf{height:100%;border-radius:2px;background:linear-gradient(90deg,#166534,#22c55e);width:85%}
+
+  /* fork */
+  .fk{display:flex;gap:2rem;justify-content:center;align-items:flex-start}
+  .fb{display:flex;flex-direction:column;align-items:center;gap:.25rem}
+  .fd{font-size:.55rem;color:#94a3b8;text-align:center;max-width:160px;line-height:1.4}
+  .fd-r{color:#fca5a5}
+
+  /* outputs */
+  .or{display:flex;gap:.5rem;justify-content:center}
+  .ob{padding:.4rem .8rem;border-radius:6px;text-align:center;background:#110a24;border:1px solid #7c3aed;min-width:100px}
+  .ob .t{font-size:.65rem;font-weight:600;color:#e2e8f0}
+  .ob .s{font-size:.55rem;color:#a78bfa;margin-top:.1rem}
+
+  /* platforms */
+  .ps{display:flex;gap:.4rem;margin-top:.45rem;padding-top:.4rem;border-top:1px solid #1e293b}
+  .pc{font-size:.55rem;font-weight:600;padding:2px 7px;border-radius:3px;background:#1e293b;color:#94a3b8}
+
+  /* footer */
+  .ft{text-align:center;margin-top:1.2rem;padding-top:.6rem;border-top:1px solid #1e293b}
+  .ft a{color:#60a5fa;text-decoration:none;font-size:.65rem;margin:0 .5rem}
+  .ft .au{color:#475569;font-size:.6rem;margin-top:.25rem}
+</style>
+</head>
+<body>
+<div class="d">
+
+  <div class="hd">
+    <h1>Geospatial Quality Control Ecosystem</h1>
+    <p>GeoQA gates data readiness, OVC runs deep spatial conflict detection</p>
+  </div>
+
+  <!-- Input -->
+  <div class="ir">
+    <div class="ic"><span class="d d-y"></span>Buildings</div>
+    <div class="ic"><span class="d d-bl"></span>Roads</div>
+    <div class="ic"><span class="d d-v"></span>Boundary</div>
+    <div class="ic" style="color:#64748b">SHP / GeoJSON / GPKG</div>
+  </div>
+
+  <div class="w"><div style="display:flex;flex-direction:column;align-items:center"><div class="wv wv-d"></div><div class="wh wh-d"></div></div></div>
+
+  <!-- GeoQA -->
+  <div class="n n-g">
+    <div class="nh">
+      <img src="https://raw.githubusercontent.com/AmmarYasser455/geoqa/main/docs/geoqa_logo.png" alt="GeoQA">
+      <h2>GeoQA</h2>
+      <span class="b b-g">Stage 1 &mdash; Data Readiness</span>
+    </div>
+    <div class="nb">
+      <div class="cg">
+        <div class="cs">
+          <h4>Geometry</h4>
+          <div class="ci">OGC validity</div>
+          <div class="ci">Empty / null</div>
+          <div class="ci">Duplicates</div>
+          <div class="ci">Mixed types</div>
+        </div>
+        <div class="cs">
+          <h4>Attributes</h4>
+          <div class="ci">Completeness</div>
+          <div class="ci">Type profiling</div>
+          <div class="ci">Unique values</div>
+          <div class="ci">Distributions</div>
+        </div>
+        <div class="cs">
+          <h4>Topology</h4>
+          <div class="ci">Self-overlaps</div>
+          <div class="ci">Slivers</div>
+          <div class="ci">Winding order</div>
+          <div class="ci">Coord precision</div>
+        </div>
+        <div class="cs">
+          <h4>Spatial</h4>
+          <div class="ci">CRS check</div>
+          <div class="ci">Bounding box</div>
+          <div class="ci">Area / length</div>
+          <div class="ci">Geom type</div>
+        </div>
+      </div>
+      <div class="ss">
+        <div><div class="sn">85</div><div class="sm">Score</div></div>
+        <div class="sb"><div class="sf"></div></div>
+        <div class="sm" style="color:#94a3b8">0 &ndash; 100</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fork -->
+  <div class="w" style="padding:.5rem 0">
+    <div class="fk">
+      <div class="fb">
+        <div style="display:flex;flex-direction:column;align-items:center"><div class="wv wv-g"></div><div class="wh wh-g"></div></div>
+        <span class="wl wl-p">PASS &mdash; Score &ge; 50</span>
+        <div class="fd">Proceed to deep checks</div>
+      </div>
+      <div class="fb">
+        <div style="display:flex;flex-direction:column;align-items:center"><div class="wv wv-r"></div><div class="wh wh-r"></div></div>
+        <span class="wl wl-f">FAIL &mdash; Blockers</span>
+        <div class="fd fd-r">Missing CRS, invalid geom,<br>empty data, low score</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="w"><div style="display:flex;flex-direction:column;align-items:center"><div class="wv wv-g"></div><div class="wh wh-g"></div></div></div>
+
+  <!-- OVC -->
+  <div class="n n-o">
+    <div class="nh">
+      <img src="https://raw.githubusercontent.com/AmmarYasser455/ovc/main/docs/assets/logo.png" alt="OVC">
+      <h2>OVC &mdash; Overlap Violation Checker</h2>
+      <span class="b b-b">Stage 2 &mdash; Spatial QC</span>
+    </div>
+    <div class="nb">
+      <div class="cg2">
+        <div class="cs">
+          <h4>Building Checks</h4>
+          <div class="ci">Building-building overlap</div>
+          <div class="ci">Building-road conflict</div>
+          <div class="ci">Boundary containment</div>
+        </div>
+        <div class="cs">
+          <h4>Road Network Checks</h4>
+          <div class="ci">Disconnected segments</div>
+          <div class="ci">Self-intersections</div>
+          <div class="ci">Dangle detection</div>
+        </div>
+      </div>
+      <div class="ps">
+        <span class="pc">Python CLI</span>
+        <span class="pc">Python API</span>
+        <span class="pc">ArcGIS Pro Toolbox</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="w"><div style="display:flex;flex-direction:column;align-items:center"><div class="wv wv-d"></div><div class="wh wh-d"></div></div></div>
+
+  <!-- Outputs -->
+  <div class="or">
+    <div class="ob"><div class="t">GeoPackage</div><div class="s">Flagged features</div></div>
+    <div class="ob"><div class="t">Metrics CSV</div><div class="s">Error statistics</div></div>
+    <div class="ob"><div class="t">Web Map</div><div class="s">Interactive Folium</div></div>
+    <div class="ob"><div class="t">HTML Report</div><div class="s">Quality report</div></div>
+  </div>
+
+  <div class="ft">
+    <a href="https://github.com/AmmarYasser455/geoqa">github/geoqa</a>
+    <a href="https://github.com/AmmarYasser455/ovc">github/ovc</a>
+    <a href="https://pypi.org/project/geoqa/">pypi/geoqa</a>
+    <div class="au">Ammar Yasser &middot; MIT License &middot; 2026</div>
+  </div>
+
+</div>
+</body>
+</html>
