@@ -93,9 +93,7 @@ def find_invalid_geometries(
         logger.info("No invalid geometries found")
         return gpd.GeoDataFrame(geometry=[], crs=gdf.crs)
 
-    invalid["validity_reason"] = invalid.geometry.apply(
-        lambda g: explain_validity(g)
-    )
+    invalid["validity_reason"] = invalid.geometry.apply(lambda g: explain_validity(g))
     invalid["error_type"] = "invalid_geometry"
     invalid["error_class"] = "topology"
 
@@ -145,9 +143,7 @@ def find_unreasonable_areas(
     result["error_type"] = "unreasonable_area"
     result = gpd.GeoDataFrame(result, geometry="geometry", crs=gdf.crs)
 
-    logger.info(
-        f"Area check: {len(too_small)} too small, {len(too_large)} too large"
-    )
+    logger.info(f"Area check: {len(too_small)} too small, {len(too_large)} too large")
     return result
 
 
@@ -190,9 +186,7 @@ def compute_compactness(
     flagged["error_type"] = "low_compactness"
     flagged["error_class"] = "shape_quality"
 
-    logger.info(
-        f"Compactness check: {len(flagged)} buildings below {min_compactness}"
-    )
+    logger.info(f"Compactness check: {len(flagged)} buildings below {min_compactness}")
     return gpd.GeoDataFrame(flagged, geometry="geometry", crs=gdf.crs)
 
 
@@ -246,16 +240,12 @@ def find_min_road_distance_violations(
 
     # Compute actual nearest-road distance per building
     unique_bids = candidates["bldg_id"].unique()
-    bldg_subset = buildings_metric[
-        buildings_metric["bldg_id"].isin(unique_bids)
-    ].copy()
+    bldg_subset = buildings_metric[buildings_metric["bldg_id"].isin(unique_bids)].copy()
 
     road_union = roads_metric.union_all()
     bldg_subset["min_road_dist_m"] = bldg_subset.geometry.distance(road_union)
 
-    violations = bldg_subset[
-        bldg_subset["min_road_dist_m"] < min_distance_m
-    ].copy()
+    violations = bldg_subset[bldg_subset["min_road_dist_m"] < min_distance_m].copy()
 
     if violations.empty:
         return gpd.GeoDataFrame(geometry=[], crs=buildings_metric.crs)
@@ -267,4 +257,6 @@ def find_min_road_distance_violations(
         f"Road setback check: {len(violations)} buildings within "
         f"{min_distance_m}m of roads"
     )
-    return violations[["bldg_id", "geometry", "min_road_dist_m", "error_type", "error_class"]]
+    return violations[
+        ["bldg_id", "geometry", "min_road_dist_m", "error_type", "error_class"]
+    ]

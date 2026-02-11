@@ -3,7 +3,6 @@ from pathlib import Path
 from ovc.export.pipeline import run_pipeline
 from ovc.core.config import DEFAULT_CONFIG
 
-
 TESTS_DIR = Path(__file__).parent
 BOUNDARY = TESTS_DIR / "data" / "sample_boundary.geojson"
 BUILDINGS = TESTS_DIR / "data" / "sample_buildings.geojson"

@@ -96,7 +96,9 @@ def find_buildings_on_roads(
 
     import pandas as pd
 
-    result = gpd.GeoDataFrame(pd.DataFrame(rows), geometry="geometry", crs=buildings_metric.crs)
+    result = gpd.GeoDataFrame(
+        pd.DataFrame(rows), geometry="geometry", crs=buildings_metric.crs
+    )
     logger.info(f"Found {len(result)} building-road conflicts")
     return result
 
