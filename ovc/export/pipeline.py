@@ -28,6 +28,8 @@ class PipelineOutputs:
     gpkg_path: Path
     metrics_csv: Path
     webmap_html: Path
+    precheck_report: Path | None = None
+    precheck_score: float | None = None
 
 
 def _ensure_osmid(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -71,6 +73,7 @@ def run_pipeline(
     boundary_path: Path | None = None,
     roads_path: Path | None = None,
     config=DEFAULT_CONFIG,
+    run_precheck: bool = False,
 ) -> PipelineOutputs:
     """Run the building QC pipeline on local data.
 
@@ -97,6 +100,26 @@ def run_pipeline(
     out_dir = Path(out_dir)
 
     attribution_text = "OVC — Overlap Violation Checker by Ammar"
+
+    # --- Optional GeoQA pre-check ---
+    precheck_report = None
+    precheck_score = None
+    if run_precheck:
+        try:
+            from ovc.precheck import precheck_buildings
+
+            pc = precheck_buildings(buildings_path, out_dir=out_dir)
+            precheck_score = pc.quality_score
+            precheck_report = pc.report_path
+            if pc.has_blockers:
+                log.warning(
+                    f"Pre-check found blockers (score={pc.quality_score}/100). "
+                    "Proceeding anyway — check the report for details."
+                )
+        except ImportError:
+            log.warning("GeoQA not installed — skipping pre-check")
+        except Exception as e:
+            log.warning(f"Pre-check failed: {e} — continuing pipeline")
 
     # --- Load boundary (optional) ---
     boundary = None
@@ -293,4 +316,6 @@ def run_pipeline(
         gpkg_path=gpkg_path,
         metrics_csv=metrics_csv,
         webmap_html=webmap_html,
+        precheck_report=precheck_report,
+        precheck_score=precheck_score,
     )
