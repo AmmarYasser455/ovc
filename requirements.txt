@@ -1,7 +1,6 @@
 fiona>=1.9
 folium>=0.15
 geopandas>=0.14
-osmnx>=1.8
 pandas>=2.0
 pyproj>=3.6
 rtree>=1.1

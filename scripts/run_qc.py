@@ -8,110 +8,118 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from ovc.export.pipeline import run_pipeline
 from ovc.core.logging import get_logger
 
-DEFAULT_BOUNDARIES_DIR = Path("data/boundaries")
-
 logger = get_logger("ovc.cli")
-
-
-def resolve_boundary(boundary_arg: str) -> Path:
-    p = Path(boundary_arg)
-
-    if p.exists():
-        return p
-
-    candidate = DEFAULT_BOUNDARIES_DIR / f"{boundary_arg}.geojson"
-    if candidate.exists():
-        return candidate
-
-    raise FileNotFoundError(
-        f"Boundary not found: '{boundary_arg}'. "
-        f"Provide a valid file path or a name existing in {DEFAULT_BOUNDARIES_DIR}"
-    )
 
 
 def main():
     logger.info("OVC started. Preparing your data...")
 
-    parser = argparse.ArgumentParser(description="OVC – Spatial Data Quality Control")
-
-    parser.add_argument(
-        "--boundary",
-        required=False,
-        help="Optional: path to boundary file (shp/geojson/gpkg). "
-        "Required only when downloading data from OpenStreetMap.",
+    parser = argparse.ArgumentParser(
+        description="OVC – Spatial Data Quality Control (local data only)"
     )
 
     parser.add_argument(
         "--buildings",
         required=False,
-        help="Optional: path to buildings file (shp/geojson/gpkg). "
-        "If not provided, buildings will be downloaded from OpenStreetMap.",
+        help="Path to buildings file (shp/geojson/gpkg). "
+        "Required unless --road-qc-only is used.",
+    )
+
+    parser.add_argument(
+        "--boundary",
+        required=False,
+        help="Optional: path to boundary file (shp/geojson/gpkg). "
+        "Enables boundary overlap and outside-boundary checks.",
     )
 
     parser.add_argument(
         "--roads",
         required=False,
         help="Optional: path to roads file (shp/geojson/gpkg). "
-        "If not provided, roads will be downloaded from OpenStreetMap.",
+        "Enables building-on-road conflict checks.",
     )
 
     parser.add_argument(
         "--road-qc",
         action="store_true",
-        help="Enable road quality control checks (detect disconnected segments, self-intersections, dangles)",
+        help="Enable road quality control checks (detect disconnected segments, self-intersections, dangles). "
+        "Requires --roads.",
+    )
+
+    parser.add_argument(
+        "--road-qc-only",
+        action="store_true",
+        help="Run ONLY road quality control checks (skip building QC). "
+        "Requires --roads.",
     )
 
     parser.add_argument(
         "--out",
         default="outputs",
-        help="Output directory",
+        help="Output directory (default: outputs)",
     )
 
     args = parser.parse_args()
 
-    boundary_path = None
-    if args.boundary:
-        logger.info("Resolving boundary...")
-        try:
-            boundary_path = resolve_boundary(args.boundary)
-        except FileNotFoundError as e:
-            logger.error(str(e))
-            sys.exit(1)
-
+    buildings_path = None
     if args.buildings:
         buildings_path = Path(args.buildings)
-        logger.info("Using provided buildings file")
-    else:
-        if not boundary_path:
-            logger.error(
-                "Boundary is required when downloading buildings from OpenStreetMap"
-            )
+        if not buildings_path.exists():
+            logger.error(f"Buildings file not found: {buildings_path}")
             sys.exit(1)
-        buildings_path = None
-        logger.info("Downloading buildings from OpenStreetMap")
+        logger.info(f"Buildings: {buildings_path}")
 
+    boundary_path = None
+    if args.boundary:
+        boundary_path = Path(args.boundary)
+        if not boundary_path.exists():
+            logger.error(f"Boundary file not found: {boundary_path}")
+            sys.exit(1)
+        logger.info(f"Boundary: {boundary_path}")
+
+    roads_path = None
     if args.roads:
         roads_path = Path(args.roads)
-        logger.info("Using provided roads file")
-    else:
-        if boundary_path:
-            roads_path = None
-            logger.info("Downloading roads from OpenStreetMap")
-        else:
-            roads_path = None
-            logger.warning(
-                "No boundary or roads provided. Road conflict checks will be skipped."
-            )
+        if not roads_path.exists():
+            logger.error(f"Roads file not found: {roads_path}")
+            sys.exit(1)
+        logger.info(f"Roads: {roads_path}")
 
-    if boundary_path:
-        logger.info("Using boundary as analysis area")
-    else:
-        logger.info("Using buildings extent as analysis area")
+    # --- Road QC only mode ---
+    if args.road_qc_only:
+        if roads_path is None:
+            logger.error("--road-qc-only requires --roads to be provided.")
+            sys.exit(1)
+
+        from ovc.road_qc import run_road_qc
+
+        logger.info("Running Road QC checks (road-qc-only mode)...")
+        road_qc_outputs = run_road_qc(
+            roads_path=roads_path,
+            boundary_path=boundary_path,
+            out_dir=Path(args.out) / "road_qc",
+        )
+
+        logger.info("Road QC finished")
+        logger.info(f"GeoPackage: {road_qc_outputs.gpkg_path}")
+        logger.info(f"Metrics CSV: {road_qc_outputs.metrics_csv}")
+        logger.info(f"Web map: {road_qc_outputs.webmap_html}")
+        logger.info(f"Total errors: {road_qc_outputs.total_errors}")
+        if road_qc_outputs.top_3_errors:
+            logger.info("Top 3 errors:")
+            for error_type, count in road_qc_outputs.top_3_errors:
+                logger.info(f"  • {error_type}: {count}")
+        return
+
+    # --- Building QC ---
+    if buildings_path is None:
+        logger.error("--buildings is required (unless using --road-qc-only).")
+        sys.exit(1)
 
     logger.info("Running Building QC pipeline...")
     outputs = run_pipeline(
-        boundary_path=boundary_path,
         buildings_path=buildings_path,
+        boundary_path=boundary_path,
         roads_path=roads_path,
         out_dir=Path(args.out),
     )
@@ -123,10 +131,8 @@ def main():
 
     # Run road QC if enabled
     if args.road_qc:
-        if roads_path is None and boundary_path is None:
-            logger.error(
-                "Road QC requires either --roads or --boundary to be provided."
-            )
+        if roads_path is None:
+            logger.error("Road QC requires --roads to be provided.")
             sys.exit(1)
 
         from ovc.road_qc import run_road_qc
@@ -134,7 +140,7 @@ def main():
         logger.info("Running Road QC checks...")
         road_qc_outputs = run_road_qc(
             roads_path=roads_path,
-            boundary_path=boundary_path,  # Always pass for dangle filtering
+            boundary_path=boundary_path,
             out_dir=Path(args.out) / "road_qc",
         )
 

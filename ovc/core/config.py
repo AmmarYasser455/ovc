@@ -12,9 +12,6 @@ class OverlapConfig:
     min_intersection_area_m2: float = 0.5
 
 
-# Other configs
-
-
 @dataclass(frozen=True)
 class RoadConflictThresholds:
     road_buffer_m: float = 1.0
@@ -22,19 +19,9 @@ class RoadConflictThresholds:
 
 
 @dataclass(frozen=True)
-class Tags:
-    buildings: dict
-    roads: dict
-
-
-@dataclass(frozen=True)
 class Config:
     overlap: OverlapConfig = OverlapConfig()
     road_conflict: RoadConflictThresholds = RoadConflictThresholds()
-    tags: Tags = Tags(
-        buildings={"building": True},
-        roads={"highway": True},
-    )
 
 
 DEFAULT_CONFIG = Config()

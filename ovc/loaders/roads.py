@@ -1,67 +1,77 @@
+"""Load road geometries from local files.
+
+Supports any format readable by GeoPandas/Fiona: Shapefile, GeoJSON,
+GeoPackage, etc.
+"""
+
 from __future__ import annotations
 
+from pathlib import Path
+
 import geopandas as gpd
-import osmnx as ox
 
 from ovc.core.crs import ensure_wgs84
 from ovc.core.geometry import drop_empty_and_fix, clip_to_boundary
 from ovc.core.logging import get_logger
 
 
-def load_roads(boundary_4326: gpd.GeoDataFrame, tags: dict) -> gpd.GeoDataFrame:
+def load_roads(
+    path: Path,
+    boundary_4326: gpd.GeoDataFrame | None = None,
+) -> gpd.GeoDataFrame:
+    """Load roads from a local vector file.
+
+    Parameters
+    ----------
+    path : Path
+        Path to the roads dataset (Shapefile, GeoJSON, GeoPackage, etc.).
+    boundary_4326 : GeoDataFrame, optional
+        If provided, clips roads to the boundary.
+
+    Returns
+    -------
+    GeoDataFrame
+        Roads in WGS 84 with ``osmid`` and ``feature_type`` columns.
     """
-    Load OSM roads intersecting the AOI polygon.
-
-    - Uses polygon-based query (NOT bbox)
-    - Clips results strictly to boundary
-    - Returns LineString / MultiLineString only
-    - FAIL-SAFE if no roads are found
-    """
-
-    if boundary_4326 is None or boundary_4326.empty:
-        return gpd.GeoDataFrame(geometry=[], crs=4326)
-
-    boundary_4326 = ensure_wgs84(boundary_4326)
-
-    aoi_geom = boundary_4326.union_all()
-
     logger = get_logger("ovc.loaders.roads")
-    logger.info("Downloading road network (this may take a few minutes)...")
+    path = Path(path)
 
-    try:
-        gdf = ox.features_from_polygon(aoi_geom, tags)
-    except Exception:
-        return gpd.GeoDataFrame(geometry=[], crs=4326)
+    if not path.exists():
+        raise FileNotFoundError(f"Roads file not found: {path}")
 
-    if gdf is None or gdf.empty:
-        return gpd.GeoDataFrame(geometry=[], crs=4326)
-
-    if gdf.crs is None:
-        gdf = gdf.set_crs(4326)
-    else:
-        gdf = gdf.to_crs(4326)
-
-    gdf = gdf[gdf.geometry.type.isin(["LineString", "MultiLineString"])].copy()
+    logger.info(f"Loading roads from {path}")
+    gdf = gpd.read_file(path)
 
     if gdf.empty:
+        logger.warning("Roads file is empty")
         return gpd.GeoDataFrame(geometry=[], crs=4326)
 
+    gdf = ensure_wgs84(gdf)
+
+    # Keep only line geometries
+    gdf = gdf[gdf.geometry.type.isin(["LineString", "MultiLineString"])].copy()
     gdf = drop_empty_and_fix(gdf)
 
     if gdf.empty:
+        logger.warning("No line geometries found in roads file")
         return gpd.GeoDataFrame(geometry=[], crs=4326)
 
-    gdf = clip_to_boundary(gdf, boundary_4326)
+    # Clip to boundary if provided
+    if boundary_4326 is not None and not boundary_4326.empty:
+        boundary_4326 = ensure_wgs84(boundary_4326)
+        gdf = clip_to_boundary(gdf, boundary_4326)
+        if gdf.empty:
+            logger.warning("No roads within boundary after clipping")
+            return gpd.GeoDataFrame(geometry=[], crs=4326)
 
-    if gdf.empty:
-        return gpd.GeoDataFrame(geometry=[], crs=4326)
+    gdf = gdf.reset_index(drop=True)
 
-    gdf = gdf.reset_index(drop=False).rename(columns={"index": "osmid"})
+    # Ensure an ID column exists for downstream compatibility
     if "osmid" not in gdf.columns:
         gdf["osmid"] = gdf.index.astype(str)
     else:
         gdf["osmid"] = gdf["osmid"].astype(str)
 
     gdf["feature_type"] = "road"
-
+    logger.info(f"Loaded {len(gdf)} road features")
     return gdf

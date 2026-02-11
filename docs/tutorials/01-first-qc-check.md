@@ -40,8 +40,7 @@ python scripts/run_qc.py \
 **What's happening:**
 - OVC loads your buildings
 - Checks for overlapping geometries
-- Downloads roads from OpenStreetMap
-- Checks for road-building conflicts
+- Checks for road-building conflicts (if roads are provided)
 - Generates reports and maps
 
 ### Step 3: Examine the Results
@@ -118,4 +117,4 @@ critical_issues,8
 
 ---
 
-[Next: Working with OpenStreetMap Data →](02-working-with-osm-data.md)
+[Next: Working with Local Data →](02-working-with-local-data.md)

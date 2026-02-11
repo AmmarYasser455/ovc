@@ -9,7 +9,6 @@ import pandas as pd
 from ovc.core.logging import get_logger
 from ovc.core.crs import get_crs_pair, ensure_wgs84
 from ovc.core.geometry import drop_empty_and_fix
-from ovc.loaders.roads import load_roads
 from ovc.export.geopackage import _write_layer
 from ovc.export.tables import write_metrics_csv
 
@@ -55,14 +54,13 @@ def run_road_qc(
     Run road quality control checks.
 
     Accepts either:
-    - roads_path: Path to road file (manual or OSM export)
+    - roads_path: Path to road file
     - roads_gdf: Pre-loaded GeoDataFrame
-    - boundary_path: Download roads from OSM for this boundary
 
     Parameters:
         roads_path: Path to road dataset file
         roads_gdf: Pre-loaded road GeoDataFrame
-        boundary_path: Path to boundary for OSM download
+        boundary_path: Path to boundary for dangle edge filtering
         boundary_gdf: Optional boundary GeoDataFrame for filtering edge dangles
         out_dir: Output directory for results
         config: Road QC configuration
@@ -90,11 +88,8 @@ def run_road_qc(
         log.info(f"Loading roads from {roads_path}")
         roads_4326 = gpd.read_file(roads_path)
         roads_4326 = ensure_wgs84(roads_4326)
-    elif boundary_4326 is not None:
-        log.info(f"Downloading roads from OSM within boundary {boundary_path}")
-        roads_4326 = load_roads(boundary_4326, {"highway": True})
     else:
-        raise ValueError("Must provide one of: roads_path, roads_gdf, or boundary_path")
+        raise ValueError("Must provide one of: roads_path or roads_gdf")
 
     gpkg_path = out_dir / "road_qc.gpkg"
     metrics_csv = out_dir / "road_qc_metrics.csv"

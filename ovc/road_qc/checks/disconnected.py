@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 from shapely.geometry import Point, LineString, MultiLineString
 
@@ -30,18 +31,23 @@ def find_disconnected_segments(
     roads_metric: gpd.GeoDataFrame,
     config: RoadQCConfig,
 ) -> gpd.GeoDataFrame:
-    """
-    Detect road segments that are not connected to the network.
+    """Detect road segments not connected to the network.
 
     A segment is disconnected if neither of its endpoints is within
-    `disconnect_tolerance_m` of any other segment's endpoints.
+    ``disconnect_tolerance_m`` of any other segment's endpoints.
+    Uses vectorized spatial-join for performance.
 
-    Parameters:
-        roads_metric: Road geometries in metric CRS
-        config: Road QC configuration
+    Parameters
+    ----------
+    roads_metric : GeoDataFrame
+        Road geometries in metric CRS.
+    config : RoadQCConfig
+        Configuration.
 
-    Returns:
-        GeoDataFrame with disconnected segments, includes error_type column
+    Returns
+    -------
+    GeoDataFrame
+        Disconnected segments with ``error_type`` column.
     """
     if roads_metric is None or roads_metric.empty:
         return gpd.GeoDataFrame(
@@ -54,61 +60,37 @@ def find_disconnected_segments(
     if "road_id" not in roads.columns:
         roads["road_id"] = roads.index.astype(str)
 
-    # Extract all endpoints
-    endpoints = []
+    tolerance = config.disconnect_tolerance_m
+
+    # Extract all endpoints into a GeoDataFrame
+    ep_records = []
     for idx, row in roads.iterrows():
         geom = row.geometry
         if geom is None or geom.is_empty:
             continue
+        for pt in _extract_endpoints(geom):
+            ep_records.append({"road_id": row["road_id"], "geometry": pt})
 
-        pts = _extract_endpoints(geom)
-        for pt in pts:
-            endpoints.append({"road_id": row["road_id"], "point": pt})
-
-    if not endpoints:
+    if not ep_records:
         return gpd.GeoDataFrame(
             {"road_id": [], "error_type": [], "geometry": []},
             geometry="geometry",
             crs=roads.crs,
         )
 
-    ep_df = pd.DataFrame(endpoints)
-    ep_gdf = gpd.GeoDataFrame(ep_df, geometry="point", crs=roads.crs)
+    ep_gdf = gpd.GeoDataFrame(ep_records, geometry="geometry", crs=roads.crs)
 
-    # Build spatial index and find disconnected segments
-    tolerance = config.disconnect_tolerance_m
-    disconnected_ids = set()
+    # Buffer each endpoint by tolerance and spatial-join against all endpoints
+    ep_gdf_buf = ep_gdf.copy()
+    ep_gdf_buf["geometry"] = ep_gdf.geometry.buffer(tolerance)
+    joined = gpd.sjoin(ep_gdf_buf, ep_gdf, how="inner", predicate="intersects")
 
-    # Use spatial index for efficient neighbor lookup
-    sindex = ep_gdf.sindex
+    # Find which road_ids connect to a DIFFERENT road_id
+    cross = joined[joined["road_id_left"] != joined["road_id_right"]]
+    connected_ids = set(cross["road_id_left"].unique())
 
-    for road_id in roads["road_id"].unique():
-        road_endpoints = ep_gdf[ep_gdf["road_id"] == road_id]
-
-        # Check if any endpoint connects to another road via spatial index
-        connected = False
-        for _, ep in road_endpoints.iterrows():
-            pt = ep["point"]
-            # Query spatial index with buffered bounds
-            minx, miny, maxx, maxy = (
-                pt.x - tolerance,
-                pt.y - tolerance,
-                pt.x + tolerance,
-                pt.y + tolerance,
-            )
-            candidates = list(sindex.intersection((minx, miny, maxx, maxy)))
-            for idx in candidates:
-                candidate = ep_gdf.iloc[idx]
-                if candidate["road_id"] == road_id:
-                    continue
-                if pt.distance(candidate["point"]) <= tolerance:
-                    connected = True
-                    break
-            if connected:
-                break
-
-        if not connected:
-            disconnected_ids.add(road_id)
+    all_ids = set(roads["road_id"].unique())
+    disconnected_ids = all_ids - connected_ids
 
     if not disconnected_ids:
         return gpd.GeoDataFrame(

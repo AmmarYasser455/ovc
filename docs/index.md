@@ -9,10 +9,10 @@ title: OVC – Overlap Violation Checker
 
 # Overlap Violation Checker (OVC)
 
-**A modular spatial quality control framework for detecting geometric and topological issues in OpenStreetMap‑like datasets**
+**A modular spatial quality control framework for detecting geometric and topological issues in geospatial datasets**
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v1.0.2-blue.svg" />
+  <img src="https://img.shields.io/badge/version-v3.0.0-blue.svg" />
   <img src="https://img.shields.io/badge/license-MIT-green.svg" />
   <img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" />
 </p>
@@ -27,7 +27,7 @@ title: OVC – Overlap Violation Checker
 <img src="assets/ov.png" alt="OVC Workflow" width="820"/>
 </div>
 
-OVC is a **Python‑based spatial quality control framework** designed to identify geometric and topological issues in geospatial datasets, with a strong focus on OpenStreetMap‑derived data.
+OVC is a **Python‑based spatial quality control framework** designed to identify geometric and topological issues in geospatial datasets. Users provide their own local buildings and roads files for analysis.
 
 **Building QC** detects:
 - Overlapping and duplicate building geometries
@@ -93,7 +93,7 @@ For architectural details, see:
 | **Dangles** | Dead-end endpoints (filters boundary edges) |
 
 ### Data Handling
-- Accept user‑provided datasets or fetch data from OpenStreetMap
+- Accept user‑provided local datasets (Shapefile, GeoJSON, GeoPackage, etc.)
 - Normalize schemas across heterogeneous sources
 - Reproject data to metric CRS for accurate spatial analysis
 - Scale to large datasets through spatial indexing
@@ -115,8 +115,8 @@ For architectural details, see:
 ## Typical Use Cases
 
 ### Data Quality Assurance
-- Pre‑publication validation of OSM contributions
-- Continuous QC for institutional OSM deployments
+- Pre‑publication validation of geospatial datasets
+- Continuous QC for institutional data workflows
 - Compliance checks against administrative boundaries
 
 ### Road Network Analysis
@@ -211,7 +211,6 @@ outputs/
 - PyProj
 - Pandas
 - Folium
-- OSMnx
 
 For the complete dependency list, refer to `pyproject.toml`.
 

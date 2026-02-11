@@ -8,7 +8,7 @@ has_children: true
 
 Step-by-step tutorials to master the Overlap Violation Checker.
 
-**Version:** v1.0.2
+**Version:** v3.0.0
 
 > [!TIP]
 > **Tutorials vs Examples:** Tutorials provide **guided, narrative learning paths** that build your understanding progressively. For **quick, copy-paste code snippets** and ready-to-use recipes, see [Examples](examples.md).
@@ -20,7 +20,7 @@ Step-by-step tutorials to master the Overlap Violation Checker.
 | Tutorial | Description | Difficulty | Time |
 |----------|-------------|------------|------|
 | **[1. Your First QC Check](tutorials/01-first-qc-check.md)** | Run your first check on sample data | Beginner | 10 min |
-| **[2. Working with OSM Data](tutorials/02-working-with-osm-data.md)** | Download and validate OpenStreetMap data | Beginner | 15 min |
+| **[2. Working with Local Data](tutorials/02-working-with-local-data.md)** | Load and validate your own buildings and roads files | Beginner | 15 min |
 | **[3. Custom Configuration](tutorials/03-custom-configuration.md)** | Adapt OVC for urban, rural, and cadastral data | Intermediate | 20 min |
 
 ## Workflows & Automation

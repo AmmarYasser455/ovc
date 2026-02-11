@@ -7,7 +7,7 @@ title: User Guide - OVC
 
 Complete guide to installing, configuring, and using the Overlap Violation Checker.
 
-**Version:** v1.0.2
+**Version:** v3.0.0
 
 ---
 
@@ -201,7 +201,7 @@ python scripts/run_qc.py [OPTIONS]
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `--buildings` | Path | Path to buildings dataset (Shapefile, GeoJSON, GPKG) |
+| `--buildings` | Path | Path to buildings dataset (Shapefile, GeoJSON, GPKG). **Required.** |
 | `--roads` | Path | Path to roads dataset (optional) |
 | `--boundary` | Path | Path to boundary polygon (optional) |
 | `--road-qc` | Flag | Enable Road QC checks (New in v1.0.2) |
@@ -212,7 +212,7 @@ python scripts/run_qc.py [OPTIONS]
 
 #### Mode 1: Buildings Only
 
-Use your own buildings data; roads are downloaded from OSM.
+Provide your buildings data for overlap detection.
 
 ```bash
 python scripts/run_qc.py \
@@ -222,13 +222,12 @@ python scripts/run_qc.py \
 
 **What happens:**
 - Loads your building dataset
-- Derives analysis extent from buildings
-- Downloads roads from OpenStreetMap
-- Performs overlap and road conflict checks
+- Performs building overlap detection
+- Generates reports and interactive map
 
 #### Mode 2: Buildings and Roads
 
-Use both your own buildings and roads datasets.
+Provide both buildings and roads datasets for full conflict analysis.
 
 ```bash
 python scripts/run_qc.py \
@@ -239,32 +238,33 @@ python scripts/run_qc.py \
 
 **What happens:**
 - Loads both datasets
-- No OSM downloads
-- Performs all validation checks
+- Performs all validation checks including road-building conflicts
 - Uses provided data exclusively
 
-#### Mode 3: Boundary-Based OSM Download
+#### Mode 3: Buildings with Boundary
 
-Download both buildings and roads from OSM within a boundary.
+Add a boundary for containment checks.
 
 ```bash
 python scripts/run_qc.py \
+  --buildings data/my_buildings.shp \
   --boundary data/city_boundary.geojson \
   --out results/mode3
 ```
 
 **What happens:**
-- Downloads buildings from OSM
-- Downloads roads from OSM
-- Performs all checks including boundary validation
-- Analyzes OSM data quality
+- Loads buildings and boundary
+- Performs overlap detection and boundary containment checks
+- Flags buildings outside or crossing the boundary
 
-#### Mode 4: Building + Road QC (New in v1.0.2)
+#### Mode 4: Complete QC with Road QC (New in v1.0.2)
 
 Run both Building QC and Road QC together.
 
 ```bash
 python scripts/run_qc.py \
+  --buildings data/my_buildings.shp \
+  --roads data/my_roads.shp \
   --boundary data/city_boundary.geojson \
   --road-qc \
   --out results/mode4
@@ -296,7 +296,8 @@ The Road QC module (new in v1.0.2) detects spatial errors in road networks:
 
 ```bash
 python scripts/run_qc.py \
-  --boundary path/to/boundary.shp \
+  --buildings path/to/buildings.shp \
+  --roads path/to/roads.shp \
   --road-qc \
   --out outputs
 ```
@@ -308,7 +309,8 @@ from pathlib import Path
 from ovc.road_qc import run_road_qc
 
 outputs = run_road_qc(
-    boundary_path=Path("boundary.shp"),
+    roads_path=Path("data/roads.shp"),
+    boundary_path=Path("boundary.shp"),  # Optional, for dangle filtering
     out_dir=Path("outputs/road_qc"),
 )
 
@@ -519,18 +521,17 @@ TopologyException: Invalid geometry
 ogr2ogr -makevalid fixed.shp broken.shp
 ```
 
-#### 4. OSM Download Fails
+#### 4. Data Loading Errors
 
 **Error:**
 ```
-OSM download timeout or connection error
+File not found or unsupported format
 ```
 
 **Solution:**
-- Check internet connection
-- Try smaller boundary area
-- Use local OSM extracts instead
-- Wait and retry (OSM servers may be busy)
+- Verify the file path is correct
+- Ensure the file format is supported (Shapefile, GeoJSON, GeoPackage, KML, GML)
+- Check that all sidecar files are present (e.g., `.shx`, `.dbf` for Shapefiles)
 
 ### Getting Help
 
@@ -554,10 +555,10 @@ from pathlib import Path
 from ovc.export.pipeline import run_pipeline
 
 outputs = run_pipeline(
+    buildings_path=Path("data/buildings.gpkg"),
+    out_dir=Path("results"),
     boundary_path=Path("data/boundary.shp"),
-    buildings_path=None,  # Download from OSM
-    roads_path=None,      # Download from OSM
-    out_dir=Path("results")
+    roads_path=Path("data/roads.gpkg"),
 )
 
 print(f"GeoPackage: {outputs.gpkg_path}")
@@ -571,6 +572,7 @@ from pathlib import Path
 from ovc.road_qc import run_road_qc
 
 outputs = run_road_qc(
+    roads_path=Path("data/roads.shp"),
     boundary_path=Path("data/boundary.shp"),
     out_dir=Path("results/road_qc")
 )
@@ -587,16 +589,21 @@ from ovc.export.pipeline import run_pipeline
 from ovc.road_qc import run_road_qc
 
 boundary = Path("data/boundary.shp")
+buildings = Path("data/buildings.gpkg")
+roads = Path("data/roads.shp")
 out = Path("results")
 
 # Run Building QC
 building_outputs = run_pipeline(
+    buildings_path=buildings,
+    out_dir=out,
     boundary_path=boundary,
-    out_dir=out
+    roads_path=roads,
 )
 
 # Run Road QC
 road_outputs = run_road_qc(
+    roads_path=roads,
     boundary_path=boundary,
     out_dir=out / "road_qc"
 )

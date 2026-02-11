@@ -66,9 +66,10 @@ def generate_road_qc_webmap(
             if (roads_gdf.crs is not None and roads_gdf.crs.to_epsg() != 4326)
             else roads_gdf
         )
+        bounds = roads_4326.total_bounds  # [minx, miny, maxx, maxy]
         center = [
-            roads_4326.geometry.centroid.y.mean(),
-            roads_4326.geometry.centroid.x.mean(),
+            (bounds[1] + bounds[3]) / 2,  # lat
+            (bounds[0] + bounds[2]) / 2,  # lon
         ]
     else:
         center = [30.0, 31.0]  # Default: Egypt

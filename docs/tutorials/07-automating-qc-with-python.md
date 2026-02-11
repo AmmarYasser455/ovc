@@ -61,10 +61,10 @@ class AutomatedQC:
 
         # Run the pipeline
         self.pipeline_outputs = run_pipeline(
-            boundary_path=boundary_path,
             buildings_path=buildings_path,
+            out_dir=output_dir,
+            boundary_path=boundary_path,
             roads_path=roads_path,
-            out_dir=output_dir
         )
 
         print(f"Pipeline finished. Results at: {self.pipeline_outputs.gpkg_path}")
