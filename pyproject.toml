@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ovc"
-version = "3.0.0"
+version = "3.2.0"
 description = "Quality control platform for detecting geometric and topological issues in geospatial building and road datasets"
 requires-python = ">=3.10"
 
@@ -34,13 +34,13 @@ classifiers = [
 ]
 
 dependencies = [
-  "geopandas>=0.14",
-  "shapely>=2.0",
-  "pyproj>=3.6",
-  "pandas>=2.0",
-  "folium>=0.15",
-  "fiona>=1.9",
-  "rtree>=1.1",
+  "geopandas>=0.14,<1.0",
+  "shapely>=2.0,<3.0",
+  "pyproj>=3.6,<4.0",
+  "pandas>=2.0,<3.0",
+  "folium>=0.15,<1.0",
+  "fiona>=1.9,<2.0",
+  "rtree>=1.1,<2.0",
   "geoqa",
 ]
 

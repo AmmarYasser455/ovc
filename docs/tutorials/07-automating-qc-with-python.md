@@ -137,7 +137,7 @@ class AutomatedQC:
             </table>
 
             <h2>Status</h2>
-            <p>{'✅ PASSED' if len(self.check_thresholds()) == 0 else '❌ FAILED'}</p>
+            <p>{' PASSED' if len(self.check_thresholds()) == 0 else ' FAILED'}</p>
         </body>
         </html>
         """
@@ -154,9 +154,9 @@ class AutomatedQC:
             print("Email configuration not found, skipping notification")
             return
 
-        print(f"📧 Sending notification to {self.config['email']['to']}...")
+        print(f" Sending notification to {self.config['email']['to']}...")
         # (Email sending logic...)
-        print("✅ Notification sent successfully")
+        print(" Notification sent successfully")
 
     def run(self):
         """Run complete automated QC workflow"""
@@ -170,11 +170,11 @@ class AutomatedQC:
 
         issues = self.check_thresholds()
         if issues:
-            print("\n⚠️ Threshold violations:")
+            print("\n Threshold violations:")
             for issue in issues:
                 print(f"  - {issue}")
         else:
-            print("\n✅ All thresholds passed")
+            print("\n All thresholds passed")
 
         self.send_notification(report_path)
 

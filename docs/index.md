@@ -70,7 +70,7 @@ Key principles:
 - **No hidden side effects or implicit state**
 
 For architectural details, see:
-👉 **[Architecture Overview](../ARCHITECTURE.md)**
+ **[Architecture Overview](../ARCHITECTURE.md)**
 
 ---
 

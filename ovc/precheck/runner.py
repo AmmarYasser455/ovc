@@ -316,7 +316,7 @@ def precheck_all(
     log.info("  OVC Pre-Check Summary")
     log.info("=" * 60)
     for r in summary.all_results:
-        status = "✅ READY" if r.is_ready else "❌ NOT READY"
+        status = " READY" if r.is_ready else " NOT READY"
         log.info(
             f"  {r.dataset_name:12s} | {status} | "
             f"Score: {r.quality_score}/100 | "
@@ -327,7 +327,7 @@ def precheck_all(
         for w in r.warnings:
             log.warning(f"    WARNING: {w}")
 
-    overall = "✅ ALL CLEAR" if summary.overall_ready else "❌ ISSUES FOUND"
+    overall = " ALL CLEAR" if summary.overall_ready else " ISSUES FOUND"
     log.info(f"\n  Overall: {overall}")
     log.info("=" * 60)
 

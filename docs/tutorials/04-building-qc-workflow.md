@@ -192,11 +192,11 @@ def generate_report(results_dir, output_file):
 
     # Generate recommendations
     if stats['Critical Overlaps'] > 0:
-        print("⚠️  CRITICAL: Immediate action required for critical overlaps")
+        print("  CRITICAL: Immediate action required for critical overlaps")
     if stats['Boundary Violations'] > 0:
-        print("⚠️  WARNING: Buildings outside boundary detected")
+        print("  WARNING: Buildings outside boundary detected")
     if stats['Total Issues'] == 0:
-        print("✅ SUCCESS: No issues detected!")
+        print(" SUCCESS: No issues detected!")
 
     print(f"\nDetailed report saved to: {output_file}")
 
@@ -243,7 +243,7 @@ xdg-open "$LATEST_RESULTS/validation_report.html" 2>/dev/null || \
 open "$LATEST_RESULTS/validation_report.html" 2>/dev/null || \
 start "$LATEST_RESULTS/validation_report.html" 2>/dev/null
 
-echo -e "\n✅ Workflow complete!"
+echo -e "\n Workflow complete!"
 echo "Results: $LATEST_RESULTS"
 ```
 

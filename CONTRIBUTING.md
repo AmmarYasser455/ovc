@@ -107,9 +107,9 @@ git commit -m "Add feature: description of changes"
 ```
 
 Write clear commit messages:
-- ✅ `Fix: Resolve boundary overlap detection issue`
-- ✅ `Feature: Add support for MultiPolygon geometries`
-- ❌ `Fixed stuff`
+-  `Fix: Resolve boundary overlap detection issue`
+-  `Feature: Add support for MultiPolygon geometries`
+-  `Fixed stuff`
 
 #### **Step 6: Push and Open a Pull Request**
 
@@ -189,7 +189,7 @@ pytest
 pytest --cov=ovc
 ```
 
-⚠️ Pull requests with failing tests will not be merged.
+ Pull requests with failing tests will not be merged.
 
 ---
 
@@ -221,7 +221,7 @@ By contributing, you agree that your contributions will be licensed under the **
 
 ---
 
-## Thank You! 🙏
+## Thank You! 
 
 Your contributions help make OVC better for everyone. We appreciate your time and effort in improving this project.
 

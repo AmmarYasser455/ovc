@@ -8,7 +8,7 @@
 
 </div>
 
-> 📚 **For user documentation, see the [Full Documentation](docs/index.md)**
+>  **For user documentation, see the [Full Documentation](docs/index.md)**
 
 ---
 
@@ -43,7 +43,7 @@ tests/           # Test suite
 
 ---
 
-### Module: `road_qc/` (New in v1.0.2)
+### Module: `road_qc/`
 
 **Purpose:** Road network quality control
 
@@ -57,6 +57,18 @@ Contains:
 - Follows the same patterns as Building QC
 - Modular checks in `road_qc/checks/`
 - Unified output structure
+
+---
+
+### Module: `precheck/` (GeoQA Integration)
+
+**Purpose:** Automated data-readiness assessment via the external `geoqa` dependency.
+
+**Architecture:**
+- Acts as a strict validation gate **before** the heavy OVC QC pipeline runs.
+- Offloads basic topology compliance (empty, null, invalid, unprojected geometries) to the `geoqa` Python package.
+- Ensures all inputs passed to OVC algorithms are fundamentally sound, preventing runtime failures mid-pipeline.
+- Generates its own independent suite of HTML quality reports via `geoqa`.
 
 ---
 
@@ -75,9 +87,9 @@ Contains:
 - Spatial indexing utilities
 
 **Constraints:**
-- ✅ Must remain domain-agnostic
-- ❌ No QC-specific logic allowed
-- ❌ No I/O operations
+-  Must remain domain-agnostic
+-  No QC-specific logic allowed
+-  No I/O operations
 
 ---
 
@@ -93,10 +105,10 @@ Responsible for:
 - Data preprocessing and cleaning
 
 **Constraints:**
-- ✅ Handles all data reading operations
-- ✅ Works with local files only (no network/API calls)
-- ❌ Does not perform validation or QC checks
-- ❌ Does not contain business logic
+-  Handles all data reading operations
+-  Works with local files only (no network/API calls)
+-  Does not perform validation or QC checks
+-  Does not contain business logic
 
 ---
 
@@ -111,11 +123,11 @@ Contains all spatial quality checks:
 - Topological error detection
 
 **Each check module:**
-- ✅ Is deterministic and reproducible
-- ✅ Accepts prepared GeoDataFrames as input
-- ✅ Returns structured error outputs
-- ❌ Does not perform I/O operations
-- ❌ Does not load configuration directly
+-  Is deterministic and reproducible
+-  Accepts prepared GeoDataFrames as input
+-  Returns structured error outputs
+-  Does not perform I/O operations
+-  Does not load configuration directly
 
 ---
 
@@ -130,10 +142,10 @@ Responsible for:
 - Producing summary reports
 
 **Constraints:**
-- ✅ Orchestrates the entire workflow
-- ✅ Handles all output operations
-- ❌ Does not contain QC algorithms
-- ❌ Does not perform data validation
+-  Orchestrates the entire workflow
+-  Handles all output operations
+-  Does not contain QC algorithms
+-  Does not perform data validation
 
 ---
 
@@ -148,10 +160,10 @@ Responsible for:
 - Calculating error ratios and percentages
 
 **Constraints:**
-- ✅ Pure computation, no side effects
-- ✅ Takes prepared GeoDataFrames as input
-- ❌ Does not perform I/O operations
-- ❌ Does not perform data validation
+-  Pure computation, no side effects
+-  Takes prepared GeoDataFrames as input
+-  Does not perform I/O operations
+-  Does not perform data validation
 
 ---
 
@@ -245,16 +257,15 @@ OVC follows these core architectural principles:
 
 ## Future Considerations
 
-### Completed in v1.0.2
+### Completed in v3.1.0
 
-- ✅ Road QC module with disconnected, self-intersection, and dangle detection
-- ✅ Unified output structure (`building_qc/`, `road_qc/`)
-- ✅ Boundary-aware dangle filtering
-- ✅ Road QC web maps with legends
+-  Full migration of vectorization endpoints from `unary_union` to `union_all()`.
+-  Centralized `__init__.py` API exports for straightforward third-party integration.
+-  Global `ERROR_COLOR_MAP` added to `ovc.export.maps`.
+-  GeoQA formally decoupled as an independent upstream package for the `precheck` module.
 
 **Short-term:**
 - Deprecation of legacy configuration wrappers
-- Migration to `union_all()` for geometry unions (performance improvement)
 - Enhanced logging and error reporting
 
 **Medium-term:**

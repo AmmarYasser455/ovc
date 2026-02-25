@@ -316,6 +316,6 @@ OVC is part of a geospatial quality control ecosystem alongside [GeoQA](https://
 
 <div align="center">
 
-**⭐ If you find this project useful, please consider giving it a star!**
+** If you find this project useful, please consider giving it a star!**
 
 </div>

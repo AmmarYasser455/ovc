@@ -113,7 +113,7 @@ road_conflicts,34
 critical_issues,8
 ```
 
-**Congratulations!** You've completed your first QC check! 🎉
+**Congratulations!** You've completed your first QC check! 
 
 ---
 

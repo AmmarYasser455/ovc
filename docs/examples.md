@@ -330,11 +330,11 @@ OVERLAPS=$(wc -l < results/pre_publication/building_overlaps.csv)
 BOUNDARY=$(wc -l < results/pre_publication/boundary_violations.csv)
 
 if [ "$OVERLAPS" -gt 1 ] || [ "$BOUNDARY" -gt 1 ]; then
-  echo "❌ Validation failed! Issues found."
+  echo " Validation failed! Issues found."
   echo "Overlaps: $OVERLAPS, Boundary violations: $BOUNDARY"
   exit 1
 else
-  echo "✅ Validation passed! Data is clean."
+  echo " Validation passed! Data is clean."
 fi
 ```
 
@@ -357,7 +357,7 @@ from ovc.export.pipeline import run_pipeline
 
 def send_notification(message):
     """Send email/Slack notification (implement as needed)"""
-    print(f"📧 Notification: {message}")
+    print(f" Notification: {message}")
 
 def main():
     # Run QC
@@ -379,10 +379,10 @@ def main():
         Report: {outputs.webmap_html}
         """
 
-        send_notification(f"✅ Workflow finished!\n{message}")
+        send_notification(f" Workflow finished!\n{message}")
 
     except Exception as e:
-        send_notification(f"❌ QC Failed: {str(e)}")
+        send_notification(f" QC Failed: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":
@@ -572,7 +572,7 @@ run_qc() {
     --boundary "boundaries/$boundary" \
     --out "results/$name"
 
-  echo "✅ Completed $name"
+  echo " Completed $name"
 }
 
 export -f run_qc

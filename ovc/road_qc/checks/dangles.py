@@ -68,11 +68,7 @@ def find_dangles(
     boundary_buffer = None
     if boundary_metric is not None and not boundary_metric.empty:
         # Buffer the boundary line by tolerance
-        boundary_union = (
-            boundary_metric.union_all()
-            if hasattr(boundary_metric, "union_all")
-            else boundary_metric.unary_union
-        )
+        boundary_union = boundary_metric.union_all()
         boundary_buffer = boundary_union.boundary.buffer(tolerance * 3)
 
     # Extract all endpoints with their coordinates (rounded for matching)
