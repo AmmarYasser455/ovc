@@ -221,7 +221,7 @@ By contributing, you agree that your contributions will be licensed under the **
 
 ---
 
-## Thank You! 
+## Thank You!
 
 Your contributions help make OVC better for everyone. We appreciate your time and effort in improving this project.
 
