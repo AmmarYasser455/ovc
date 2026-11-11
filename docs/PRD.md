@@ -315,7 +315,7 @@ Folium-based HTML map with:
 
 | Package | Version | Purpose |
 |---|---|---|
-| `geopandas` | ≥0.14, <1.0 | Core geospatial data processing |
+| `geopandas` | ≥1.0, <2.0 | Core geospatial data processing |
 | `shapely` | ≥2.0, <3.0 | Geometry operations and validation |
 | `pyproj` | ≥3.6, <4.0 | CRS transformations |
 | `pandas` | ≥2.0, <3.0 | Tabular data processing |
