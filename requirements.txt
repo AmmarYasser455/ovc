@@ -1,6 +1,6 @@
 fiona>=1.9,<2.0
 folium>=0.15,<1.0
-geopandas>=0.14,<1.0
+geopandas>=1.0,<2.0
 pandas>=2.0,<3.0
 pyproj>=3.6,<4.0
 rtree>=1.1,<2.0

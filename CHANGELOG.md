@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- Raise the GeoPandas requirement to `>=1.0,<2.0`. The code calls `GeoDataFrame.union_all()`, which was added in GeoPandas 1.0, but the previous `<1.0` pin made a fresh install resolve to GeoPandas 0.14.x, where the QC pipeline and CRS helpers fail with `AttributeError`.
+
 ## [3.1.1] - 2026-02-12
 
 ### Fixed
