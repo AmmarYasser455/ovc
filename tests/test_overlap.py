@@ -48,3 +48,14 @@ def test_no_overlap():
     )
     ov = find_building_overlaps(gdf, THRESHOLDS)
     assert len(ov) == 0
+
+
+def test_keep_polygonal_geometry_collection():
+    from shapely.geometry import GeometryCollection, LineString, Point
+    from ovc.checks.overlap import _keep_polygonal
+
+    poly = Polygon([(0, 0), (2, 0), (2, 2), (0, 2)])
+    gc = GeometryCollection([LineString([(5, 5), (6, 6)]), poly, Point(9, 9)])
+    assert _keep_polygonal(gc).equals(poly)
+    assert _keep_polygonal(GeometryCollection([Point(0, 0)])) is None
+    assert _keep_polygonal(GeometryCollection()) is None

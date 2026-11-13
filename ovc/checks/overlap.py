@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry import GeometryCollection, Polygon, MultiPolygon
 
 from ovc.core.logging import get_logger
 from ovc.core.spatial_index import ensure_sindex
@@ -46,6 +46,12 @@ def _keep_polygonal(g):
         if len(g.geoms) == 0:
             return None
         return max(g.geoms, key=lambda x: x.area)
+    if isinstance(g, GeometryCollection):
+        # Intersections can yield a polygon plus stray lines/points
+        parts = [p for p in (_keep_polygonal(x) for x in g.geoms) if p is not None]
+        if not parts:
+            return None
+        return max(parts, key=lambda x: x.area)
     return None
 
 
