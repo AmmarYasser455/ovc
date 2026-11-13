@@ -49,6 +49,9 @@ def find_buildings_on_roads(
 
     rb = roads_metric[["osmid", "geometry"]].copy()
     rb["geometry"] = rb.geometry.buffer(float(road_buffer_m))
+    # Unique positional labels so sjoin's ``index_right`` is unambiguous even
+    # when the input roads have a non-default or duplicated index.
+    rb = rb.reset_index(drop=True)
 
     # Spatial join to narrow down candidates (fast STRtree lookup)
     candidates = gpd.sjoin(
@@ -64,13 +67,14 @@ def find_buildings_on_roads(
     # Only compute exact intersection for candidate pairs
     rows = []
     bldg_geoms = buildings_metric.set_index("bldg_id")["geometry"]
-    road_buf_geoms = rb.set_index(rb.index)["geometry"]
+    road_buf_geoms = rb["geometry"]
 
     for _, row in candidates.iterrows():
         bldg_id = row["bldg_id"]
         road_idx = row["index_right"]
         bg = bldg_geoms.loc[bldg_id] if bldg_id in bldg_geoms.index else None
-        rg = road_buf_geoms.iloc[road_idx] if road_idx < len(road_buf_geoms) else None
+        # ``index_right`` holds index labels of ``rb`` (unique, see above).
+        rg = road_buf_geoms.loc[road_idx] if road_idx in road_buf_geoms.index else None
 
         if bg is None or rg is None:
             continue
