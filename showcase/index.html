@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OVC showcase: downtown Cairo building and road QC</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  body { margin: 0; font-family: sans-serif; }
+  header { padding: 8px 14px; background: #263238; color: #eceff1; }
+  header h1 { font-size: 18px; margin: 0 0 4px 0; }
+  header p { margin: 2px 0; font-size: 13px; }
+  header a { color: #80cbc4; }
+  #map { position: absolute; top: 92px; bottom: 0; left: 0; right: 0; }
+  .legend { background: white; padding: 6px 8px; font-size: 12px; line-height: 18px; }
+  .legend i { width: 14px; height: 14px; display: inline-block; margin-right: 6px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<header>
+  <h1>OVC showcase: downtown Cairo buildings on roads</h1>
+  <p>OpenStreetMap building footprints checked with OVC for building-building overlaps
+     and for parts lying within 1 m of a mapped road centre-line (computed in UTM zone 36N).</p>
+  <p>Orange buildings are flagged, red patches show where they reach the road. Click a feature for details.
+     Code: <a href="https://github.com/AmmarYasser455/ovc">github.com/AmmarYasser455/ovc</a></p>
+</header>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  var map = L.map('map');
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(map);
+
+  function style(f) {
+    var p = f.properties;
+    if (p.layer === 'road') return { color: '#616161', weight: 2, opacity: 0.8 };
+    if (p.layer === 'road_conflict') return { color: '#c62828', weight: 1, fillColor: '#c62828', fillOpacity: 0.9 };
+    if (p.qc_status === 'ok') return { color: '#607d8b', weight: 1, fillColor: '#cfd8dc', fillOpacity: 0.5 };
+    return { color: '#e65100', weight: 2, fillColor: '#ffcc80', fillOpacity: 0.8 };
+  }
+  function esc(v) {
+    return String(v).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function popup(f, layer) {
+    var rows = Object.keys(f.properties).filter(function (k) {
+      return f.properties[k] !== null;
+    }).map(function (k) {
+      return '<tr><th style="text-align:left">' + esc(k) + '</th><td>' + esc(f.properties[k]) + '</td></tr>';
+    });
+    layer.bindPopup('<table>' + rows.join('') + '</table>');
+  }
+
+  fetch('map.geojson').then(function (r) { return r.json(); }).then(function (data) {
+    var order = { road: 0, building: 1, road_conflict: 2 };
+    data.features.sort(function (a, b) { return order[a.properties.layer] - order[b.properties.layer]; });
+    var layer = L.geoJSON(data, { style: style, onEachFeature: popup }).addTo(map);
+    map.fitBounds(layer.getBounds());
+  });
+
+  var legend = L.control({ position: 'bottomleft' });
+  legend.onAdd = function () {
+    var d = L.DomUtil.create('div', 'legend');
+    d.innerHTML = '<i style="background:#cfd8dc;border:1px solid #607d8b"></i>Building, no issue<br>' +
+      '<i style="background:#ffcc80;border:1px solid #e65100"></i>Building on a road<br>' +
+      '<i style="background:#c62828"></i>Part inside 1 m road buffer<br>' +
+      '<i style="background:#616161;height:3px"></i>Road centre-line';
+    return d;
+  };
+  legend.addTo(map);
+</script>
+</body>
+</html>
