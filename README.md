@@ -56,6 +56,12 @@ No internet connection required. No API rate limits. Just point OVC at your data
 | **Multi-Format I/O** | Shapefile, GeoJSON, GeoPackage input → GeoPackage, CSV, HTML output |
 | **Offline & Fast** | No internet required, vectorized spatial joins (10–50× faster than loops) |
 
+## Showcase
+
+OVC run on a real OpenStreetMap extract of Zamalek, Cairo (152 buildings, 56 road features): which footprints overlap each other or sit within 1 m of a road centreline. See [showcase/](showcase/) for the [report](showcase/README.md), the [web map](showcase/index.html), the [notebook](showcase/showcase.ipynb) and [map.geojson](showcase/map.geojson). Map data (c) OpenStreetMap contributors, ODbL.
+
+<img src="showcase/map.png" alt="OVC results for Zamalek, Cairo" width="700"/>
+
 ## Installation
 
 ```bash

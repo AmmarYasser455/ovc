@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OVC on OpenStreetMap data: Zamalek, Cairo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+ body { margin: 0; font-family: system-ui, sans-serif; }
+ header { padding: 10px 16px; background: #f4f6f8; border-bottom: 1px solid #d0d7de; }
+ h1 { margin: 0 0 4px; font-size: 1.15rem; }
+ p { margin: 2px 0; font-size: 0.9rem; }
+ #map { height: calc(100vh - 110px); }
+</style>
+</head>
+<body>
+<header>
+ <h1>OVC on OpenStreetMap data: Zamalek, Cairo</h1>
+ <p>Orange: overlaps another building. Red: within 1 m of a road centreline. Purple: both. Grey: no issue found.</p>
+ <p>Produced by <a href="https://github.com/AmmarYasser455/ovc">OVC</a> from OpenStreetMap data. Serve this folder over HTTP (for example <code>python -m http.server</code>) so the page can load map.geojson.</p>
+</header>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+ var colors = {"ok": "#9aa5b1", "overlap": "#e08a00", "on_road": "#d1344a", "overlap_and_road": "#7a1fa2"};
+ var map = L.map('map');
+ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+   maxZoom: 19,
+   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+ }).addTo(map);
+ function popup(p) {
+   var rows = Object.keys(p).filter(function (k) { return p[k] !== null; })
+     .map(function (k) { return '<b>' + k + '</b>: ' + p[k]; });
+   return rows.join('<br>');
+ }
+ fetch('map.geojson').then(function (r) { return r.json(); }).then(function (data) {
+   var layer = L.geoJSON(data, {
+     style: function (f) {
+       if (f.properties.layer === 'road') return { color: '#33414f', weight: 2 };
+       return { color: '#2b2b2b', weight: 1, fillOpacity: 0.7,
+                fillColor: colors[f.properties.status] };
+     },
+     onEachFeature: function (f, l) { l.bindPopup(popup(f.properties)); }
+   }).addTo(map);
+   map.fitBounds(layer.getBounds());
+ });
+</script>
+</body>
+</html>
