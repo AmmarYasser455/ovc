@@ -17,9 +17,12 @@ def find_buildings_touching_boundary(
     Parameters
     ----------
     buildings_metric : GeoDataFrame
-        Buildings in metric CRS with ``bldg_id`` and ``osmid`` columns.
+        Buildings in metric CRS. ``bldg_id`` and ``osmid`` columns are kept
+        when present.
     boundary_metric : GeoDataFrame
-        Boundary polygon(s) in metric CRS.
+        Boundary polygon(s) in metric CRS. If its CRS differs from the
+        buildings' CRS it is reprojected to match. Both layers must
+        have a CRS, otherwise ``ValueError`` is raised.
     boundary_buffer_m : float
         Buffer distance (meters) around the boundary line.
 
@@ -37,6 +40,14 @@ def find_buildings_touching_boundary(
     if boundary_metric is None or boundary_metric.empty:
         return gpd.GeoDataFrame(geometry=[], crs=buildings_metric.crs)
 
+    if buildings_metric.crs is None or boundary_metric.crs is None:
+        raise ValueError(
+            "Both buildings and boundary must have a CRS; "
+            "set one before running the boundary check."
+        )
+    if boundary_metric.crs != buildings_metric.crs:
+        boundary_metric = boundary_metric.to_crs(buildings_metric.crs)
+
     boundary_union = boundary_metric.union_all()
     boundary_line = getattr(boundary_union, "boundary", boundary_union)
 
@@ -47,7 +58,8 @@ def find_buildings_touching_boundary(
     )
 
     mask = buildings_metric.intersects(buf)
-    out = buildings_metric.loc[mask, ["bldg_id", "osmid", "geometry"]].copy()
+    cols = [c for c in ("bldg_id", "osmid") if c in buildings_metric.columns]
+    out = buildings_metric.loc[mask, [*cols, "geometry"]].copy()
 
     out["error_type"] = "building_boundary_overlap"
     out["error_class"] = "boundary"
