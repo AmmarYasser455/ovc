@@ -65,6 +65,24 @@ class TestChooseUtmCrs:
         utm = choose_utm_crs_from_gdf(gdf)
         assert utm.to_epsg() == 32636
 
+    def test_southern_hemisphere_zone(self):
+        """Sydney (151.2E, 33.9S) is in UTM zone 56S."""
+        gdf = gpd.GeoDataFrame(geometry=[Point(151.2, -33.9)], crs="EPSG:4326")
+        assert choose_utm_crs_from_gdf(gdf).to_epsg() == 32756
+
+    def test_arctic_uses_ups_north(self):
+        """Beyond 84N UTM is undefined; UPS North is used."""
+        gdf = gpd.GeoDataFrame(geometry=[Point(10.0, 85.5)], crs="EPSG:4326")
+        assert choose_utm_crs_from_gdf(gdf).to_epsg() == 32661
+
+    def test_antarctic_uses_ups_south(self):
+        """South of 80S UTM is undefined; UPS South is used."""
+        gdf = gpd.GeoDataFrame(geometry=[Point(166.7, -77.85)], crs="EPSG:4326")
+        # McMurdo (77.85S) is still inside UTM range
+        assert choose_utm_crs_from_gdf(gdf).to_epsg() == 32758
+        gdf = gpd.GeoDataFrame(geometry=[Point(0.0, -89.9)], crs="EPSG:4326")
+        assert choose_utm_crs_from_gdf(gdf).to_epsg() == 32761
+
     def test_empty_gdf_fallback(self):
         """Empty GDF should return Web Mercator fallback."""
         gdf = gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
