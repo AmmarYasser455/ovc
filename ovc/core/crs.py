@@ -15,6 +15,12 @@ def choose_utm_crs_from_gdf(gdf_4326: gpd.GeoDataFrame) -> CRS:
         return CRS.from_epsg(3857)
     c = gdf_4326.union_all().centroid
     lon, lat = float(c.x), float(c.y)
+    # UTM is only defined between 80°S and 84°N; use the polar
+    # stereographic (UPS) CRS beyond that so metres stay meaningful.
+    if lat > 84:
+        return CRS.from_epsg(32661)
+    if lat < -80:
+        return CRS.from_epsg(32761)
     zone = int((lon + 180) // 6) + 1
     zone = max(1, min(zone, 60))  # Clamp to valid UTM zone range
     epsg = 32600 + zone if lat >= 0 else 32700 + zone
