@@ -17,8 +17,11 @@ def drop_empty_and_fix(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     GeoDataFrame
         Cleaned data with valid geometries only.
     """
-    if gdf is None or gdf.empty:
+    if gdf is None:
         return gpd.GeoDataFrame(geometry=[], crs=4326)
+    if gdf.empty:
+        # Keep the input CRS rather than overwriting it with EPSG:4326.
+        return gpd.GeoDataFrame(geometry=[], crs=gdf.crs or 4326)
     gdf = gdf[gdf.geometry.notna()].copy()
     if gdf.empty:
         return gpd.GeoDataFrame(geometry=[], crs=gdf.crs)
@@ -52,6 +55,9 @@ def clip_to_boundary(
         return gdf
     if boundary is None or boundary.empty:
         return gdf
+    if boundary.crs is not None and gdf.crs is not None and boundary.crs != gdf.crs:
+        # A boundary in another CRS would otherwise clip with wrong coordinates.
+        boundary = boundary.to_crs(gdf.crs)
     boundary_union = boundary.union_all()
     try:
         out = gdf[gdf.intersects(boundary_union)].copy()
