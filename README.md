@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/AmmarYasser455/ovc/main/docs/assets/logo.png" alt="OVC Logo" width="200">
+  <img src="docs/assets/logo.png" alt="ovc logo" width="112">
 </p>
 
 <h1 align="center">OVC — Overlap Violation Checker</h1>
