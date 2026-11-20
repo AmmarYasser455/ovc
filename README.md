@@ -45,6 +45,19 @@ No internet connection required. No API rate limits. Just point OVC at your data
 
 </div>
 
+## Showcase
+
+OVC run on real OpenStreetMap data for downtown Cairo: 262 building footprints
+and 163 roads, checked for building overlaps and for buildings that reach onto a
+road centre-line (1 m buffer, UTM zone 36N). Report, data source and license:
+[showcase/README.md](showcase/README.md).
+
+![Downtown Cairo showcase map](showcase/map.png)
+
+- [Web map](showcase/index.html) · [Notebook](showcase/showcase.ipynb) ·
+  [Result GeoJSON](showcase/map.geojson) · [Script](showcase/make_showcase.py)
+- Rebuild offline with `python showcase/make_showcase.py`.
+
 ## Key Features
 
 | Feature | Description |
