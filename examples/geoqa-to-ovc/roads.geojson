@@ -1,0 +1,45 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "R1",
+    "note": "main road, east-west"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      0.0005,
+      0.0006085
+     ],
+     [
+      0.0013085,
+      0.0006085
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "id": "R2",
+    "note": "side road, north-south"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      0.0008503,
+      0.0006085
+     ],
+     [
+      0.0008503,
+      0.0010426
+     ]
+    ]
+   }
+  }
+ ]
+}

@@ -39,6 +39,24 @@ def _style_error_buildings(feature):
     return {"color": color, "weight": 2, "fillOpacity": 0.6}
 
 
+# CartoDB basemaps now need an API key (tiles render "API KEY REQUIRED"),
+# so use OpenStreetMap, which works without one.
+BASEMAP = "OpenStreetMap"
+OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+
+
+def fit_to_data(m: folium.Map, *layers: gpd.GeoDataFrame | None) -> None:
+    """Zoom the map to the first non-empty layer instead of a fixed zoom level."""
+    for g in layers:
+        if g is None or g.empty or g.crs is None:
+            continue
+        minx, miny, maxx, maxy = g.to_crs(4326).total_bounds
+        m.fit_bounds(
+            [[float(miny), float(minx)], [float(maxy), float(maxx)]], padding=(30, 30)
+        )
+        return
+
+
 def _add_layer_control(m: folium.Map):
     folium.LayerControl(collapsed=False).add_to(m)
     css = """
@@ -82,8 +100,8 @@ def write_webmap(
     m = folium.Map(
         location=[float(c.y), float(c.x)],
         zoom_start=12,
-        tiles="cartodbpositron",
-        attr=attribution_text,
+        tiles=BASEMAP,
+        attr=OSM_ATTRIBUTION + " | " + attribution_text,
         prefer_canvas=True,
     )
 
@@ -165,5 +183,8 @@ def write_webmap(
     </div>
     """
     m.get_root().html.add_child(folium.Element(legend))
+    fit_to_data(
+        m, boundary_4326, buildings_clean_4326, overlap_buildings_4326, errors_4326
+    )
     _add_layer_control(m)
     m.save(html_path)

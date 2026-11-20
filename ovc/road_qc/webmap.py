@@ -6,6 +6,8 @@ import geopandas as gpd
 import folium
 from folium.plugins import Fullscreen
 
+from ovc.export.webmap import BASEMAP, fit_to_data
+
 # Color scheme for road QC errors
 ROAD_QC_COLORS = {
     "disconnected_segment": "#e74c3c",  # Red
@@ -88,7 +90,7 @@ def generate_road_qc_webmap(
         )
 
     # Create map
-    m = folium.Map(location=center, zoom_start=14, tiles="cartodbpositron")
+    m = folium.Map(location=center, zoom_start=14, tiles=BASEMAP)
     Fullscreen().add_to(m)
 
     # Add boundary layer if provided
@@ -207,6 +209,14 @@ def generate_road_qc_webmap(
     folium.LayerControl(collapsed=False).add_to(m)
 
     # Save
+    fit_to_data(
+        m,
+        (
+            boundary_gdf
+            if boundary_gdf is not None and not boundary_gdf.empty
+            else roads_gdf
+        ),
+    )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     m.save(str(out_path))
 

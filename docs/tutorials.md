@@ -19,6 +19,7 @@ Step-by-step tutorials to master the Overlap Violation Checker.
 
 | Tutorial | Description | Difficulty | Time |
 |----------|-------------|------------|------|
+| **[GeoQA → OVC walkthrough](https://github.com/AmmarYasser455/ovc/blob/main/examples/geoqa-to-ovc/README.md)** | Profile a tiny dataset with GeoQA, then find the overlap and the building on a road with OVC | Beginner | 5 min |
 | **[1. Your First QC Check](tutorials/01-first-qc-check.md)** | Run your first check on sample data | Beginner | 10 min |
 | **[2. Working with Local Data](tutorials/02-working-with-local-data.md)** | Load and validate your own buildings and roads files | Beginner | 15 min |
 | **[3. Custom Configuration](tutorials/03-custom-configuration.md)** | Adapt OVC for urban, rural, and cadastral data | Intermediate | 20 min |

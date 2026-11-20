@@ -151,12 +151,9 @@ When you pass `--precheck`, OVC uses GeoQA to:
 5. **Classify** issues as **warnings** (proceed with caution) or **blockers** (stop — fix data first)
 6. **Generate** HTML quality reports for each dataset
 
-Only when all datasets pass the pre-check does OVC proceed with the full QC pipeline. This catches fundamental data issues early — missing CRS, invalid geometries, empty features — saving compute time and giving clear diagnostics.
+If a dataset has blockers, OVC logs a warning and continues, so check the pre-check summary and reports before trusting the results. GeoQA is installed with OVC; there's no separate install step.
 
-```bash
-# Install GeoQA for pre-check support
-pip install geoqa
-```
+**Try it in 5 minutes:** the [GeoQA → OVC walkthrough](examples/geoqa-to-ovc/README.md) runs both tools on a tiny dataset with a planted overlap and a building on a road. It shows what GeoQA reports, what OVC adds, and where each result lands.
 
 | Workflow Step | Tool | What It Does |
 |---|---|---|
