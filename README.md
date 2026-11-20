@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="docs/assets/logo.png" alt="ovc logo" width="112">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/logo-dark.svg">
+    <img src="assets/brand/logo.svg" alt="ovc logo" width="200">
+  </picture>
 </p>
 
 <h1 align="center">OVC — Overlap Violation Checker</h1>
