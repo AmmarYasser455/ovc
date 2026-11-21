@@ -193,3 +193,20 @@ def test_empty_roads_distance():
         gpd.GeoDataFrame(geometry=[], crs=3857),
     )
     assert len(result) == 0
+
+
+def test_duplicates_found_when_rings_start_at_different_vertices():
+    """The same square digitised from another start vertex is a duplicate."""
+    import geopandas as gpd
+    from shapely.geometry import Polygon
+    from ovc.checks.geometry_quality import find_duplicate_geometries
+
+    a = Polygon([(0, 0), (2, 0), (2, 2), (0, 2)])
+    b = Polygon([(2, 2), (0, 2), (0, 0), (2, 0)])
+    c = Polygon([(0, 0), (0, 2), (2, 2), (2, 0)])  # opposite direction
+    other = Polygon([(5, 5), (7, 5), (7, 7), (5, 7)])
+    gdf = gpd.GeoDataFrame(
+        {"bldg_id": [0, 1, 2, 3]}, geometry=[a, b, c, other], crs=32636
+    )
+    dupes = find_duplicate_geometries(gdf)
+    assert sorted(dupes["bldg_id"]) == [0, 1, 2]

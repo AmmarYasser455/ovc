@@ -15,3 +15,8 @@ tests/data/*.gpkg
 outputs/
 cache/
 .DS_Store
+.venv/
+coverage.xml
+*.spec
+.*.ovc-tmp.*
+*_ovc_findings.gpkg

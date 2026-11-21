@@ -5,10 +5,10 @@ from dataclasses import dataclass
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from shapely.geometry import GeometryCollection, Polygon, MultiPolygon
+import shapely
 
 from ovc.core.logging import get_logger
-from ovc.core.spatial_index import ensure_sindex
+from ovc.engine.overlaps import classify_overlap, find_overlap_pairs, polygonal_part
 
 
 @dataclass(frozen=True, init=False)
@@ -36,47 +36,48 @@ class OverlapThresholds:
         object.__setattr__(self, "partial_ratio_min", partial_ratio_min)
 
 
-def _keep_polygonal(g):
-    """Extract the largest polygon from any geometry, or None."""
-    if g is None or g.is_empty:
-        return None
-    if isinstance(g, Polygon):
-        return g
-    if isinstance(g, MultiPolygon):
-        if len(g.geoms) == 0:
-            return None
-        return max(g.geoms, key=lambda x: x.area)
-    if isinstance(g, GeometryCollection):
-        # Intersections can yield a polygon plus stray lines/points
-        parts = [p for p in (_keep_polygonal(x) for x in g.geoms) if p is not None]
-        if not parts:
-            return None
-        return max(parts, key=lambda x: x.area)
-    return None
+# Kept for callers that imported the old private helper.
+_keep_polygonal = polygonal_part
 
 
 def find_building_overlaps(
     buildings_metric: gpd.GeoDataFrame,
     thresholds: OverlapThresholds,
 ) -> gpd.GeoDataFrame:
-    """Detect pairwise building overlaps using vectorized spatial join.
+    """Detect pairwise building overlaps.
 
-    Uses GeoPandas ``sjoin`` and STRtree to avoid Python-level O(n²) iteration.
-    For typical datasets this is **10–50× faster** than the previous
-    ``iterrows()`` implementation.
+    This is a thin wrapper around the shared topology engine
+    (:mod:`ovc.engine.overlaps`): an STRtree selects candidate pairs and the
+    exact polygonal intersection decides. Each unordered pair is reported
+    once, with the area of *every* part of its intersection. Shared edges and
+    shared vertices are not overlaps.
+
+    Invalid polygons are repaired in memory (``make_valid``) with a logged
+    warning, so they cannot silently drop out of the comparison.
 
     Parameters
     ----------
     buildings_metric : GeoDataFrame
         Buildings in a metric CRS with ``bldg_id`` column.
     thresholds : OverlapThresholds
-        Classification thresholds.
+        ``min_intersection_area_m2``: overlaps with at least this area are
+        reported (an area equal to the threshold is reported).
+        ``duplicate_ratio_min`` and ``partial_ratio_min`` set the classes.
 
     Returns
     -------
     GeoDataFrame
         Overlap geometries with ``bldg_a``, ``bldg_b``, ``inter_area_m2``,
-        ``overlap_ratio``, ``overlap_type``, and ``error_type`` columns.
+        ``overlap_ratio`` (share of the smaller building), ``overlap_type``
+        and ``error_type`` columns. ``overlap_type`` is one of
+
+        * ``duplicate``: the overlap covers ``duplicate_ratio_min`` of both
+          buildings;
+        * ``contained``: it covers ``duplicate_ratio_min`` of the smaller
+          building only (a building inside another);
+        * ``partial``: it covers at least ``partial_ratio_min`` of the
+          smaller building;
+        * ``sliver``: anything smaller.
     """
     logger = get_logger("ovc.checks.overlap")
 
@@ -84,84 +85,70 @@ def find_building_overlaps(
         return gpd.GeoDataFrame(geometry=[], crs=getattr(buildings_metric, "crs", None))
 
     gdf = buildings_metric[["bldg_id", "geometry"]].copy().reset_index(drop=True)
-    # Pre-compute areas once
-    gdf["_area"] = gdf.geometry.area
+    gdf = gdf[gdf.geometry.notna() & ~gdf.geometry.is_empty].reset_index(drop=True)
+    crs = gdf.crs
 
-    # Remove null / empty / zero-area features
-    gdf = gdf[(gdf.geometry.notna()) & (~gdf.geometry.is_empty) & (gdf["_area"] > 0)]
-    gdf = gdf.reset_index(drop=True)
+    geoms = np.asarray(gdf.geometry.values, dtype=object)
+    if len(geoms):
+        invalid = ~shapely.is_valid(geoms)
+        if invalid.any():
+            logger.warning(
+                f"{int(invalid.sum())} invalid building geometries were repaired "
+                "in memory before overlap detection (bldg_id: "
+                f"{gdf['bldg_id'].values[invalid][:10].tolist()})"
+            )
+            geoms[invalid] = shapely.make_valid(geoms[invalid])
+    polys = [polygonal_part(g) for g in geoms]
+    keep = np.array([p is not None and p.area > 0 for p in polys], dtype=bool)
+    if (~keep).any():
+        logger.warning(
+            f"{int((~keep).sum())} buildings without polygon area were left "
+            "out of overlap detection"
+        )
+    geoms = np.asarray([p for p, k in zip(polys, keep) if k], dtype=object)
+    bldg_ids = gdf["bldg_id"].values[keep]
 
-    n = len(gdf)
-    if n < 2:
-        return gpd.GeoDataFrame(geometry=[], crs=gdf.crs)
+    if len(geoms) < 2:
+        return gpd.GeoDataFrame(geometry=[], crs=crs)
 
-    logger.info(f"Overlap detection: {n} buildings, vectorized spatial join...")
-
-    # Spatial self-join to find candidate pairs
-    joined = gpd.sjoin(gdf, gdf, how="inner", predicate="intersects")
-    # Keep only pairs where left_idx < right_idx to avoid duplicates
-    joined = joined[joined.index < joined["index_right"]].copy()
-
-    if joined.empty:
-        return gpd.GeoDataFrame(geometry=[], crs=gdf.crs)
-
-    # Vectorized intersection computation via aligned geometry arrays
-    left_geom = gdf.geometry.values[joined.index.values]
-    right_geom = gdf.geometry.values[joined["index_right"].values]
+    logger.info(f"Overlap detection: {len(geoms)} buildings")
+    pairs, failures = find_overlap_pairs(geoms)
+    if failures:
+        i, j, err = failures[0]
+        raise RuntimeError(
+            f"Overlap detection failed for {len(failures)} building pair(s), "
+            f"first: bldg_id {bldg_ids[i]} and {bldg_ids[j]} ({err})"
+        )
 
     rows = []
-    min_area_threshold = thresholds.min_intersection_area_m2
-    dup_ratio = thresholds.duplicate_ratio_min
-    partial_ratio = thresholds.partial_ratio_min
-
-    left_areas = gdf["_area"].values[joined.index.values]
-    right_areas = gdf["_area"].values[joined["index_right"].values]
-    left_bldg = gdf["bldg_id"].values[joined.index.values]
-    right_bldg = gdf["bldg_id"].values[joined["index_right"].values]
-
-    for k in range(len(joined)):
-        ga = left_geom[k]
-        gb = right_geom[k]
-
-        if not ga.intersects(gb):
+    for p in pairs:
+        if p.area < thresholds.min_intersection_area_m2:
             continue
-
-        inter = _keep_polygonal(ga.intersection(gb))
-        if inter is None or inter.is_empty:
-            continue
-
-        inter_area = inter.area
-        if inter_area < min_area_threshold:
-            continue
-
-        denom = min(left_areas[k], right_areas[k])
-        if denom <= 0:
-            continue
-
-        ratio = inter_area / denom
-
-        if ratio >= dup_ratio:
+        issue, ratio = classify_overlap(
+            p.area, p.area_i, p.area_j, thresholds.duplicate_ratio_min
+        )
+        if issue == "duplicate":
             overlap_type = "duplicate"
-        elif ratio >= partial_ratio:
+        elif issue == "containment":
+            overlap_type = "contained"
+        elif ratio >= thresholds.partial_ratio_min:
             overlap_type = "partial"
         else:
             overlap_type = "sliver"
-
         rows.append(
             {
-                "bldg_a": int(left_bldg[k]),
-                "bldg_b": int(right_bldg[k]),
-                "inter_area_m2": float(inter_area),
+                "bldg_a": int(bldg_ids[p.i]),
+                "bldg_b": int(bldg_ids[p.j]),
+                "inter_area_m2": float(p.area),
                 "overlap_ratio": float(ratio),
                 "overlap_type": overlap_type,
                 "error_type": "building_overlap",
-                "geometry": inter,
+                "geometry": p.geometry,
             }
         )
 
     if not rows:
-        return gpd.GeoDataFrame(geometry=[], crs=gdf.crs)
+        return gpd.GeoDataFrame(geometry=[], crs=crs)
 
     logger.info(f"Found {len(rows)} overlaps")
-    df = pd.DataFrame(rows)
-    return gpd.GeoDataFrame(df, geometry="geometry", crs=gdf.crs)
+    return gpd.GeoDataFrame(pd.DataFrame(rows), geometry="geometry", crs=crs)

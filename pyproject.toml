@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ovc"
-version = "3.2.0"
-description = "Quality control platform for detecting geometric and topological issues in geospatial building and road datasets"
+dynamic = ["version"]
+description = "Find overlaps and gaps in polygon layers from a map, the command line or Python, plus building and road QC"
 requires-python = ">=3.10"
 
 authors = [
@@ -30,7 +30,8 @@ classifiers = [
   "Topic :: Scientific/Engineering :: GIS",
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11"
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12"
 ]
 
 dependencies = [
@@ -39,6 +40,7 @@ dependencies = [
   "pyproj>=3.6,<4.0",
   "pandas>=2.0,<3.0",
   "folium>=0.15,<1.0",
+  "pyogrio>=0.7",
   "fiona>=1.9,<2.0",
   "rtree>=1.1,<2.0",
   "geoqa",
@@ -51,9 +53,26 @@ dev = [
   "pre-commit>=3.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/AmmarYasser455/ovc"
+Issues = "https://github.com/AmmarYasser455/ovc/issues"
+
+[project.scripts]
+ovc = "ovc.cli:main"
+
+[project.gui-scripts]
+ovc-gui = "ovc.app.launcher:main"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 include = ["ovc*"]
+
+[tool.setuptools.dynamic]
+version = { attr = "ovc.__version__" }
+
+[tool.setuptools.package-data]
+"ovc.app" = ["static/*", "static/vendor/leaflet/*", "static/vendor/leaflet/images/*"]
+"ovc.sample_data" = ["*.gpkg"]
 

@@ -9,6 +9,7 @@ def overlap_metrics(overlaps_metric: gpd.GeoDataFrame) -> dict:
             "overlap_total_area_m2": 0.0,
             "overlap_avg_area_m2": 0.0,
             "overlap_duplicate_count": 0,
+            "overlap_contained_count": 0,
             "overlap_partial_count": 0,
             "overlap_sliver_count": 0,
         }
@@ -31,6 +32,7 @@ def overlap_metrics(overlaps_metric: gpd.GeoDataFrame) -> dict:
         "overlap_total_area_m2": total,
         "overlap_avg_area_m2": avg,
         "overlap_duplicate_count": int(vc.get("duplicate", 0)),
+        "overlap_contained_count": int(vc.get("contained", 0)),
         "overlap_partial_count": int(vc.get("partial", 0)),
         "overlap_sliver_count": int(vc.get("sliver", 0)),
     }

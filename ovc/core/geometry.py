@@ -25,10 +25,13 @@ def drop_empty_and_fix(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     gdf = gdf[gdf.geometry.notna()].copy()
     if gdf.empty:
         return gpd.GeoDataFrame(geometry=[], crs=gdf.crs)
-    try:
-        gdf["geometry"] = gdf.geometry.make_valid()
-    except Exception:
-        pass
+    invalid = ~gdf.geometry.is_valid
+    if invalid.any():
+        get_logger("ovc.core.geometry").warning(
+            f"{int(invalid.sum())} invalid geometries were repaired in memory "
+            "(make_valid); the source file is unchanged"
+        )
+        gdf.loc[invalid, "geometry"] = gdf.geometry[invalid].make_valid()
     # Drop any remaining empty geometries after make_valid
     gdf = gdf[~gdf.geometry.is_empty].copy()
     return gdf
@@ -59,10 +62,9 @@ def clip_to_boundary(
         # A boundary in another CRS would otherwise clip with wrong coordinates.
         boundary = boundary.to_crs(gdf.crs)
     boundary_union = boundary.union_all()
-    try:
-        out = gdf[gdf.intersects(boundary_union)].copy()
-        out["geometry"] = out.geometry.intersection(boundary_union)
-        out = out[out.geometry.notna() & ~out.geometry.is_empty].copy()
-        return out
-    except Exception:
-        return gdf
+    # A failed clip raises: returning the unclipped layer would silently
+    # check features outside the boundary.
+    out = gdf[gdf.intersects(boundary_union)].copy()
+    out["geometry"] = out.geometry.intersection(boundary_union)
+    out = out[out.geometry.notna() & ~out.geometry.is_empty].copy()
+    return out

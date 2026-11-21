@@ -48,6 +48,13 @@ jobs:
         run: |
           pytest tests/ -v --cov=ovc --cov-report=xml --cov-report=term-missing -x
 
+      - name: Browser test of the map app
+        if: matrix.python-version == '3.11'
+        run: |
+          pip install playwright
+          python -m playwright install chromium
+          pytest tests/test_gui_workflow.py -v
+
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
         uses: codecov/codecov-action@v4
@@ -57,3 +64,26 @@ jobs:
 
       - name: Run pre-commit
         run: pre-commit run --all-files
+
+  package:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build sdist and wheel
+        run: |
+          pip install build twine
+          python -m build
+          twine check dist/*
+
+      - name: Install the wheel and run it outside the checkout
+        run: |
+          pip install dist/*.whl
+          cd "$RUNNER_TEMP"
+          ovc-gui --self-test
+          ovc check "$(python -c 'from ovc.sample_data import sample_path; print(sample_path())')" --layer buildings || [ $? -eq 1 ]

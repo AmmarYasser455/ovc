@@ -25,11 +25,13 @@ def build_summary_metrics(
     )
 
     dup = 0
+    cont = 0
     part = 0
     sliv = 0
     if overlaps_metric is not None and not overlaps_metric.empty:
         vc = overlaps_metric["overlap_type"].value_counts()
         dup = int(vc.get("duplicate", 0))
+        cont = int(vc.get("contained", 0))
         part = int(vc.get("partial", 0))
         sliv = int(vc.get("sliver", 0))
 
@@ -100,6 +102,7 @@ def build_summary_metrics(
         "overlap_total_area_m2": overlap_total_area,
         "overlap_avg_area_m2": overlap_avg_area,
         "overlap_duplicate_count": dup,
+        "overlap_contained_count": cont,
         "overlap_partial_count": part,
         "overlap_sliver_count": sliv,
         "count_building_on_road": count_building_on_road,

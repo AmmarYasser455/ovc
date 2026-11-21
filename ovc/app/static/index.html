@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OVC - Overlap Violation Checker</title>
+<link rel="icon" href="/static/logo.svg">
+<link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="topbar">
+  <img src="/static/logo-dark.svg" alt="OVC" class="logo">
+  <div class="title">
+    <strong>Overlap Violation Checker</strong>
+    <span id="version"></span>
+  </div>
+  <button id="quit" class="ghost" title="Stop OVC and close this session">Quit OVC</button>
+</header>
+
+<main>
+  <aside class="panel" aria-label="Checks and results">
+
+    <section class="step" id="step-layer">
+      <h2><span class="num">1</span> Layer to check</h2>
+      <div class="row">
+        <button id="choose-layer" class="primary">Choose file…</button>
+        <button id="use-sample" class="link">Try the sample data</button>
+      </div>
+      <div id="layer-box" class="filebox" hidden>
+        <div class="path" id="layer-path"></div>
+        <label class="field" id="layer-select-wrap">Layer
+          <select id="layer-select"></select>
+        </label>
+        <dl class="facts" id="layer-facts"></dl>
+        <div id="layer-problem" class="note warn" hidden></div>
+        <label class="field" id="crs-wrap" hidden>Declare the CRS (EPSG code)
+          <input id="assume-crs" type="text" inputmode="numeric" placeholder="for example 32636">
+          <small>This layer has no CRS. OVC will not guess one. Enter the EPSG code its coordinates are in; the file itself is not changed.</small>
+        </label>
+        <label class="field">Feature ID field <span class="opt">optional</span>
+          <select id="id-field"></select>
+          <small>Findings always carry the file's feature ID (FID). Pick a field to show your own ID as well.</small>
+        </label>
+      </div>
+    </section>
+
+    <section class="step" id="step-checks">
+      <h2><span class="num">2</span> Checks</h2>
+      <label class="check">
+        <input type="checkbox" id="check-overlaps" checked>
+        <span><strong>Overlaps</strong>
+        <small>Needs nothing else. Reports each pair of features that share area, once. Features that only share an edge or a corner are not overlaps.</small></span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="check-gaps">
+        <span><strong>Gaps</strong>
+        <small>Needs a polygon layer of the area that should be fully covered, for example a parcel block. OVC never guesses this area. Leave off for building footprints, which normally have open space between them.</small></span>
+      </label>
+      <div id="gap-inputs" class="sub" hidden>
+        <div class="row">
+          <button id="choose-coverage">Choose coverage layer…</button>
+        </div>
+        <div id="coverage-box" class="filebox" hidden>
+          <div class="path" id="coverage-path"></div>
+          <label class="field">Layer <select id="coverage-select"></select></label>
+          <dl class="facts" id="coverage-facts"></dl>
+          <div id="coverage-problem" class="note warn" hidden></div>
+        </div>
+        <div id="coverage-missing" class="note">Choose the coverage layer to run the gap check. The overlap check can run without it.</div>
+      </div>
+      <details class="options">
+        <summary>Options</summary>
+        <label class="field">Smallest overlap to report (m²)
+          <input id="min-overlap" type="number" min="0" step="0.01" value="0.01">
+        </label>
+        <label class="field">Smallest gap to report (m²)
+          <input id="min-gap" type="number" min="0" step="0.01" value="0.01">
+        </label>
+        <small>A finding whose area equals the limit is reported. 0 reports every finding with any area.</small>
+        <label class="check">
+          <input type="checkbox" id="repair">
+          <span><strong>Repair invalid geometries in memory</strong>
+          <small>Off: invalid polygons are reported and skipped. On: they are repaired for this run and checked. Your file is never changed.</small></span>
+        </label>
+      </details>
+      <div class="row">
+        <button id="run" class="primary" disabled>Run checks</button>
+        <span id="run-hint" class="hint">Choose a layer first.</span>
+      </div>
+      <div id="progress" hidden>
+        <div class="bar"><div id="bar-fill"></div></div>
+        <div id="progress-text" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="step" id="step-results" hidden>
+      <h2><span class="num">3</span> Results</h2>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+      <ul id="check-lines" class="check-lines"></ul>
+      <div id="warnings"></div>
+      <details id="skipped-wrap" hidden>
+        <summary id="skipped-summary"></summary>
+        <ul id="skipped-list" class="plain"></ul>
+      </details>
+      <p id="area-method" class="method"></p>
+      <div id="filters" class="filters" role="group" aria-label="Filter by issue type"></div>
+      <ol id="findings" class="findings"></ol>
+      <div class="row">
+        <button id="export" class="primary">Export findings…</button>
+        <span id="export-done" class="hint"></span>
+      </div>
+    </section>
+  </aside>
+
+  <div class="mapwrap">
+    <div id="map" aria-label="Map"></div>
+    <div id="map-hint" class="map-hint">Choose a layer to see it here.</div>
+    <div id="map-note" class="map-note" hidden></div>
+  </div>
+</main>
+
+<div id="dialog" class="dialog" hidden role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+  <div class="dialog-box">
+    <div class="dialog-head">
+      <h3 id="dialog-title">Choose a file</h3>
+      <button id="dialog-close" class="ghost dark" aria-label="Close">✕</button>
+    </div>
+    <div class="dialog-places" id="dialog-places"></div>
+    <div class="dialog-path">
+      <button id="dialog-up" title="Up one folder">↑ Up</button>
+      <input id="dialog-dir" type="text" spellcheck="false" aria-label="Folder path">
+      <button id="dialog-go">Go</button>
+    </div>
+    <ul id="dialog-list" class="dialog-list"></ul>
+    <div id="dialog-error" class="note warn" hidden></div>
+    <div id="dialog-save" class="dialog-save" hidden>
+      <label class="field">File name
+        <input id="dialog-name" type="text" spellcheck="false">
+      </label>
+      <small>GeoPackage (.gpkg) keeps the layer's CRS. GeoJSON (.geojson) is written in WGS 84 (EPSG:4326).</small>
+      <button id="dialog-save-btn" class="primary">Save</button>
+    </div>
+    <div class="dialog-foot" id="dialog-foot"></div>
+  </div>
+</div>
+
+<script src="/static/vendor/leaflet/leaflet.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

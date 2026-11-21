@@ -51,20 +51,29 @@ def load_buildings(path: Path) -> gpd.GeoDataFrame:
 
     gdf = ensure_wgs84(gdf)
 
-    # Keep only polygon geometries
-    gdf = gdf[gdf.geometry.type.isin(["Polygon", "MultiPolygon"])].copy()
-    gdf = drop_empty_and_fix(gdf)
-
-    if gdf.empty:
-        logger.warning("No polygon geometries found in buildings file")
-        return gpd.GeoDataFrame(geometry=[], crs=4326)
-
-    # Ensure an ID column exists for downstream compatibility
+    # Ensure an ID column exists. It is assigned before any feature is
+    # dropped so a generated ID is the feature's position in the source file.
     gdf = gdf.reset_index(drop=True)
     if "osmid" not in gdf.columns:
         gdf["osmid"] = gdf.index.astype(str)
     else:
         gdf["osmid"] = gdf["osmid"].astype(str)
+
+    # Keep only polygon geometries
+    n_read = len(gdf)
+    gdf = gdf[gdf.geometry.type.isin(["Polygon", "MultiPolygon"])].copy()
+    gdf = drop_empty_and_fix(gdf)
+    if len(gdf) < n_read:
+        logger.warning(
+            f"{n_read - len(gdf)} of {n_read} features are empty or not "
+            "polygons and were left out of the checks"
+        )
+
+    if gdf.empty:
+        logger.warning("No polygon geometries found in buildings file")
+        return gpd.GeoDataFrame(geometry=[], crs=4326)
+
+    gdf = gdf.reset_index(drop=True)
 
     if len(gdf) > 100_000:
         logger.warning(

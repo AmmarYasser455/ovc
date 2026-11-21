@@ -79,3 +79,25 @@ def test_geoseries_boundary_accepted(tmp_path):
 def test_missing_file_raises(tmp_path):
     with pytest.raises(FileNotFoundError):
         load_roads(tmp_path / "nope.geojson")
+
+
+def test_load_buildings_ids_point_to_source_rows(tmp_path):
+    """Generated IDs must be the feature's position in the file, even when
+    non-polygon features before it are dropped."""
+    import geopandas as gpd
+    from shapely.geometry import Point, box
+    from ovc.loaders.buildings import load_buildings
+
+    path = tmp_path / "mixed.geojson"
+    gpd.GeoDataFrame(
+        {"name": ["pt", "b1", "b2"]},
+        geometry=[
+            Point(31, 30),
+            box(31, 30, 31.001, 30.001),
+            box(31.002, 30, 31.003, 30.001),
+        ],
+        crs=4326,
+    ).to_file(path, driver="GeoJSON")
+
+    out = load_buildings(path)
+    assert dict(zip(out["name"], out["osmid"])) == {"b1": "1", "b2": "2"}

@@ -173,8 +173,8 @@ def run_pipeline(
 
     overlap_buildings_metric = gpd.GeoDataFrame(geometry=[], crs=buildings_metric.crs)
     if overlaps_metric is not None and not overlaps_metric.empty:
-        sev = {"sliver": 1, "partial": 2, "duplicate": 3}
-        inv = {1: "sliver", 2: "partial", 3: "duplicate"}
+        sev = {"sliver": 1, "partial": 2, "contained": 3, "duplicate": 4}
+        inv = {v: k for k, v in sev.items()}
 
         a = overlaps_metric[["bldg_a", "overlap_type"]].rename(
             columns={"bldg_a": "bldg_id"}

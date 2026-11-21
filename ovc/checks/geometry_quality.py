@@ -25,15 +25,17 @@ def find_duplicate_geometries(
 ) -> gpd.GeoDataFrame:
     """Detect buildings with identical or near-identical geometries.
 
-    Uses WKB (Well-Known Binary) hashing for exact duplicates and
-    Hausdorff distance for near-duplicates.
+    Compares the normalised WKB of each geometry, so the same polygon is a
+    duplicate whichever vertex its ring starts at and whichever way it runs.
 
     Parameters
     ----------
     buildings_metric : GeoDataFrame
         Buildings in metric CRS with ``bldg_id`` column.
     tolerance_m : float
-        Maximum Hausdorff distance to consider as duplicate (meters).
+        Unused; kept for backward compatibility. Only exact duplicates are
+        reported. For near-duplicates use the ``duplicate`` class of
+        :func:`ovc.checks.overlap.find_building_overlaps`.
 
     Returns
     -------
@@ -48,8 +50,9 @@ def find_duplicate_geometries(
     gdf = buildings_metric[["bldg_id", "geometry"]].copy()
     gdf = gdf[gdf.geometry.notna() & ~gdf.geometry.is_empty].reset_index(drop=True)
 
-    # Exact duplicates via WKB hash
-    gdf["_wkb"] = gdf.geometry.apply(lambda g: g.wkb_hex)
+    # Exact duplicates via WKB hash. Normalising first makes the comparison
+    # independent of ring start vertex and direction.
+    gdf["_wkb"] = gdf.geometry.normalize().apply(lambda g: g.wkb_hex)
     dup_mask = gdf.duplicated(subset="_wkb", keep=False)
     duplicates = gdf[dup_mask].copy()
 
