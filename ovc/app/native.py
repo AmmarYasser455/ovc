@@ -1,6 +1,7 @@
-"""Native desktop windows: the file dialogs and the start-up splash.
+"""Native desktop windows: the app window, file dialogs and start-up splash.
 
-Both use Tk, which ships with Python on Windows and is bundled into
+The app window is a pywebview window (Edge WebView2 on Windows) showing the
+same page a browser would. The dialogs and the splash use Tk, which ships with Python on Windows and is bundled into
 OVC.exe. A file dialog runs in a short-lived child process so Tk never
 shares a thread with the HTTP server. When Tk or a display is missing
 (a headless Linux server, the automated tests) every function reports
@@ -204,4 +205,66 @@ def show_splash(is_ready, min_seconds: float = 1.6, max_seconds: float = 60.0) -
             root.destroy()
         except Exception:
             pass
+        return False
+
+
+def window_available() -> bool:
+    """True when OVC can open in its own desktop window (pywebview)."""
+    if os.environ.get("OVC_NO_WINDOW"):
+        return False
+    try:
+        import webview  # noqa: F401
+    except Exception:
+        return False
+    return True
+
+
+def run_window(url: str, stopped, test: bool = False) -> bool:
+    """Show OVC in its own window and block until the window is closed.
+
+    ``stopped`` is a ``threading.Event`` set when the app stops for another
+    reason (the Quit button); the window then closes itself. On Windows the
+    window uses the Edge WebView2 runtime that ships with Windows 10 and 11.
+
+    Returns False when no window could be shown, so the caller can fall back
+    to the browser. With ``test=True`` the window closes itself as soon as
+    the app's page reports ready, and the result says whether it did.
+    """
+    try:
+        import threading
+
+        import webview
+
+        window = webview.create_window(
+            f"{APP_NAME} - {APP_TITLE}",
+            url + ("&" if "?" in url else "?") + "w=1",
+            width=1440,
+            height=900,
+            min_size=(900, 600),
+        )
+        state = {"shown": False, "ready": False}
+
+        def watch():
+            state["shown"] = True
+            deadline = time.time() + 60
+            while not stopped.wait(0.5):
+                if test:
+                    try:
+                        ready = window.evaluate_js("document.body.dataset.ready || ''")
+                    except Exception:
+                        ready = ""
+                    if ready == "1":
+                        state["ready"] = True
+                        break
+                    if time.time() > deadline:
+                        break
+            try:
+                window.destroy()
+            except Exception:
+                pass
+
+        kwargs = {"gui": "edgechromium"} if os.name == "nt" else {}
+        webview.start(watch, **kwargs)
+        return state["ready"] if test else state["shown"]
+    except Exception:
         return False

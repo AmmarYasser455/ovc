@@ -33,9 +33,9 @@ Open OVC, choose a polygon layer, run the checks, click a finding to zoom to it,
 
 1. Download `OVC-windows.zip` from the [latest release](https://github.com/AmmarYasser455/ovc/releases/latest). Until a release carries it, take the `OVC-windows` artifact from the newest [Windows app run](https://github.com/AmmarYasser455/ovc/actions/workflows/windows-app.yml).
 2. Right-click the zip, choose **Extract All**, and open the `OVC` folder.
-3. Double-click **OVC.exe**. A splash window appears, then OVC opens in your browser. It runs on your computer only and works offline. Windows may show a SmartScreen notice the first time because the app is not code-signed; choose **More info**, then **Run anyway**.
+3. Double-click **OVC.exe**. A splash window appears, then OVC opens in its own window. It runs on your computer only and works offline. Windows may show a SmartScreen notice the first time because the app is not code-signed; choose **More info**, then **Run anyway**.
 
-Python is not required. To stop OVC, press **Quit OVC** or close the tab.
+Python is not required. To stop OVC, close the window.
 
 ### Review workflow
 
@@ -107,7 +107,7 @@ Python 3.10 or newer on Windows, Linux or macOS. Add `@v3.3.0` (or another [tag]
 
 | Command | What it does |
 |---|---|
-| `ovc-gui` | Opens the map app (same as `OVC.exe`; no console window on Windows) |
+| `ovc-gui` | Opens the map app (same as `OVC.exe`). In its own window with `pip install pywebview`, otherwise in your browser |
 | `ovc check FILE` | Overlap and gap check of one polygon layer |
 | `ovc --buildings FILE ...` | Building and road QC pipeline |
 
