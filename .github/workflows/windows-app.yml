@@ -1,0 +1,46 @@
+name: Windows app
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write # attach the zip to a published release
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install OVC and PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install . pyinstaller
+
+      - name: Build and self-test OVC.exe
+        shell: pwsh
+        run: packaging\windows\build.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OVC-windows
+          path: dist/OVC-windows.zip
+          if-no-files-found: error
+
+      - name: Attach to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/OVC-windows.zip --clobber
