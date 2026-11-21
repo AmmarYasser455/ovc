@@ -13,6 +13,7 @@ import os
 import secrets
 import sys
 import tempfile
+import threading
 import traceback
 import urllib.request
 import webbrowser
@@ -87,7 +88,14 @@ def self_test(report_path: str | None = None) -> int:
 
     report: dict = {"ok": False}
     try:
-        for name in ("index.html", "app.js", "app.css", "vendor/leaflet/leaflet.js"):
+        for name in (
+            "index.html",
+            "app.js",
+            "app.css",
+            "ovc.ico",
+            "splash-logo.png",
+            "vendor/leaflet/leaflet.js",
+        ):
             target = STATIC
             for part in name.split("/"):
                 target = target / part
@@ -148,8 +156,18 @@ def main(argv=None) -> int:
         metavar="REPORT.json",
         help="Check the installation with the bundled sample and exit",
     )
+    parser.add_argument("--pick", metavar="REQUEST.json", help=argparse.SUPPRESS)
+    parser.add_argument("--splash-test", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
 
+    if args.pick:  # child process showing one native file dialog
+        from ovc.app.native import run_picker
+
+        return run_picker(args.pick)
+    if args.splash_test:  # packaging check: the splash window opens and closes
+        from ovc.app.native import show_splash
+
+        return 0 if show_splash(lambda: True, min_seconds=1.0) else 1
     if args.self_test is not None:
         return self_test(args.self_test or None)
 
@@ -163,10 +181,35 @@ def main(argv=None) -> int:
                     print(existing, flush=True)
                 return 0
 
-        from ovc.app.server import AppServer, AppState, serve
+        # Loading the geospatial libraries takes a few seconds: do it in the
+        # background and show the splash window meanwhile.
+        boot: dict = {}
 
-        state = AppState(secrets.token_urlsafe(24), idle_timeout=args.idle_timeout)
-        server = AppServer(args.port, state)
+        def start():
+            try:
+                from ovc.app.server import AppServer, AppState
+
+                state = AppState(
+                    secrets.token_urlsafe(24), idle_timeout=args.idle_timeout
+                )
+                boot["server"] = AppServer(args.port, state)
+            except Exception:
+                boot["error"] = traceback.format_exc()
+
+        worker = threading.Thread(target=start, name="ovc-boot", daemon=True)
+        worker.start()
+        if not args.no_browser and not os.environ.get("OVC_NO_SPLASH"):
+            from ovc.app.native import show_splash
+
+            show_splash(lambda: not worker.is_alive())
+        worker.join()
+        if "error" in boot:
+            _show_error(boot["error"])
+            return 1
+        from ovc.app.server import serve
+
+        server = boot["server"]
+        state = server.state
     except Exception:
         _show_error(traceback.format_exc())
         return 1
