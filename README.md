@@ -26,28 +26,29 @@
 Open OVC, choose a polygon layer, run the checks, click a finding to zoom to it, and save the findings as a GIS layer. No commands are needed.
 
 <p align="center">
-  <img src="docs/assets/ovc-map-app.png" alt="OVC map app: a 10 m² gap and a 30 m² overlap found in the sample parcels" width="900">
+  <img src="docs/assets/ovc-map-app.png" alt="OVC: layers panel, toolbar and a 10 m² gap and 30 m² overlap found in the sample parcels" width="900">
 </p>
 
 ### Open OVC on Windows
 
 1. Download `OVC-windows.zip` from the [latest release](https://github.com/AmmarYasser455/ovc/releases/latest). Until a release carries it, take the `OVC-windows` artifact from the newest [Windows app run](https://github.com/AmmarYasser455/ovc/actions/workflows/windows-app.yml).
 2. Right-click the zip, choose **Extract All**, and open the `OVC` folder.
-3. Double-click **OVC.exe**. OVC opens in your browser. It runs on your computer only and works offline. Windows may show a SmartScreen notice the first time because the app is not code-signed; choose **More info**, then **Run anyway**.
+3. Double-click **OVC.exe**. A splash window appears, then OVC opens in your browser. It runs on your computer only and works offline. Windows may show a SmartScreen notice the first time because the app is not code-signed; choose **More info**, then **Run anyway**.
 
 Python is not required. To stop OVC, press **Quit OVC** or close the tab.
 
 ### Review workflow
 
-1. **Layer.** Press **Choose file…** and pick a GeoPackage, Shapefile, GeoJSON, FlatGeobuf, GML, KML or file geodatabase. If the file has several layers, pick one. OVC shows the layer name, feature count and CRS. Or press **Try the sample data**.
-2. **Checks.** *Overlaps* needs nothing else. *Gaps* is off by default and needs a second polygon layer: the area that should be fully covered, such as a parcel block.
-3. **Run checks.** The banner says whether the run is clean, found issues, is partial (features were skipped) or failed. A file that cannot be read is a failed run, never "0 issues".
-4. **Review.** Click a finding in the list or on the map. OVC zooms to its geometry, outlines the source features and shows the check, the feature IDs, the area in m² and the reason. Filter the list by issue type.
-5. **Export.** Save the findings as a GeoPackage in the layer's CRS, or as GeoJSON in WGS 84. Your input files are opened read-only.
+1. **Add layer.** The Windows file dialog opens; pick a GeoPackage, Shapefile, GeoJSON, FlatGeobuf, GML or KML. If the file has several layers, tick the ones to add. Or press **Sample**.
+2. **Layers panel.** Each layer has a visibility box, zoom to layer, move up or down, symbology (colour, outline, fill, opacity) and remove. Removing a layer only takes it off the map.
+3. **Checks.** Choose the layer to check; OVC shows its feature count and CRS. *Overlaps* needs nothing else. *Gaps* is off by default and needs a coverage layer: a polygon layer of the area that should be fully covered, such as a parcel block.
+4. **Run checks** (F5). The banner says whether the run is clean, found issues, is partial (features were skipped) or failed. A file that cannot be read is a failed run, never "0 issues".
+5. **Review.** Click a finding in the list or on the map. OVC zooms to its geometry, outlines the source features and shows the check, the feature IDs, the area in m² and the reason. Filter by issue type, add a review note, or press **Delete** to dismiss a finding (**Restore** brings it back). **Select** shows the attributes of any feature you click.
+6. **Export** (Ctrl+E). Save the findings as a GeoPackage in the layer's CRS, or as GeoJSON in WGS 84. Dismissed findings are left out; notes are saved. Your input files are opened read-only and never changed.
 
 ### Try it on the sample
 
-The app ships with [`ovc_sample.gpkg`](ovc/sample_data/ovc_sample.gpkg), a synthetic block in EPSG:32636 (metres). **Try the sample data** loads it. Expected results:
+The app ships with [`ovc_sample.gpkg`](ovc/sample_data/ovc_sample.gpkg), a synthetic block in EPSG:32636 (metres). **Sample** loads its `parcels` and `block` layers; **Add layer** on the same file adds `buildings`. Expected results:
 
 | Layer | Checks | Findings |
 |---|---|---|
@@ -80,7 +81,7 @@ The app ships with [`ovc_sample.gpkg`](ovc/sample_data/ovc_sample.gpkg), a synth
 
 **Areas and thresholds.** Areas are in square metres. If the layer's CRS is projected and distorts area by at most 1% over the layer (a UTM zone or national grid used where it is meant to be used), OVC measures planar area in that CRS and converts feet to metres, so the numbers match your GIS. If the layer is in degrees, or in a projection such as Web Mercator that distorts area more than that, OVC reprojects in memory to the WGS 84 / UTM zone at the layer's centre. The method used is shown with the results and stored in the export. Findings smaller than the limit (default 0.01 m² for overlaps and for gaps) are not reported; a finding whose area equals the limit is reported, and a limit of 0 reports everything with any area.
 
-**Export.** The GeoPackage has an `ovc_findings` layer (MultiPolygon, in the source layer's CRS) with `issue_type`, `fid_a`, `fid_b`, `id_a`, `id_b`, `area_m2`, `overlap_ratio`, `related_fids` and `reason`, plus an `ovc_run_summary` table with the status, options, area method and skipped features.
+**Export.** The GeoPackage has an `ovc_findings` layer (MultiPolygon, in the source layer's CRS) with `issue_type`, `fid_a`, `fid_b`, `id_a`, `id_b`, `area_m2`, `overlap_ratio`, `related_fids`, `reason` and `review_note`, plus an `ovc_run_summary` table with the status, options, area method and skipped features.
 
 ## Building and road QC pipeline
 

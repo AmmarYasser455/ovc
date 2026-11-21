@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-11-21
+
+### Added
+- **Layers panel.** Every added layer is listed with a visibility box, zoom to layer, move up and down, remove, and symbology (colour, outline width, fill, fill opacity, dashed outline). Findings have their own entry with a legend. Any vector layer can be added for context; the layer to check and the coverage layer are chosen from the added layers.
+- **Toolbar** with Add layer, Sample, Pan, Select, zoom tools (in, out, full extent, to layer, to selection), Clear, Delete, Restore, Run checks and Export, plus keyboard shortcuts (Ctrl+O, F5, Ctrl+E, S, P, Delete, Esc, Home).
+- **Select tool.** Click a feature to highlight it and read its attributes.
+- **Review edits.** Delete dismisses the selected finding (Restore brings it back); each finding takes a review note. Dismissed findings are left out of the export and notes are written to a `review_note` column. Input files are still never changed.
+- **Windows file dialogs.** Add layer and Export open the Windows Explorer dialog. The in-page file browser remains as "Browse in app…" (for `.gdb` folders) and wherever no desktop dialog is available.
+- **Splash window** at start-up and an About box with the app name, OpenTerra and the founder. Status bar with cursor coordinates, map scale and the layer CRS.
+- **App icon** for `OVC.exe`, the splash window, the file dialogs and the browser tab.
+- `export_findings(..., finding_ids=..., notes=...)`.
+
+### Fixed
+- A zoom requested while another zoom was still animating was ignored.
+
 ## [3.3.0] - 2026-11-21
 
 ### Added
