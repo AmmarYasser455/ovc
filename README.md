@@ -102,7 +102,7 @@ OVC also runs a batch QC pipeline for building and road datasets from the comman
 pip install "git+https://github.com/AmmarYasser455/ovc.git"
 ```
 
-Python 3.10 or newer on Windows, Linux or macOS. Add `@v3.1.1` (or another [tag](https://github.com/AmmarYasser455/ovc/tags)) to the URL for a fixed version. Install from the repository; the name `ovc` on PyPI belongs to another project. This installs three ways in:
+Python 3.10 or newer on Windows, Linux or macOS. Add `@v3.3.0` (or another [tag](https://github.com/AmmarYasser455/ovc/tags)) to the URL for a fixed version. Install from the repository; the name `ovc` on PyPI belongs to another project. This installs three ways in:
 
 | Command | What it does |
 |---|---|
