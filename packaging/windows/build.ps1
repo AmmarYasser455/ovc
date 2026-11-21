@@ -1,6 +1,6 @@
 # Build dist\OVC\OVC.exe (no console window) and dist\OVC-windows.zip.
 # Run from the repository root in an environment where OVC is installed:
-#   pip install ".[window]" pyinstaller
+#   pip install . pyinstaller
 #   powershell -File packaging\windows\build.ps1
 $ErrorActionPreference = "Stop"
 
@@ -8,7 +8,6 @@ pyinstaller --noconfirm --clean --windowed --name OVC `
   --icon ovc\app\static\ovc.ico `
   --hidden-import tkinter `
   --hidden-import tkinter.filedialog `
-  --collect-all webview `
   --collect-data ovc.app `
   --collect-data ovc.sample_data `
   --collect-all pyogrio `

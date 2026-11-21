@@ -107,7 +107,7 @@ Python 3.10 or newer on Windows, Linux or macOS. Add `@v3.3.0` (or another [tag]
 
 | Command | What it does |
 |---|---|
-| `ovc-gui` | Opens the map app (same as `OVC.exe`). In its own window with `pip install pywebview`, otherwise in your browser |
+| `ovc-gui` | Opens the map app (same as `OVC.exe`): in its own window on Windows, in your browser elsewhere |
 | `ovc check FILE` | Overlap and gap check of one polygon layer |
 | `ovc --buildings FILE ...` | Building and road QC pipeline |
 

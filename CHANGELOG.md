@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.1] - 2026-11-21
+
+### Changed
+- The app window is now Microsoft Edge (or Chrome) in app mode instead of a bundled WebView component. `OVC-windows.zip` no longer contains pywebview, pythonnet or their .NET bridge DLLs. Those files were new in 3.5.0, and Windows Defender's behaviour heuristic (`Behavior:Win32/DefenseEvasion.A!ml`) flagged the 3.5.0 zip on extraction; 3.4.0, which did not contain them, was not flagged. The `[window]` extra is removed; nothing extra is needed for the window.
+
 ## [3.5.0] - 2026-11-21
 
 ### Changed

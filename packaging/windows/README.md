@@ -3,8 +3,9 @@
 `build.ps1` freezes the map app with PyInstaller into `dist\OVC\OVC.exe` and
 zips the folder as `OVC-windows.zip`. The exe carries the OVC icon and has no
 console window: a double-click shows the splash window, then opens OVC in its
-own window (Edge WebView2, part of Windows 10 and 11). If no window can be
-shown it falls back to the default browser.
+own window (Microsoft Edge in app mode; Edge is part of Windows 10 and 11, and
+nothing is bundled for it). If no window can be shown it falls back to a
+browser tab.
 
 The [Windows app workflow](../../.github/workflows/windows-app.yml) runs this
 script on every pull request and push to `main`, runs the exe's self-test
@@ -16,7 +17,7 @@ the zip is attached to it.
 To build locally:
 
 ```powershell
-pip install ".[window]" pyinstaller
+pip install . pyinstaller
 powershell -File packaging\windows\build.ps1
 ```
 
