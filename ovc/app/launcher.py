@@ -167,6 +167,7 @@ def main(argv=None) -> int:
     parser.add_argument("--pick", metavar="REQUEST.json", help=argparse.SUPPRESS)
     parser.add_argument("--splash-test", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--window-test", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--install-info", metavar="REPORT.json", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
 
     from ovc.app import native
@@ -176,6 +177,15 @@ def main(argv=None) -> int:
         not args.no_browser and not args.browser and native.window_available()
     )
 
+    if args.install_info:  # packaging check: how this copy was installed
+        from ovc import __version__
+        from ovc.app import updates
+
+        Path(args.install_info).write_text(
+            json.dumps({"version": __version__, "kind": updates.install_kind()}),
+            encoding="utf-8",
+        )
+        return 0
     if args.pick:  # child process showing one native file dialog
         from ovc.app.native import run_picker
 

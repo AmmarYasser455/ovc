@@ -40,7 +40,13 @@ def _launch_browser(playwright):
 
 
 @pytest.fixture()
-def app(tmp_path):
+def app_env():
+    """Extra environment for the app process (a test can override this)."""
+    return {"OVC_NO_UPDATE_CHECK": "1"}
+
+
+@pytest.fixture()
+def app(tmp_path, app_env):
     """The app process, started through its launcher on a free port."""
     home = tmp_path / "home"
     home.mkdir()
@@ -50,6 +56,7 @@ def app(tmp_path):
         USERPROFILE=str(home),
         PYTHONUNBUFFERED="1",
         OVC_NO_NATIVE_DIALOG="1",
+        **app_env,
     )
     proc = subprocess.Popen(
         [sys.executable, "-m", "ovc.app", "--no-browser"],
@@ -360,3 +367,53 @@ def test_failed_and_partial_runs_are_not_shown_as_clean(page, tmp_path):
     assert run_checks(page) == "failed"
     assert "FAILED" in page.inner_text("#status").upper()
     assert page.is_disabled("#export")
+
+
+class TestUpdateBar:
+    """A newer release on the feed shows the update bar after start-up."""
+
+    @pytest.fixture()
+    def app_env(self, tmp_path):
+        import json
+        import threading
+        from functools import partial
+        from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+
+        www = tmp_path / "www"
+        www.mkdir()
+        (www / "latest.json").write_text(
+            json.dumps(
+                {
+                    "tag_name": "v99.0.0",
+                    "html_url": "https://github.com/AmmarYasser455/ovc/releases/tag/v99.0.0",
+                    "body": "",
+                    "assets": [],
+                }
+            )
+        )
+        handler = partial(SimpleHTTPRequestHandler, directory=str(www))
+        handler.log_message = lambda *a: None
+        server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        yield {
+            "OVC_UPDATE_FEED": f"http://127.0.0.1:{server.server_address[1]}/latest.json"
+        }
+        server.shutdown()
+        server.server_close()
+
+    def test_update_bar_announces_a_new_release(self, page):
+        page.wait_for_selector("#update-bar:not([hidden])")
+        assert "OVC 99.0.0 is available" in page.inner_text("#update-text")
+        assert page.get_attribute("#update-notes", "href").endswith("/tag/v99.0.0")
+        # run from source here, so the bar offers the release page, not an install
+        assert page.inner_text("#update-action") == "Release page"
+        page.click("#update-later")
+        assert page.is_hidden("#update-bar")
+
+        page.click("#about")
+        page.wait_for_selector("#update-auto")
+        assert page.is_checked("#update-auto")
+        page.click("#update-check-now")
+        page.wait_for_function(
+            "() => document.getElementById('update-check-result').textContent.includes('99.0.0')"
+        )

@@ -550,8 +550,81 @@
     $("modal").hidden = false;
   }
 
+  // ---------------------------------------------------------------- updates
+  function showUpdateBar(u) {
+    $("update-text").textContent = `OVC ${u.latest} is available. You have ${u.current}.`;
+    $("update-notes").href = u.release_url;
+    const action = $("update-action");
+    action.disabled = false;
+    if (u.can_install) {
+      action.textContent = "Install update";
+      action.onclick = installUpdate;
+    } else if (u.kind === "python") {
+      action.textContent = "Release page";
+      action.onclick = () => window.open(u.release_url, "_blank", "noopener");
+    } else {
+      action.textContent = "Download installer";
+      action.onclick = () => {
+        window.open(u.download_url, "_blank", "noopener");
+        $("update-text").textContent =
+          "Run OVC-Setup.exe when the download finishes. Once OVC is installed, later updates install with one click.";
+      };
+    }
+    $("update-bar").hidden = false;
+    map.invalidateSize();
+  }
+
+  async function checkForUpdate(force) {
+    let u;
+    try { u = await api("/api/update" + (force ? "?force=1" : "")); } catch (e) { return { error: e.message }; }
+    S.update = u;
+    if (u.available) showUpdateBar(u);
+    return u;
+  }
+
+  async function installUpdate() {
+    const action = $("update-action");
+    action.disabled = true;
+    $("update-later").disabled = true;
+    try {
+      await api("/api/update/install", { body: {} });
+      let job;
+      do {
+        await new Promise((r) => setTimeout(r, 300));
+        job = await api("/api/update/status");
+        if (job.state === "downloading") {
+          $("update-text").textContent = `Downloading OVC ${S.update.latest}… ${Math.round(job.fraction * 100)}%`;
+        }
+      } while (job.state === "downloading" || job.state === "launching");
+      if (job.state === "error") throw new Error(job.message);
+      $("update-text").textContent = `Installing OVC ${S.update.latest}. OVC will close and open again when it is done.`;
+    } catch (e) {
+      $("update-text").textContent = `The update was not installed: ${e.message}`;
+      action.textContent = "Download installer";
+      action.disabled = false;
+      action.onclick = () => window.open(S.update.download_url, "_blank", "noopener");
+      $("update-later").disabled = false;
+    }
+  }
+
+  $("update-later").addEventListener("click", () => { $("update-bar").hidden = true; map.invalidateSize(); });
+
   function showAbout() {
     const a = S.config.app;
+    const auto = el("input", { type: "checkbox", id: "update-auto" });
+    auto.checked = !S.update || S.update.enabled !== false;
+    auto.addEventListener("change", () => api("/api/update/settings", { body: { enabled: auto.checked } }).catch(() => {}));
+    const result = el("span", { id: "update-check-result" });
+    const checkNow = el("button", {
+      id: "update-check-now", text: "Check now",
+      onclick: async () => {
+        result.textContent = "Checking…";
+        const u = await checkForUpdate(true);
+        if (u.error) result.textContent = u.error;
+        else if (u.available) result.textContent = `OVC ${u.latest} is available.`;
+        else result.textContent = `You have the latest version (${u.current}).`;
+      },
+    });
     showModal("About OVC", [el("div", { class: "about" },
       el("img", { src: "/static/ovc-icon.png", alt: "" }),
       el("h4", { text: `${a.name} - ${a.title}` }),
@@ -559,6 +632,10 @@
       el("p", { class: "org", text: a.organization }),
       el("p", { text: `Founded by ${a.founder}` }),
       el("p", { class: "fine", text: "Runs on this computer only. Input files are opened read-only. MIT License. Map display by Leaflet (BSD 2-Clause)." }),
+      el("div", { class: "updates" },
+        el("label", {}, auto, "Check for updates when OVC starts"),
+        el("small", { text: "Asks GitHub for the newest OVC release. Nothing about you or your data is sent." }),
+        el("div", { class: "row" }, checkNow, result)),
     )], [{ text: "Close", primary: true }]);
   }
 
@@ -1144,6 +1221,7 @@
       document.body.dataset.ready = "1";
       if (IN_WINDOW) api("/api/window-ready", { body: {} }).catch(() => {});
       setTimeout(() => $("splash").remove(), 400);
+      checkForUpdate(false);
     }, IN_WINDOW ? 0 : Math.max(0, 1200 - (Date.now() - STARTED)));
   }).catch((e) => {
     document.body.replaceChildren(el("p", { style: "padding:40px;font-size:16px", text: e.message }));
