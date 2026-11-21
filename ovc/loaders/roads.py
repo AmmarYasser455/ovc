@@ -13,6 +13,31 @@ import geopandas as gpd
 from ovc.core.crs import ensure_wgs84
 from ovc.core.geometry import drop_empty_and_fix, clip_to_boundary
 from ovc.core.logging import get_logger
+from shapely.geometry import LineString, MultiLineString
+
+
+def _line_parts(geom):
+    """Return only the linear parts of a clip result, or None if there are none.
+
+    Clipping a road can yield points (a road touching the boundary) or a
+    GeometryCollection mixing lines and points; points are dropped and the
+    line segments are kept.
+    """
+    if geom is None or geom.is_empty:
+        return None
+    if isinstance(geom, (LineString, MultiLineString)):
+        return geom
+    if not hasattr(geom, "geoms"):
+        return None
+    lines = []
+    for part in geom.geoms:
+        part = _line_parts(part)
+        if part is None:
+            continue
+        lines.extend(part.geoms if isinstance(part, MultiLineString) else [part])
+    if not lines:
+        return None
+    return lines[0] if len(lines) == 1 else MultiLineString(lines)
 
 
 def load_roads(
@@ -34,6 +59,16 @@ def load_roads(
         Roads in WGS 84 with ``osmid`` and ``feature_type`` columns.
     """
     logger = get_logger("ovc.loaders.roads")
+    if path is None or not isinstance(path, (str, Path)) or str(path) == "":
+        raise TypeError(f"path must be a non-empty str or Path, got {path!r}")
+    if boundary_4326 is not None:
+        if isinstance(boundary_4326, gpd.GeoSeries):
+            boundary_4326 = gpd.GeoDataFrame(geometry=boundary_4326)
+        if not isinstance(boundary_4326, gpd.GeoDataFrame):
+            raise TypeError(
+                "boundary_4326 must be a GeoDataFrame or GeoSeries, "
+                f"got {type(boundary_4326).__name__}"
+            )
     path = Path(path)
 
     if not path.exists():
@@ -68,6 +103,10 @@ def load_roads(
     if boundary_4326 is not None and not boundary_4326.empty:
         boundary_4326 = ensure_wgs84(boundary_4326)
         gdf = clip_to_boundary(gdf, boundary_4326)
+        # Clipping can leave points or mixed collections; keep line parts only
+        if not gdf.empty:
+            gdf["geometry"] = gdf.geometry.apply(_line_parts)
+            gdf = gdf[gdf.geometry.notna()].copy()
         if gdf.empty:
             logger.warning("No roads within boundary after clipping")
             return gpd.GeoDataFrame(geometry=[], crs=4326)
