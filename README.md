@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/AmmarYasser455/ovc"><img src="https://img.shields.io/badge/version-v3.0.0-blue?style=flat-square" alt="Version"></a>
+  <a href="https://github.com/AmmarYasser455/ovc"><img src="https://img.shields.io/badge/version-v3.1.1-blue?style=flat-square" alt="Version"></a>
   <a href="https://github.com/AmmarYasser455/ovc"><img src="https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square" alt="Python"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License"></a>
   <a href="https://github.com/AmmarYasser455/ovc/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/AmmarYasser455/ovc/ci.yml?style=flat-square&label=CI" alt="CI"></a>
