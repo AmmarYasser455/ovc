@@ -23,12 +23,14 @@ from urllib.parse import parse_qs, urlparse
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from shapely.geometry import Point
 
 from ovc import __version__
 from ovc.api import check_file
+from ovc.app import native
+from ovc.app.branding import APP_NAME, APP_TITLE, FOUNDER, ORGANIZATION
 from ovc.engine import DEFAULT_DUPLICATE_RATIO, DEFAULT_MIN_AREA_M2, ISSUE_TYPES
 from ovc.engine.model import crs_label
-from ovc.engine.overlaps import polygonal_part
 from ovc.sample_data import sample_path
 from ovc.io import (
     SUPPORTED_EXTENSIONS,
@@ -173,15 +175,14 @@ class AppState:
         return crs
 
     def features_geojson(self, path, layer, assume_crs=None, fids=None, limit=None):
-        """Polygon features of a layer as WGS 84 GeoJSON for the map."""
+        """Features of a layer (any geometry type) as WGS 84 GeoJSON for the map."""
         gdf = self.read(path, layer)
         crs = self.display_crs(gdf, assume_crs)
         total = len(gdf)
         geoms = gdf.geometry
         if fids is not None:
             geoms = geoms[geoms.index.isin(fids)]
-        polys = geoms.apply(lambda g: polygonal_part(g) if g is not None else None)
-        polys = polys[polys.notna()]
+        polys = geoms[geoms.notna() & ~geoms.is_empty]
         truncated = limit is not None and len(polys) > limit
         if truncated:
             polys = polys.iloc[:0]
@@ -235,7 +236,54 @@ class AppState:
                 )
         return {"type": "FeatureCollection", "features": features}
 
-    def export(self, path, issue_types, overwrite):
+    def identify(self, path, layer, assume_crs, lon, lat, tol_deg, edge_only=False):
+        """The feature of a layer at a clicked map position, with attributes.
+
+        ``edge_only`` is for polygon layers drawn without fill: only a click
+        near an outline selects them, so features under them stay reachable.
+        """
+        gdf = self.read(path, layer)
+        crs = self.display_crs(gdf, assume_crs)
+        click = gpd.GeoSeries(
+            [Point(lon, lat), Point(lon + tol_deg, lat)], crs=4326
+        ).to_crs(crs)
+        point = click.iloc[0]
+        tolerance = max(point.distance(click.iloc[1]), 0.0)
+        hits = gdf.sindex.query(
+            point.buffer(tolerance) if tolerance else point, predicate="intersects"
+        )
+        if not len(hits):
+            return {"feature": None}
+        candidates = gdf.iloc[np.sort(hits)]
+        if edge_only:
+            near = candidates.geometry.boundary.distance(point) <= tolerance
+            candidates = candidates[near]
+            if candidates.empty:
+                return {"feature": None}
+        # the smallest feature under the cursor is the one the analyst means
+        row = candidates.loc[candidates.geometry.area.idxmin()]
+        fid = row.name
+        geom = gpd.GeoSeries([row.geometry], crs=crs).to_crs(4326).iloc[0]
+        attributes = {}
+        for key, value in row.drop(labels=[gdf.geometry.name]).items():
+            if len(attributes) >= 60:
+                break
+            value = _jsonable(value)
+            if value is not None and not isinstance(value, (int, float, bool, str)):
+                value = str(value)
+            attributes[str(key)] = value
+        return {
+            "feature": {
+                "type": "Feature",
+                "properties": {"fid": int(fid)},
+                "geometry": geom.__geo_interface__,
+            },
+            "fid": int(fid),
+            "geometry_type": row.geometry.geom_type,
+            "attributes": attributes,
+        }
+
+    def export(self, path, issue_types, overwrite, finding_ids=None, notes=None):
         if self.result is None:
             raise ApiError("Run the checks before exporting.")
         req = self.request or {}
@@ -247,6 +295,8 @@ class AppState:
                 self.result,
                 path,
                 issue_types=issue_types,
+                finding_ids=finding_ids,
+                notes=notes,
                 overwrite=overwrite,
                 protect=[
                     req.get("path"),
@@ -416,6 +466,13 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/config":
                 return {
                     "version": __version__,
+                    "app": {
+                        "name": APP_NAME,
+                        "title": APP_TITLE,
+                        "organization": ORGANIZATION,
+                        "founder": FOUNDER,
+                    },
+                    "native_dialog": native.dialogs_enabled(),
                     "sample": str(sample_path()),
                     "places": places(),
                     "extensions": list(SUPPORTED_EXTENSIONS),
@@ -442,6 +499,16 @@ class Handler(BaseHTTPRequestHandler):
                 return state.features_geojson(
                     q("path"), q("layer"), q("assume_crs"), fids=fids
                 )
+            if path == "/api/identify":
+                return state.identify(
+                    q("path"),
+                    q("layer"),
+                    q("assume_crs"),
+                    float(q("lon")),
+                    float(q("lat")),
+                    float(q("tol") or 0),
+                    edge_only=q("edge") == "1",
+                )
             if path == "/api/job":
                 with state.lock:
                     job = dict(state.job)
@@ -461,7 +528,18 @@ class Handler(BaseHTTPRequestHandler):
                 if not body.get("path"):
                     raise ApiError("Choose where to save the findings.")
                 return state.export(
-                    body["path"], body.get("issue_types"), bool(body.get("overwrite"))
+                    body["path"],
+                    body.get("issue_types"),
+                    bool(body.get("overwrite")),
+                    finding_ids=body.get("finding_ids"),
+                    notes=body.get("notes"),
+                )
+            if path == "/api/pick":
+                return native.pick_path(
+                    "save" if body.get("mode") == "save" else "open",
+                    str(body.get("title") or ""),
+                    str(body.get("initial_dir") or ""),
+                    str(body.get("initial_name") or ""),
                 )
             if path == "/api/bye":
                 # The page is closing: stop soon unless another page checks in.

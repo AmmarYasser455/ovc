@@ -38,6 +38,8 @@ def export_findings(
     path,
     *,
     issue_types=None,
+    finding_ids=None,
+    notes=None,
     crs=None,
     overwrite: bool = False,
     protect=(),
@@ -52,6 +54,11 @@ def export_findings(
         ``ovc_run_summary`` table. GeoJSON is written in EPSG:4326.
     issue_types : iterable of str, optional
         Export only these issue types. Default: all findings.
+    finding_ids : iterable of int, optional
+        Export only the findings with these ``finding_id`` values, for
+        example to leave out findings a reviewer dismissed.
+    notes : dict, optional
+        ``{finding_id: text}`` reviewer notes, written to ``review_note``.
     crs : optional
         CRS of the exported geometries. Default: the source layer's CRS, so
         the findings line up with the data in a GIS. ``area_m2`` is always
@@ -92,9 +99,21 @@ def export_findings(
     findings = result.findings_in(out_crs)
     if issue_types is not None:
         findings = findings[findings["issue_type"].isin(list(issue_types))]
+    if finding_ids is not None:
+        findings = findings[findings["finding_id"].isin([int(i) for i in finding_ids])]
     findings = findings[FINDING_COLUMNS + ["geometry"]].copy()
+    notes = {int(k): str(v) for k, v in (notes or {}).items() if str(v).strip()}
+    findings["review_note"] = [notes.get(int(i), "") for i in findings["finding_id"]]
     findings["area_crs"] = crs_label(measurement.working_crs) if measurement else ""
-    for col in ("id_a", "id_b", "related_fids", "reason", "check", "issue_type"):
+    for col in (
+        "id_a",
+        "id_b",
+        "related_fids",
+        "reason",
+        "check",
+        "issue_type",
+        "review_note",
+    ):
         findings[col] = findings[col].astype("string")
     findings["finding_id"] = findings["finding_id"].astype("int64")
 

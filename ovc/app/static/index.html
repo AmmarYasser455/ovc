@@ -4,71 +4,128 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OVC - Overlap Violation Checker</title>
-<link rel="icon" href="/static/logo.svg">
+<link rel="icon" href="/static/ovc.ico" sizes="any">
+<link rel="icon" type="image/png" href="/static/ovc-icon.png">
 <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-<header class="topbar">
-  <img src="/static/logo-dark.svg" alt="OVC" class="logo">
-  <div class="title">
-    <strong>Overlap Violation Checker</strong>
-    <span id="version"></span>
+
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-add" viewBox="0 0 24 24"><path d="M3 9.5 11 5l8 4.5-8 4.5z"/><path d="M3 14l8 4.5 4-2.2"/><path d="M19 14v6M16 17h6"/></symbol>
+  <symbol id="i-sample" viewBox="0 0 24 24"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.500z"/><path d="M4 7.5 12 12l8-4.500M12 12v9"/></symbol>
+  <symbol id="i-pan" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3 9.500 5.500M12 3l2.500 2.500M12 21l-2.500-2.500M12 21l2.500-2.500M3 12l2.500-2.500M3 12l2.500 2.500M21 12l-2.500-2.500M21 12l-2.500 2.500"/></symbol>
+  <symbol id="i-select" viewBox="0 0 24 24"><path d="M6 3.500v15l4-3.800 2.600 5.800 2.300-1-2.600-5.700H18z"/></symbol>
+  <symbol id="i-zoomin" viewBox="0 0 24 24"><circle cx="10.500" cy="10.500" r="6.500"/><path d="M15.500 15.500 21 21M7.500 10.500h6M10.500 7.500v6"/></symbol>
+  <symbol id="i-zoomout" viewBox="0 0 24 24"><circle cx="10.500" cy="10.500" r="6.500"/><path d="M15.500 15.500 21 21M7.500 10.500h6"/></symbol>
+  <symbol id="i-extent" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><rect x="9" y="9" width="6" height="6"/></symbol>
+  <symbol id="i-zoomlayer" viewBox="0 0 24 24"><path d="M3 8l7-4 7 4-7 4z"/><path d="M3 12.500l7 4 2-1.100"/><circle cx="17" cy="16" r="3.500"/><path d="M19.600 18.600 22 21"/></symbol>
+  <symbol id="i-zoomsel" viewBox="0 0 24 24"><circle cx="10.500" cy="10.500" r="6.500"/><path d="M15.500 15.500 21 21"/><rect x="8" y="8" width="5" height="5"/></symbol>
+  <symbol id="i-clear" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" stroke-dasharray="3 2.500"/><path d="M9 9l6 6M15 9l-6 6"/></symbol>
+  <symbol id="i-run" viewBox="0 0 24 24"><path d="M7 4.500v15l12-7.500z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6.500 7l1 13h9l1-13M10 11v6M14 11v6"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M8 5 4 9l4 4"/><path d="M4 9h10a5 5 0 0 1 0 10H9"/></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3v12M7.500 10.500 12 15l4.500-4.500"/><path d="M4 16v4h16v-4"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-style" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.500v.500"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h6l2 2.500h10V19H3z"/></symbol>
+</svg>
+
+<div id="splash" class="splash">
+  <div class="splash-card">
+    <img src="/static/logo-dark.svg" alt="OVC" width="220">
+    <div class="splash-title">Overlap Violation Checker</div>
+    <div class="splash-version" id="splash-version"></div>
+    <div class="splash-org" id="splash-org">OpenTerra</div>
+    <div class="splash-founder" id="splash-founder">Founded by Ammar Yasser</div>
+    <div class="splash-bar"><span></span></div>
   </div>
-  <button id="quit" class="ghost" title="Stop OVC and close this session">Quit OVC</button>
+</div>
+
+<header class="titlebar">
+  <img src="/static/ovc-icon.png" alt="" class="app-icon">
+  <span class="app-name">OVC</span>
+  <span class="app-title">Overlap Violation Checker</span>
+  <span class="grow"></span>
+  <span class="app-org" id="app-org">OpenTerra</span>
+  <button id="about" class="tb-link" title="About OVC">About</button>
+  <button id="quit" class="tb-link" title="Stop OVC and end this session">Quit</button>
 </header>
 
-<main>
-  <aside class="panel" aria-label="Checks and results">
+<nav class="ribbon" aria-label="Tools">
+  <div class="group"><div class="tools">
+    <button class="tool" id="choose-layer" title="Add a layer from a file (Ctrl+O)"><svg><use href="#i-add"/></svg><span>Add layer</span></button>
+    <button class="tool" id="use-sample" title="Load the sample parcels and block"><svg><use href="#i-sample"/></svg><span>Sample</span></button>
+  </div><div class="caption">Layer</div></div>
 
-    <section class="step" id="step-layer">
-      <h2><span class="num">1</span> Layer to check</h2>
-      <div class="row">
-        <button id="choose-layer" class="primary">Choose file…</button>
-        <button id="use-sample" class="link">Try the sample data</button>
-      </div>
-      <div id="layer-box" class="filebox" hidden>
-        <div class="path" id="layer-path"></div>
-        <label class="field" id="layer-select-wrap">Layer
-          <select id="layer-select"></select>
-        </label>
-        <dl class="facts" id="layer-facts"></dl>
-        <div id="layer-problem" class="note warn" hidden></div>
-        <label class="field" id="crs-wrap" hidden>Declare the CRS (EPSG code)
-          <input id="assume-crs" type="text" inputmode="numeric" placeholder="for example 32636">
-          <small>This layer has no CRS. OVC will not guess one. Enter the EPSG code its coordinates are in; the file itself is not changed.</small>
-        </label>
-        <label class="field">Feature ID field <span class="opt">optional</span>
-          <select id="id-field"></select>
-          <small>Findings always carry the file's feature ID (FID). Pick a field to show your own ID as well.</small>
-        </label>
-      </div>
+  <div class="group"><div class="tools">
+    <button class="tool toggle" id="tool-pan" aria-pressed="true" title="Pan the map (P)"><svg><use href="#i-pan"/></svg><span>Pan</span></button>
+    <button class="tool toggle" id="tool-select" aria-pressed="false" title="Select a feature and show its attributes (S)"><svg><use href="#i-select"/></svg><span>Select</span></button>
+    <button class="tool" id="zoom-in" title="Zoom in (+)"><svg><use href="#i-zoomin"/></svg><span>Zoom in</span></button>
+    <button class="tool" id="zoom-out" title="Zoom out (-)"><svg><use href="#i-zoomout"/></svg><span>Zoom out</span></button>
+    <button class="tool" id="zoom-full" title="Zoom to all layers (Home)"><svg><use href="#i-extent"/></svg><span>Full extent</span></button>
+    <button class="tool" id="zoom-layer" title="Zoom to the layer highlighted in the Layers panel"><svg><use href="#i-zoomlayer"/></svg><span>To layer</span></button>
+    <button class="tool" id="zoom-selection" title="Zoom to the selected finding or feature"><svg><use href="#i-zoomsel"/></svg><span>To selection</span></button>
+  </div><div class="caption">Map</div></div>
+
+  <div class="group"><div class="tools">
+    <button class="tool" id="clear-selection" title="Clear the selection (Esc)"><svg><use href="#i-clear"/></svg><span>Clear</span></button>
+    <button class="tool" id="delete-item" title="Dismiss the selected finding, or remove the highlighted layer from the map (Delete). Files are never changed."><svg><use href="#i-trash"/></svg><span>Delete</span></button>
+    <button class="tool" id="restore" title="Bring back dismissed findings"><svg><use href="#i-undo"/></svg><span>Restore</span></button>
+  </div><div class="caption">Edit</div></div>
+
+  <div class="group"><div class="tools">
+    <button class="tool accent" id="run" disabled title="Run the selected checks (F5)"><svg><use href="#i-run"/></svg><span>Run checks</span></button>
+    <button class="tool" id="export" disabled title="Save the findings as a GIS layer (Ctrl+E)"><svg><use href="#i-export"/></svg><span>Export</span></button>
+  </div><div class="caption">Review</div></div>
+</nav>
+
+<main>
+  <aside class="dock left" aria-label="Layers and checks">
+    <section class="panel" id="panel-layers">
+      <h2>Layers
+        <button id="add-gdb" class="mini-link" title="Browse for a file geodatabase (.gdb) folder or type a path">Browse in app…</button>
+      </h2>
+      <ul id="toc" class="toc"></ul>
+      <div id="toc-empty" class="empty">No layers yet. Use <strong>Add layer</strong> to open a GeoPackage, Shapefile or GeoJSON, or <strong>Sample</strong> to try OVC.</div>
     </section>
 
-    <section class="step" id="step-checks">
-      <h2><span class="num">2</span> Checks</h2>
+    <section class="panel" id="panel-checks">
+      <h2>Checks</h2>
+      <label class="field">Layer to check
+        <select id="target-layer"></select>
+      </label>
+      <dl class="facts" id="layer-facts"></dl>
+      <div id="layer-problem" class="note warn" hidden></div>
+      <label class="field" id="crs-wrap" hidden>Declare the CRS (EPSG code)
+        <input id="assume-crs" type="text" inputmode="numeric" placeholder="for example 32636">
+        <small>This layer has no CRS. OVC will not guess one. Enter the EPSG code its coordinates are in; the file itself is not changed.</small>
+      </label>
+      <label class="field">Feature ID field <span class="opt">optional</span>
+        <select id="id-field"></select>
+      </label>
+
       <label class="check">
         <input type="checkbox" id="check-overlaps" checked>
         <span><strong>Overlaps</strong>
-        <small>Needs nothing else. Reports each pair of features that share area, once. Features that only share an edge or a corner are not overlaps.</small></span>
+        <small>Needs nothing else. Each pair of features that share area is reported once. A shared edge or corner is not an overlap.</small></span>
       </label>
       <label class="check">
         <input type="checkbox" id="check-gaps">
         <span><strong>Gaps</strong>
-        <small>Needs a polygon layer of the area that should be fully covered, for example a parcel block. OVC never guesses this area. Leave off for building footprints, which normally have open space between them.</small></span>
+        <small>Needs a polygon layer of the area that should be fully covered, such as a parcel block. OVC never guesses this area.</small></span>
       </label>
       <div id="gap-inputs" class="sub" hidden>
-        <div class="row">
-          <button id="choose-coverage">Choose coverage layer…</button>
-        </div>
-        <div id="coverage-box" class="filebox" hidden>
-          <div class="path" id="coverage-path"></div>
-          <label class="field">Layer <select id="coverage-select"></select></label>
-          <dl class="facts" id="coverage-facts"></dl>
-          <div id="coverage-problem" class="note warn" hidden></div>
-        </div>
-        <div id="coverage-missing" class="note">Choose the coverage layer to run the gap check. The overlap check can run without it.</div>
+        <label class="field">Coverage layer
+          <select id="coverage-layer"></select>
+        </label>
+        <div id="coverage-problem" class="note warn" hidden></div>
+        <div id="coverage-missing" class="note">Add the coverage layer with <strong>Add layer</strong>, then choose it here. The overlap check can run without it.</div>
       </div>
+
       <details class="options">
         <summary>Options</summary>
         <label class="field">Smallest overlap to report (m²)
@@ -84,18 +141,24 @@
           <small>Off: invalid polygons are reported and skipped. On: they are repaired for this run and checked. Your file is never changed.</small></span>
         </label>
       </details>
-      <div class="row">
-        <button id="run" class="primary" disabled>Run checks</button>
-        <span id="run-hint" class="hint">Choose a layer first.</span>
-      </div>
+
+      <div id="run-hint" class="hint">Add a polygon layer first.</div>
       <div id="progress" hidden>
         <div class="bar"><div id="bar-fill"></div></div>
         <div id="progress-text" aria-live="polite"></div>
       </div>
     </section>
+  </aside>
 
-    <section class="step" id="step-results" hidden>
-      <h2><span class="num">3</span> Results</h2>
+  <div class="mapwrap">
+    <div id="map" aria-label="Map"></div>
+    <div id="map-hint" class="map-hint">Add a layer to see it here.</div>
+    <div id="map-note" class="map-note" hidden></div>
+  </div>
+
+  <aside class="dock right" id="dock-right" aria-label="Results" hidden>
+    <section class="panel" id="step-results" hidden>
+      <h2>Results</h2>
       <div id="status" class="status" role="status" aria-live="polite"></div>
       <ul id="check-lines" class="check-lines"></ul>
       <div id="warnings"></div>
@@ -105,30 +168,36 @@
       </details>
       <p id="area-method" class="method"></p>
       <div id="filters" class="filters" role="group" aria-label="Filter by issue type"></div>
+      <div id="dismissed-note" class="hint" hidden></div>
       <ol id="findings" class="findings"></ol>
-      <div class="row">
-        <button id="export" class="primary">Export findings…</button>
-        <span id="export-done" class="hint"></span>
-      </div>
+      <div id="export-done" class="hint"></div>
+    </section>
+
+    <section class="panel" id="panel-feature" hidden>
+      <h2>Selected feature</h2>
+      <div id="feature-title" class="feature-title"></div>
+      <table id="feature-table" class="attrs"></table>
     </section>
   </aside>
-
-  <div class="mapwrap">
-    <div id="map" aria-label="Map"></div>
-    <div id="map-hint" class="map-hint">Choose a layer to see it here.</div>
-    <div id="map-note" class="map-note" hidden></div>
-  </div>
 </main>
+
+<footer class="statusbar">
+  <span id="sb-coords">Lon, Lat: -</span>
+  <span id="sb-scale">Scale: -</span>
+  <span id="sb-crs">Layer CRS: -</span>
+  <span class="grow"></span>
+  <span id="sb-message"></span>
+</footer>
 
 <div id="dialog" class="dialog" hidden role="dialog" aria-modal="true" aria-labelledby="dialog-title">
   <div class="dialog-box">
     <div class="dialog-head">
       <h3 id="dialog-title">Choose a file</h3>
-      <button id="dialog-close" class="ghost dark" aria-label="Close">✕</button>
+      <button id="dialog-close" class="icon-btn" aria-label="Close"><svg><use href="#i-close"/></svg></button>
     </div>
     <div class="dialog-places" id="dialog-places"></div>
     <div class="dialog-path">
-      <button id="dialog-up" title="Up one folder">↑ Up</button>
+      <button id="dialog-up" title="Up one folder">Up</button>
       <input id="dialog-dir" type="text" spellcheck="false" aria-label="Folder path">
       <button id="dialog-go">Go</button>
     </div>
@@ -142,6 +211,17 @@
       <button id="dialog-save-btn" class="primary">Save</button>
     </div>
     <div class="dialog-foot" id="dialog-foot"></div>
+  </div>
+</div>
+
+<div id="modal" class="dialog" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="dialog-box small">
+    <div class="dialog-head">
+      <h3 id="modal-title"></h3>
+      <button id="modal-close" class="icon-btn" aria-label="Close"><svg><use href="#i-close"/></svg></button>
+    </div>
+    <div id="modal-body"></div>
+    <div class="modal-actions" id="modal-actions"></div>
   </div>
 </div>
 

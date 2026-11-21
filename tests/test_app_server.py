@@ -180,3 +180,75 @@ def test_layer_without_crs_needs_a_declared_crs(client, tmp_path):
     job = client.scan(path=str(shp), assume_crs="EPSG:32636")
     assert job["summary"]["counts_by_type"] == {"overlap": 1}
     assert not Path(tmp_path / "nocrs.prj").exists()  # source left as it was
+
+
+def test_identify_returns_the_feature_under_a_click(client):
+    # centre of parcel P1 (0-20 m, 0-15 m of the block) in WGS 84
+    import geopandas as gpd
+    from shapely.geometry import Point
+
+    lon, lat = (
+        gpd.GeoSeries([Point(330_010, 3_320_007)], crs=32636)
+        .to_crs(4326)
+        .iloc[0]
+        .coords[0]
+    )
+    status, hit = client.call(
+        "/api/identify", path=SAMPLE, layer="parcels", lon=lon, lat=lat
+    )
+    assert status == 200
+    assert hit["fid"] == 1 and hit["attributes"] == {"parcel_ref": "P1"}
+    assert hit["feature"]["geometry"]["type"] == "Polygon"
+    # an outline-only layer is hit on its edge, not in its interior
+    _, inside = client.call(
+        "/api/identify",
+        path=SAMPLE,
+        layer="block",
+        lon=lon,
+        lat=lat,
+        tol=0.00001,
+        edge="1",
+    )
+    assert inside["feature"] is None
+    _, nothing = client.call(
+        "/api/identify", path=SAMPLE, layer="parcels", lon=0, lat=0
+    )
+    assert nothing["feature"] is None
+
+
+def test_export_leaves_out_dismissed_findings_and_keeps_notes(client, tmp_path):
+    client.scan(
+        path=SAMPLE,
+        layer="parcels",
+        check_gaps=True,
+        coverage={"path": SAMPLE, "layer": "block"},
+    )
+    _, findings = client.call("/api/findings")
+    gap_id = next(
+        f["properties"]["finding_id"]
+        for f in findings["features"]
+        if f["properties"]["issue_type"] == "gap"
+    )
+    out = tmp_path / "kept.gpkg"
+    status, done = client.call(
+        "/api/export",
+        {
+            "path": str(out),
+            "finding_ids": [gap_id],
+            "notes": {str(gap_id): "survey again"},
+        },
+    )
+    assert status == 200 and done["count"] == 1
+    back = gpd.read_file(out, layer="ovc_findings")
+    assert list(back["issue_type"]) == ["gap"]
+    assert list(back["review_note"]) == ["survey again"]
+
+
+def test_native_dialog_is_off_without_a_desktop(client, monkeypatch):
+    monkeypatch.setenv("OVC_NO_NATIVE_DIALOG", "1")
+    status, res = client.call("/api/pick", {"mode": "open", "title": "Add layer"})
+    assert status == 200 and res == {"native": False}
+    _, config = client.call("/api/config")
+    assert config["native_dialog"] is False
+    assert config["app"]["organization"] == "OpenTerra"
+    assert config["app"]["founder"] == "Ammar Yasser"
