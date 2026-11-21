@@ -71,6 +71,7 @@ class AppState:
         self.lock = threading.Lock()
         self.last_seen = time.time()
         self.shutdown = threading.Event()
+        self.window_ready = threading.Event()  # the page loaded in the app window
         self._layers: dict = {}  # (path, layer, mtime, size) -> GeoDataFrame
         self.job = {"id": 0, "state": "idle", "stage": "", "fraction": 0.0}
         self.result = None
@@ -541,6 +542,9 @@ class Handler(BaseHTTPRequestHandler):
                     str(body.get("initial_dir") or ""),
                     str(body.get("initial_name") or ""),
                 )
+            if path == "/api/window-ready":
+                state.window_ready.set()
+                return {"ok": True}
             if path == "/api/bye":
                 # The page is closing: stop soon unless another page checks in.
                 state.last_seen = time.time() - state.idle_timeout + 8

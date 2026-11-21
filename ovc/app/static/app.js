@@ -1142,6 +1142,7 @@
     setTimeout(() => {
       $("splash").classList.add("done");
       document.body.dataset.ready = "1";
+      if (IN_WINDOW) api("/api/window-ready", { body: {} }).catch(() => {});
       setTimeout(() => $("splash").remove(), 400);
     }, IN_WINDOW ? 0 : Math.max(0, 1200 - (Date.now() - STARTED)));
   }).catch((e) => {

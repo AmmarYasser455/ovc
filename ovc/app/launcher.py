@@ -259,7 +259,12 @@ def main(argv=None) -> int:
                 target=serve, args=(server,), name="ovc-serve", daemon=True
             )
             serving.start()
-            shown = native.run_window(server.url, state.shutdown, test=args.window_test)
+            shown = native.run_window(
+                server.url,
+                state.shutdown,
+                ready=state.window_ready,
+                test=args.window_test,
+            )
             if args.window_test:
                 result = 0 if shown else 1
             elif not shown and not state.shutdown.is_set():

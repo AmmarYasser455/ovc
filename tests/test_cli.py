@@ -88,14 +88,52 @@ def test_every_issue_type_declares_check_label_and_colour():
         assert label and colour.startswith("#") and len(colour) == 7, name
 
 
-def test_gui_falls_back_to_the_browser_without_a_window_toolkit(monkeypatch):
+def test_gui_falls_back_to_the_browser_without_an_app_browser(monkeypatch, tmp_path):
+    import threading
+
     from ovc.app import native
 
     monkeypatch.setenv("OVC_NO_WINDOW", "1")
     assert native.window_available() is False
     monkeypatch.delenv("OVC_NO_WINDOW")
-    monkeypatch.setitem(__import__("sys").modules, "webview", None)  # not installed
+    monkeypatch.setenv("OVC_APP_BROWSER", str(tmp_path / "missing.exe"))
+    assert native.find_app_browser() is None
     assert native.window_available() is False
+    assert native.run_window("http://127.0.0.1:1/", threading.Event()) is False
+
+
+def test_window_closes_when_the_app_stops(monkeypatch, tmp_path):
+    """run_window starts the browser in app mode with its own profile and
+    ends it when the app's stop event is set."""
+    import sys
     import threading
 
-    assert native.run_window("http://127.0.0.1:1/", threading.Event()) is False
+    from ovc.app import native
+
+    # a stand-in "browser": records its arguments and stays open
+    log = tmp_path / "args.txt"
+    fake = tmp_path / "browser.py"
+    fake.write_text(
+        "import sys, time, pathlib\n"
+        f"pathlib.Path(r'{log}').write_text('\\n'.join(sys.argv[1:]))\n"
+        "time.sleep(60)\n"
+    )
+    monkeypatch.setattr(native, "find_app_browser", lambda: sys.executable)
+    monkeypatch.setenv("OVC_APP_BROWSER_ARGS", "")
+    real_popen = native.subprocess.Popen
+    monkeypatch.setattr(
+        native.subprocess,
+        "Popen",
+        lambda cmd, **kw: real_popen([cmd[0], str(fake)] + cmd[1:], **kw),
+    )
+    stopped, ready = threading.Event(), threading.Event()
+    threading.Timer(1.5, ready.set).start()
+    threading.Timer(2.5, stopped.set).start()
+    assert native.run_window("http://127.0.0.1:9/?t=abc", stopped, ready=ready) is True
+    args = log.read_text().splitlines()
+    assert args[0] == "--app=http://127.0.0.1:9/?t=abc&w=1"
+    profile = next(a for a in args if a.startswith("--user-data-dir=")).split("=", 1)[1]
+    assert "ovc-window-" in profile
+    import os
+
+    assert not os.path.exists(profile)  # the throw-away profile is removed

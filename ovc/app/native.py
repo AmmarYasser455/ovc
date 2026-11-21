@@ -1,7 +1,8 @@
 """Native desktop windows: the app window, file dialogs and start-up splash.
 
-The app window is a pywebview window (Edge WebView2 on Windows) showing the
-same page a browser would. The dialogs and the splash use Tk, which ships with Python on Windows and is bundled into
+The app window is the installed browser (Microsoft Edge on Windows) in app
+mode, showing the same page without tabs or an address bar. Nothing is
+bundled for it. The dialogs and the splash use Tk, which ships with Python on Windows and is bundled into
 OVC.exe. A file dialog runs in a short-lived child process so Tk never
 shares a thread with the HTTP server. When Tk or a display is missing
 (a headless Linux server, the automated tests) every function reports
@@ -208,63 +209,101 @@ def show_splash(is_ready, min_seconds: float = 1.6, max_seconds: float = 60.0) -
         return False
 
 
+def find_app_browser() -> str | None:
+    """A Chromium-based browser that can show a page as a plain app window.
+
+    Microsoft Edge is part of Windows 10 and 11; Chrome is used when Edge is
+    not found. ``OVC_APP_BROWSER`` overrides the search.
+    """
+    override = os.environ.get("OVC_APP_BROWSER")
+    if override:
+        return override if Path(override).is_file() else None
+    candidates = []
+    if os.name == "nt":
+        roots = [
+            os.environ.get("PROGRAMFILES(X86)"),
+            os.environ.get("PROGRAMFILES"),
+            os.environ.get("LOCALAPPDATA"),
+        ]
+        for root in [r for r in roots if r]:
+            candidates.append(
+                Path(root) / "Microsoft" / "Edge" / "Application" / "msedge.exe"
+            )
+        for root in [r for r in roots if r]:
+            candidates.append(
+                Path(root) / "Google" / "Chrome" / "Application" / "chrome.exe"
+            )
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
 def window_available() -> bool:
-    """True when OVC can open in its own desktop window (pywebview)."""
+    """True when OVC can open in its own desktop window."""
     if os.environ.get("OVC_NO_WINDOW"):
         return False
-    try:
-        import webview  # noqa: F401
-    except Exception:
-        return False
-    return True
+    return find_app_browser() is not None
 
 
-def run_window(url: str, stopped, test: bool = False) -> bool:
+def run_window(url: str, stopped, ready=None, test: bool = False) -> bool:
     """Show OVC in its own window and block until the window is closed.
 
+    The window is the installed browser in "app mode": a plain window with
+    the OVC icon and title and no tabs or address bar. Nothing extra is
+    bundled with OVC for it. Each launch uses its own throw-away browser
+    profile, so the window belongs to this process and its closing can be
+    detected.
+
     ``stopped`` is a ``threading.Event`` set when the app stops for another
-    reason (the Quit button); the window then closes itself. On Windows the
-    window uses the Edge WebView2 runtime that ships with Windows 10 and 11.
+    reason (the Quit button); the window is then closed. ``ready`` is an
+    event the page sets once it has loaded inside the window.
 
     Returns False when no window could be shown, so the caller can fall back
-    to the browser. With ``test=True`` the window closes itself as soon as
-    the app's page reports ready, and the result says whether it did.
+    to a browser tab. With ``test=True`` the window is closed as soon as the
+    page reports ready, and the result says whether it did.
     """
-    try:
-        import threading
+    import shutil
 
-        import webview
-
-        window = webview.create_window(
-            f"{APP_NAME} - {APP_TITLE}",
-            url + ("&" if "?" in url else "?") + "w=1",
-            width=1440,
-            height=900,
-            min_size=(900, 600),
-        )
-        state = {"shown": False, "ready": False}
-
-        def watch():
-            state["shown"] = True
-            deadline = time.time() + 60
-            while not stopped.wait(0.5):
-                if test:
-                    try:
-                        ready = window.evaluate_js("document.body.dataset.ready || ''")
-                    except Exception:
-                        ready = ""
-                    if ready == "1":
-                        state["ready"] = True
-                        break
-                    if time.time() > deadline:
-                        break
-            try:
-                window.destroy()
-            except Exception:
-                pass
-
-        kwargs = {"gui": "edgechromium"} if os.name == "nt" else {}
-        webview.start(watch, **kwargs)
-        return state["ready"] if test else state["shown"]
-    except Exception:
+    exe = find_app_browser()
+    if exe is None:
         return False
+    profile = tempfile.mkdtemp(prefix="ovc-window-")
+    command = [
+        exe,
+        "--app=" + url + ("&" if "?" in url else "?") + "w=1",
+        "--user-data-dir=" + profile,
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-extensions",
+        "--window-size=1440,900",
+    ] + os.environ.get("OVC_APP_BROWSER_ARGS", "").split()
+    try:
+        process = subprocess.Popen(command)
+    except Exception:
+        shutil.rmtree(profile, ignore_errors=True)
+        return False
+    started = time.time()
+    loaded = False
+    try:
+        while process.poll() is None:
+            if stopped.wait(0.3):
+                break
+            if ready is not None and ready.is_set():
+                loaded = True
+                if test:
+                    break
+            if test and time.time() - started > 90:
+                break
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except Exception:
+                process.kill()
+        shutil.rmtree(profile, ignore_errors=True)
+    if test:
+        return loaded
+    # A window that vanished at once without loading the page never worked.
+    return loaded or time.time() - started > 5
