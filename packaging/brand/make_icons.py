@@ -4,7 +4,8 @@ Needs Pillow and Playwright with Chromium (used to rasterise the SVG):
 
     python packaging/brand/make_icons.py
 
-Writes ovc/app/static/ovc.ico, ovc-icon.png and splash-logo.png.
+Writes ovc/app/static/ovc.ico, ovc-icon.png and splash-logo.png, and the
+installer images packaging/windows/wizard-large.bmp and wizard-small.bmp.
 """
 
 import glob
@@ -63,7 +64,23 @@ def main():
         ],
     )
     splash.convert("RGB").save(STATIC / "splash-logo.png")
-    print("Wrote ovc.ico, ovc-icon.png, splash-logo.png")
+    wizard_images(icon, splash)
+    print("Wrote ovc.ico, ovc-icon.png, splash-logo.png and the installer images")
+
+
+def wizard_images(icon, splash):
+    """Installer artwork: the logo on the app's ink colour (Inno Setup BMPs)."""
+    windows = ROOT / "packaging" / "windows"
+    ink = (0x12, 0x14, 0x17)
+    large = Image.new("RGB", (164, 314), ink)
+    logo = splash.convert("RGB")
+    logo = logo.resize((140, round(logo.height * 140 / logo.width)), Image.LANCZOS)
+    large.paste(logo, ((164 - logo.width) // 2, 110))
+    large.save(windows / "wizard-large.bmp")
+    small = Image.new("RGB", (55, 58), (255, 255, 255))
+    mark = icon.resize((50, 50), Image.LANCZOS)
+    small.paste(mark, (2, 4), mark)
+    small.save(windows / "wizard-small.bmp")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,15 @@
 # Windows app
 
+`build.ps1` builds three files in `dist\`:
+
+| File | What it is |
+|---|---|
+| `OVC-Setup.exe` | The installer (Inno Setup, script `ovc.iss`): Start menu and optional desktop shortcut, uninstaller, per-user install without administrator rights. Running a newer one upgrades in place. |
+| `OVC-Setup.exe.sha256` | Its checksum. The in-app updater refuses an installer that does not match. |
+| `OVC-windows.zip` | The same app as a portable folder. |
+
+The installer is tested in the build: silent install, self-test of the installed copy, check that it reports itself as installed, upgrade over itself, and uninstall.
+
 `build.ps1` freezes the map app with PyInstaller into `dist\OVC\OVC.exe` and
 zips the folder as `OVC-windows.zip`. The exe carries the OVC icon and has no
 console window: a double-click shows the splash window, then opens OVC in its

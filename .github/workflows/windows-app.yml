@@ -38,18 +38,23 @@ jobs:
             throw "Tag ${{ github.event.release.tag_name }} does not match ovc.__version__ ($version)"
           }
 
-      - name: Build and self-test OVC.exe
+      - name: Build and test OVC.exe and OVC-Setup.exe
         shell: pwsh
         run: packaging\windows\build.ps1
 
       - uses: actions/upload-artifact@v4
         with:
           name: OVC-windows
-          path: dist/OVC-windows.zip
+          path: |
+            dist/OVC-Setup.exe
+            dist/OVC-Setup.exe.sha256
+            dist/OVC-windows.zip
           if-no-files-found: error
 
       - name: Attach to the release
         if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" dist/OVC-windows.zip --clobber
+        run: >
+          gh release upload "${{ github.event.release.tag_name }}"
+          dist/OVC-Setup.exe dist/OVC-Setup.exe.sha256 dist/OVC-windows.zip --clobber
