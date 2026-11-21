@@ -47,6 +47,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# OVC in its own desktop window instead of a browser tab
+window = [
+  "pywebview>=5.0",
+]
 dev = [
   "pytest>=8.0",
   "pytest-cov>=4.0",

@@ -80,7 +80,7 @@ building pipeline ─> checks.find_building_overlaps ─> ovc.engine.overlaps �
 
 - `server.py`: `http.server` bound to 127.0.0.1 with a per-launch token. Scans run in a worker thread; the page polls for progress.
 - `launcher.py`: starts the server, opens the browser, reuses a running instance, stops after Quit or 15 idle minutes. `--self-test` checks an installed or frozen copy.
-- `native.py`: the Windows file dialogs and the splash window (Tk). A dialog runs in a short child process; without a desktop the page's own file browser is used.
+- `native.py`: the app window (pywebview on Edge WebView2, with the browser as fallback), the Windows file dialogs and the splash window (Tk). A dialog runs in a short child process; without a desktop the page's own file browser is used.
 - `branding.py`: app name, organisation and founder shown in the title bar, splash and About box.
 - `static/`: the page (plain JavaScript and a bundled Leaflet, so it works offline). Layers are listed in a panel (visibility, order, symbology); the toolbar holds the map, selection and review tools.
 

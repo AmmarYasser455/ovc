@@ -86,3 +86,16 @@ def test_every_issue_type_declares_check_label_and_colour():
     for name, (check, label, colour) in ISSUE_TYPES.items():
         assert check in {"overlap", "gap", "input"}, name
         assert label and colour.startswith("#") and len(colour) == 7, name
+
+
+def test_gui_falls_back_to_the_browser_without_a_window_toolkit(monkeypatch):
+    from ovc.app import native
+
+    monkeypatch.setenv("OVC_NO_WINDOW", "1")
+    assert native.window_available() is False
+    monkeypatch.delenv("OVC_NO_WINDOW")
+    monkeypatch.setitem(__import__("sys").modules, "webview", None)  # not installed
+    assert native.window_available() is False
+    import threading
+
+    assert native.run_window("http://127.0.0.1:1/", threading.Event()) is False

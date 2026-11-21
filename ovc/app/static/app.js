@@ -4,6 +4,7 @@
 
   const STARTED = Date.now();
   const TOKEN = new URLSearchParams(location.search).get("t") || "";
+  const IN_WINDOW = new URLSearchParams(location.search).get("w") === "1"; // own desktop window
   const COLORS = {}; // issue type -> colour, filled from the server's issue registry
   const LAYER_COLORS = ["#7d8fa3", "#8aa37d", "#a38d7d", "#8f7da3", "#7da3a0", "#a3a07d"];
   const CHECK_NAMES = { overlap: "Overlap check", gap: "Gap check", input: "Input quality" };
@@ -1119,7 +1120,7 @@
 
   $("quit").addEventListener("click", async () => {
     try { await api("/api/quit", { body: {} }); } catch (e) { /* already stopped */ }
-    document.body.replaceChildren(el("p", { style: "padding:40px;font-size:16px", text: "OVC has stopped. You can close this tab." }));
+    document.body.replaceChildren(el("p", { style: "padding:40px;font-size:16px", text: IN_WINDOW ? "Closing OVC…" : "OVC has stopped. You can close this tab." }));
   });
   setInterval(() => api("/api/ping").catch(() => {}), 20000);
   window.addEventListener("pagehide", () => navigator.sendBeacon("/api/bye?" + qs({ t: TOKEN })));
@@ -1142,7 +1143,7 @@
       $("splash").classList.add("done");
       document.body.dataset.ready = "1";
       setTimeout(() => $("splash").remove(), 400);
-    }, Math.max(0, 1200 - (Date.now() - STARTED)));
+    }, IN_WINDOW ? 0 : Math.max(0, 1200 - (Date.now() - STARTED)));
   }).catch((e) => {
     document.body.replaceChildren(el("p", { style: "padding:40px;font-size:16px", text: e.message }));
   });

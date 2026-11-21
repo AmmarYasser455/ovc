@@ -1,6 +1,6 @@
 # Build dist\OVC\OVC.exe (no console window) and dist\OVC-windows.zip.
 # Run from the repository root in an environment where OVC is installed:
-#   pip install . pyinstaller
+#   pip install ".[window]" pyinstaller
 #   powershell -File packaging\windows\build.ps1
 $ErrorActionPreference = "Stop"
 
@@ -8,6 +8,7 @@ pyinstaller --noconfirm --clean --windowed --name OVC `
   --icon ovc\app\static\ovc.ico `
   --hidden-import tkinter `
   --hidden-import tkinter.filedialog `
+  --collect-all webview `
   --collect-data ovc.app `
   --collect-data ovc.sample_data `
   --collect-all pyogrio `
@@ -36,6 +37,10 @@ $result = Join-Path $PWD "dist\pick-result.json"
 @{ mode = "test"; title = "test"; result = $result } | ConvertTo-Json | Set-Content -Path $request -Encoding utf8
 $p = Start-Process -FilePath "dist\OVC\OVC.exe" -ArgumentList "--pick", "`"$request`"" -Wait -PassThru
 if ($p.ExitCode -ne 0 -or -not (Test-Path $result)) { throw "OVC.exe could not open a file dialog window" }
+
+# Prove OVC opens in its own window and the page starts inside it.
+$p = Start-Process -FilePath "dist\OVC\OVC.exe" -ArgumentList "--window-test" -Wait -PassThru
+if ($p.ExitCode -ne 0) { throw "OVC.exe could not open its app window" }
 
 # Prove it serves the map page.
 $app = Start-Process -FilePath "dist\OVC\OVC.exe" -ArgumentList "--no-browser", "--port", "8791" -PassThru

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.0] - 2026-11-21
+
+### Changed
+- **OVC opens in its own window.** `OVC.exe` now shows the app in a desktop window (Edge WebView2, part of Windows 10 and 11) instead of a browser tab. Closing the window stops OVC. If no window can be shown, it opens in the default browser as before; `--browser` forces that.
+- With pip, the window needs the optional extra: `pip install "ovc[window] @ git+https://github.com/AmmarYasser455/ovc.git"`. Without it `ovc-gui` uses the browser.
+
 ## [3.4.0] - 2026-11-21
 
 ### Added

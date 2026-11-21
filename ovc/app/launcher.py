@@ -14,6 +14,7 @@ import secrets
 import sys
 import tempfile
 import threading
+import time
 import traceback
 import urllib.request
 import webbrowser
@@ -138,7 +139,14 @@ def main(argv=None) -> int:
         prog="ovc-gui", description="Open the OVC map app."
     )
     parser.add_argument(
-        "--no-browser", action="store_true", help="Do not open a browser"
+        "--no-browser",
+        action="store_true",
+        help="Start the app without opening a window or a browser",
+    )
+    parser.add_argument(
+        "--browser",
+        action="store_true",
+        help="Open OVC in the default browser instead of its own window",
     )
     parser.add_argument(
         "--port", type=int, default=0, help="Port (default: any free port)"
@@ -158,7 +166,15 @@ def main(argv=None) -> int:
     )
     parser.add_argument("--pick", metavar="REQUEST.json", help=argparse.SUPPRESS)
     parser.add_argument("--splash-test", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--window-test", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
+
+    from ovc.app import native
+
+    # OVC opens in its own window when it can; otherwise in the browser.
+    windowed = args.window_test or (
+        not args.no_browser and not args.browser and native.window_available()
+    )
 
     if args.pick:  # child process showing one native file dialog
         from ovc.app.native import run_picker
@@ -172,7 +188,7 @@ def main(argv=None) -> int:
         return self_test(args.self_test or None)
 
     try:
-        if not args.port:
+        if not args.port and not windowed:
             existing = _running_instance()
             if existing:
                 if not args.no_browser:
@@ -198,7 +214,11 @@ def main(argv=None) -> int:
 
         worker = threading.Thread(target=start, name="ovc-boot", daemon=True)
         worker.start()
-        if not args.no_browser and not os.environ.get("OVC_NO_SPLASH"):
+        if (
+            not args.no_browser
+            and not args.window_test
+            and not os.environ.get("OVC_NO_SPLASH")
+        ):
             from ovc.app.native import show_splash
 
             show_splash(lambda: not worker.is_alive())
@@ -230,17 +250,37 @@ def main(argv=None) -> int:
         instance = None
     if sys.stdout is not None:
         print(server.url, flush=True)
-    if not args.no_browser:
-        webbrowser.open(server.url)
+    result = 0
     try:
-        serve(server)
+        if windowed:
+            # The window's lifetime is the app's: no idle shutdown.
+            state.idle_timeout = float("inf")
+            serving = threading.Thread(
+                target=serve, args=(server,), name="ovc-serve", daemon=True
+            )
+            serving.start()
+            shown = native.run_window(server.url, state.shutdown, test=args.window_test)
+            if args.window_test:
+                result = 0 if shown else 1
+            elif not shown and not state.shutdown.is_set():
+                # No usable window (for example no WebView2 runtime): browser.
+                state.idle_timeout = args.idle_timeout
+                state.last_seen = time.time()
+                webbrowser.open(server.url)
+                serving.join()  # until Quit or the idle timeout
+            state.shutdown.set()
+            serving.join(timeout=5)
+        else:
+            if not args.no_browser:
+                webbrowser.open(server.url)
+            serve(server)
     finally:
         if instance is not None:
             try:
                 instance.unlink()
             except OSError:
                 pass
-    return 0
+    return result
 
 
 if __name__ == "__main__":
