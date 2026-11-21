@@ -3,15 +3,7 @@
   "use strict";
 
   const TOKEN = new URLSearchParams(location.search).get("t") || "";
-  const COLORS = {
-    overlap: "#d32f2f",
-    containment: "#ef6c00",
-    duplicate: "#7b1fa2",
-    gap: "#00838f",
-    invalid_geometry: "#5d4037",
-    empty_geometry: "#757575",
-    not_polygon: "#757575",
-  };
+  const COLORS = {}; // issue type -> colour, filled from the server's issue registry
   const CHECK_NAMES = { overlap: "Overlap check", gap: "Gap check", input: "Input quality" };
   const STATUS_NAMES = {
     clean: "Clean",
@@ -719,6 +711,7 @@
 
   api("/api/config").then((config) => {
     S.config = config;
+    Object.assign(COLORS, config.issue_colors);
     $("version").textContent = "v" + config.version;
     $("min-overlap").value = config.defaults.min_area_m2;
     $("min-gap").value = config.defaults.min_area_m2;

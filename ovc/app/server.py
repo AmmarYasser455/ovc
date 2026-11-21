@@ -420,6 +420,7 @@ class Handler(BaseHTTPRequestHandler):
                     "places": places(),
                     "extensions": list(SUPPORTED_EXTENSIONS),
                     "issue_types": {k: v[1] for k, v in ISSUE_TYPES.items()},
+                    "issue_colors": {k: v[2] for k, v in ISSUE_TYPES.items()},
                     "defaults": {
                         "min_area_m2": DEFAULT_MIN_AREA_M2,
                         "duplicate_ratio": DEFAULT_DUPLICATE_RATIO,

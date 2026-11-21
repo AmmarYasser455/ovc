@@ -18,15 +18,17 @@ CHECK_COMPLETE = "complete"
 CHECK_INCOMPLETE = "incomplete"  # ran, but the result does not cover everything
 CHECK_NOT_RUN = "not_run"  # requested, but an input it needs is missing or unusable
 
-# issue_type -> (check it belongs to, label shown to the analyst)
+# issue_type -> (check it belongs to, label shown to the analyst, map colour).
+# This is the one place an issue type is declared: the app's legend, filter
+# chips and symbology, and the export, all read it from here.
 ISSUE_TYPES = {
-    "overlap": ("overlap", "Overlap"),
-    "containment": ("overlap", "Feature inside another"),
-    "duplicate": ("overlap", "Duplicate feature"),
-    "gap": ("gap", "Gap"),
-    "invalid_geometry": ("input", "Invalid geometry"),
-    "empty_geometry": ("input", "Empty geometry"),
-    "not_polygon": ("input", "Not a polygon"),
+    "overlap": ("overlap", "Overlap", "#d32f2f"),
+    "containment": ("overlap", "Feature inside another", "#ef6c00"),
+    "duplicate": ("overlap", "Duplicate feature", "#7b1fa2"),
+    "gap": ("gap", "Gap", "#00838f"),
+    "invalid_geometry": ("input", "Invalid geometry", "#5d4037"),
+    "empty_geometry": ("input", "Empty geometry", "#757575"),
+    "not_polygon": ("input", "Not a polygon", "#757575"),
 }
 
 FINDING_COLUMNS = [
