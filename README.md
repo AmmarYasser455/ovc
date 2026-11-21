@@ -29,13 +29,17 @@ Open OVC, choose a polygon layer, run the checks, click a finding to zoom to it,
   <img src="docs/assets/ovc-map-app.png" alt="OVC: layers panel, toolbar and a 10 m² gap and 30 m² overlap found in the sample parcels" width="900">
 </p>
 
-### Open OVC on Windows
+### Install OVC on Windows
 
-1. Download `OVC-windows.zip` from the [latest release](https://github.com/AmmarYasser455/ovc/releases/latest). Until a release carries it, take the `OVC-windows` artifact from the newest [Windows app run](https://github.com/AmmarYasser455/ovc/actions/workflows/windows-app.yml).
-2. Right-click the zip, choose **Extract All**, and open the `OVC` folder.
-3. Double-click **OVC.exe**. A splash window appears, then OVC opens in its own window. It runs on your computer only and works offline. Windows may show a SmartScreen notice the first time because the app is not code-signed; choose **More info**, then **Run anyway**.
+1. Download **[OVC-Setup.exe](https://github.com/AmmarYasser455/ovc/releases/latest/download/OVC-Setup.exe)**. This link always gives the newest version.
+2. Run it and follow the steps (Next, Install). No administrator rights are needed; to install for every user of the PC, choose that on the first page.
+3. Open **OVC** from the Start menu or the desktop icon. A splash window appears, then OVC opens in its own window.
 
-Python is not required. To stop OVC, close the window.
+OVC runs on your computer only and works offline. Windows may show a SmartScreen notice the first time because the installer is not code-signed; choose **More info**, then **Run anyway**. Uninstall it from Windows Settings > Apps like any other program.
+
+**Updates.** When a new version is released, OVC shows a bar at the top with **Install update**. One click downloads the new installer, checks it against its published SHA-256, closes OVC, upgrades it and opens it again. The check sends one request to GitHub when OVC starts; nothing about you or your data is sent, and it can be turned off in **About**.
+
+No installer wanted? The [portable zip](https://github.com/AmmarYasser455/ovc/releases/latest/download/OVC-windows.zip) runs without installing: extract it and double-click `OVC.exe`. It shows new versions too, but updating it means downloading again.
 
 ### Review workflow
 
