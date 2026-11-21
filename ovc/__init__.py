@@ -1,7 +1,7 @@
 """OVC - Overlap Violation Checker."""
 
 # The single source of the version: packaging reads it from here.
-__version__ = "3.3.0"
+__version__ = "3.4.0"
 __author__ = "Ammar Yasser Abdalazim"
 
 # Public names are imported on first use, so the map app and ``ovc check``
