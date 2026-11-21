@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.3.0] - 2026-11-21
-
 ### Added
 - **Map app.** `OVC.exe` (Windows, built by the "Windows app" workflow) and the `ovc-gui` command open a local, offline map interface: file picker, layer selector with feature count and CRS, independent overlap and gap checks, a results list linked to the map, filter by issue type, and export to GeoPackage or GeoJSON.
 - **Topology engine** (`ovc.engine`), shared by the app, the CLI, the Python API and the building pipeline. Overlaps are positive-area intersections reported once per pair, classed as `overlap`, `containment` or `duplicate`. Gaps are the uncovered parts of an analyst-supplied coverage layer (opt-in).

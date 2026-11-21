@@ -1,6 +1,6 @@
 """OVC - Overlap Violation Checker."""
 
-__version__ = "3.3.0"
+__version__ = "3.2.0"
 __author__ = "Ammar Yasser Abdalazim"
 
 # Public names are imported on first use, so the map app and ``ovc check``
