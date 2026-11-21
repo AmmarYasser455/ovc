@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/AmmarYasser455/ovc"><img src="https://img.shields.io/badge/version-v3.1.1-blue?style=flat-square" alt="Version"></a>
+  <a href="https://github.com/AmmarYasser455/ovc/releases"><img src="https://img.shields.io/github/v/tag/AmmarYasser455/ovc?sort=semver&label=version&style=flat-square" alt="Latest version"></a>
   <a href="https://github.com/AmmarYasser455/ovc"><img src="https://img.shields.io/badge/python-3.10%2B-blue?style=flat-square" alt="Python"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License"></a>
   <a href="https://github.com/AmmarYasser455/ovc/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/AmmarYasser455/ovc/ci.yml?style=flat-square&label=CI" alt="CI"></a>
@@ -99,12 +99,10 @@ OVC also runs a batch QC pipeline for building and road datasets from the comman
 ## Install with Python
 
 ```bash
-git clone https://github.com/AmmarYasser455/ovc.git
-cd ovc
-pip install .
+pip install "git+https://github.com/AmmarYasser455/ovc.git"
 ```
 
-Python 3.10 or newer. Install from the repository; the name `ovc` on PyPI belongs to another project. This installs three ways in:
+Python 3.10 or newer on Windows, Linux or macOS. Add `@v3.1.1` (or another [tag](https://github.com/AmmarYasser455/ovc/tags)) to the URL for a fixed version. Install from the repository; the name `ovc` on PyPI belongs to another project. This installs three ways in:
 
 | Command | What it does |
 |---|---|
@@ -253,7 +251,7 @@ examples/           # Sample generator, GeoQA -> OVC walkthrough
 tests/              # Engine fixtures, I/O, server, CLI and browser workflow tests
 ```
 
-Design notes are in [ARCHITECTURE.md](ARCHITECTURE.md).
+Design notes are in [ARCHITECTURE.md](ARCHITECTURE.md). To add a check or an issue type, follow [Adding a check](CONTRIBUTING.md#adding-a-check).
 
 ## Supported Formats
 

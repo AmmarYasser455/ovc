@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ovc.check_file()`, `ovc.check_polygons()`, `ovc.export_findings()`.
 - `ovc` console command: `ovc check FILE`, `ovc gui`, and the existing pipeline options. `python scripts/run_qc.py` still works.
 - Sample dataset `ovc/sample_data/ovc_sample.gpkg` and its generator in `examples/sample/`.
+- The package version has a single source, `ovc.__version__`; the README badge follows the newest tag; publishing a release attaches `OVC-windows.zip` after checking the tag against the version.
+- CONTRIBUTING: how to add a check and how to release.
 - CI: browser test of the app workflow on Linux and Windows, wheel install check outside the checkout, Windows app build with a self-test.
 
 ### Changed

@@ -15,7 +15,7 @@ Thank you for your interest in contributing to OVC! Contributions are welcome an
 - [Coding Guidelines](#coding-guidelines)
 - [Testing](#testing)
 - [Documentation](#documentation)
-- [Versioning](#versioning)
+- [Versioning](#versioning) and [Releasing](#releasing)
 - [License](#license)
 
 ---
@@ -103,13 +103,13 @@ Ensure all tests pass before proceeding.
 #### **Step 5: Commit Your Changes**
 
 ```bash
-git commit -m "Add feature: description of changes"
+git commit -m "feat(engine): description of the change"
 ```
 
-Write clear commit messages:
--  `Fix: Resolve boundary overlap detection issue`
--  `Feature: Add support for MultiPolygon geometries`
--  `Fixed stuff`
+Write clear commit messages in the form `type(scope): summary`, as the history does:
+-  `fix(overlap): count every part of a multi-part intersection`
+-  `feat(engine): add a sliver check`
+-  not `Fixed stuff`
 
 #### **Step 6: Push and Open a Pull Request**
 
@@ -128,17 +128,39 @@ Then open a Pull Request on GitHub with:
 
 ```
 ovc/
-├── core/        # Core utilities and shared logic
-├── checks/      # Quality control checks
-├── export/      # Pipeline execution and outputs
-└── road_qc/     # Road network quality checks
-tests/           # Test suite
+├── engine/       # Topology engine: overlaps, gaps, input quality, area measurement
+├── io/           # Read layers with their FIDs; export findings
+├── api.py        # check_file(): read a layer and run the engine
+├── app/          # Map app: local server, launcher, browser UI (static/)
+├── cli.py        # ovc command
+├── sample_data/  # Sample GeoPackage bundled with the app
+├── checks/ loaders/ export/ metrics/ core/   # Building QC pipeline
+├── precheck/     # GeoQA pre-check
+└── road_qc/      # Road network quality checks
+packaging/windows/  # OVC.exe build
+examples/           # Sample generator, GeoQA -> OVC walkthrough
+tests/              # Test suite
 ```
 
 **Guidelines:**
-- Keep changes modular and consistent with the existing architecture
-- Place new functionality in the appropriate module
+- Keep changes modular and consistent with the existing architecture ([ARCHITECTURE.md](ARCHITECTURE.md))
+- The engine does no file I/O; the app and CLI contain no geometry logic
 - Update tests alongside code changes
+
+### Adding a check
+
+A check added to the engine is available to the map app, `ovc check` and the Python API at once. The steps, in order:
+
+1. **Define it.** Write down what counts as a finding, what extra input it needs, and its threshold with units. Add a small fixture with exact expected results to `tests/test_engine.py` first.
+2. **Geometry.** Put the pure geometry in a new module in `ovc/engine/` (see `overlaps.py` and `gaps.py`). It takes arrays of geometries in the working CRS and returns findings; no I/O, no mutation of inputs.
+3. **Issue type.** Add one line per new issue type to `ISSUE_TYPES` in `ovc/engine/model.py` (check name, label, map colour). The app's legend, filter chips, symbology and the export read it from there.
+4. **Wire it.** In `ovc/engine/scan.py`, add a `check_<name>` option to `check_polygons`, a `CheckOutcome` for it, and a block that calls your module and records findings with `finding(...)`. Mark the outcome `incomplete` or `not_run` with a message whenever the result would not cover every feature.
+5. **Expose it.** Add the flag to `check_command` in `ovc/cli.py`, the option to `_run_scan` in `ovc/app/server.py`, and a checkbox with a one-sentence explanation of the input it needs in `ovc/app/static/index.html` and `run()` in `app.js`.
+6. **Document it.** Add it to "What the checks report" in the README and to `CHANGELOG.md` under Unreleased.
+
+Rules every check follows: a data problem never produces a `clean` status; areas are reported in m² through `Measurement.area_m2`; a finding whose area equals the threshold is reported; every finding carries the source FIDs.
+
+To add a new *interface* (for example a QGIS plugin), call `ovc.check_file()` or `ovc.check_polygons()` and read the `ScanResult`; do not reimplement checks.
 
 ---
 
@@ -212,6 +234,17 @@ OVC follows **[Semantic Versioning](https://semver.org/)** (MAJOR.MINOR.PATCH):
 - **Patch releases** (0.0.x) — Bug fixes and minor improvements
 - **Minor releases** (0.x.0) — New features, backward compatible
 - **Major releases** (x.0.0) — Breaking changes
+
+The version lives in one place, `__version__` in `ovc/__init__.py`. Packaging reads it from there, and the README badge shows the newest tag.
+
+### Releasing
+
+1. Set `__version__` in `ovc/__init__.py`.
+2. In `CHANGELOG.md`, rename **Unreleased** to the version and date, and add a new empty **Unreleased** section.
+3. Merge to `main` and wait for CI.
+4. On GitHub, publish a release with the tag `v<version>` (for example `v3.3.0`).
+
+Publishing the release runs the "Windows app" workflow. It fails if the tag does not match `__version__`; otherwise it builds `OVC.exe`, runs its self-test and attaches `OVC-windows.zip` to the release, which is the download the README points to.
 
 ---
 

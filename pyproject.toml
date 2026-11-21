@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ovc"
-version = "3.2.0"
+dynamic = ["version"]
 description = "Find overlaps and gaps in polygon layers from a map, the command line or Python, plus building and road QC"
 requires-python = ">=3.10"
 
@@ -68,6 +68,9 @@ testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 include = ["ovc*"]
+
+[tool.setuptools.dynamic]
+version = { attr = "ovc.__version__" }
 
 [tool.setuptools.package-data]
 "ovc.app" = ["static/*", "static/vendor/leaflet/*", "static/vendor/leaflet/images/*"]

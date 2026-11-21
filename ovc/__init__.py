@@ -1,5 +1,6 @@
 """OVC - Overlap Violation Checker."""
 
+# The single source of the version: packaging reads it from here.
 __version__ = "3.2.0"
 __author__ = "Ammar Yasser Abdalazim"
 

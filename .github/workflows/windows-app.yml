@@ -29,6 +29,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install . pyinstaller
 
+      - name: Release tag must match the package version
+        if: github.event_name == 'release'
+        shell: pwsh
+        run: |
+          $version = python -c "import ovc; print(ovc.__version__)"
+          if ("${{ github.event.release.tag_name }}" -ne "v$version") {
+            throw "Tag ${{ github.event.release.tag_name }} does not match ovc.__version__ ($version)"
+          }
+
       - name: Build and self-test OVC.exe
         shell: pwsh
         run: packaging\windows\build.ps1

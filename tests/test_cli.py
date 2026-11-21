@@ -70,3 +70,19 @@ def test_public_python_api_is_unchanged():
     assert callable(ovc.check_file) and callable(ovc.check_polygons)
     with pytest.raises(AttributeError):
         ovc.nope
+
+
+def test_version_has_a_single_source():
+    from importlib.metadata import version
+
+    import ovc
+
+    assert version("ovc") == ovc.__version__
+
+
+def test_every_issue_type_declares_check_label_and_colour():
+    from ovc.engine import ISSUE_TYPES
+
+    for name, (check, label, colour) in ISSUE_TYPES.items():
+        assert check in {"overlap", "gap", "input"}, name
+        assert label and colour.startswith("#") and len(colour) == 7, name
