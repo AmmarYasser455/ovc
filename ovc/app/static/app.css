@@ -53,6 +53,16 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .tool.accent svg { color: var(--accent); fill: var(--accent); }
 .tool.accent:disabled svg { color: var(--muted); fill: none; }
 
+/* ---- update bar ---- */
+.update-bar { display: flex; align-items: center; gap: 10px; padding: 5px 12px; background: #fff7e6; border-bottom: 1px solid #f0c987; color: #4d3500; flex: none; }
+.update-bar svg { width: 18px; height: 18px; color: #b26a00; flex: none; }
+.update-bar a { color: #0b57a4; }
+.update-bar button { padding: 3px 12px; }
+.about .updates { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line-soft); text-align: left; font-size: 12.5px; }
+.about .updates label { display: flex; gap: 8px; align-items: center; }
+.about .updates .row { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+.about .updates #update-check-result { color: var(--muted); }
+
 /* ---- layout ---- */
 main { flex: 1; display: flex; min-height: 0; }
 .dock { flex: none; overflow-y: auto; background: var(--panel); }

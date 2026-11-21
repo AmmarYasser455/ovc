@@ -27,7 +27,7 @@ from shapely.geometry import Point
 
 from ovc import __version__
 from ovc.api import check_file
-from ovc.app import native
+from ovc.app import native, updates
 from ovc.app.branding import APP_NAME, APP_TITLE, FOUNDER, ORGANIZATION
 from ovc.engine import DEFAULT_DUPLICATE_RATIO, DEFAULT_MIN_AREA_M2, ISSUE_TYPES
 from ovc.engine.model import crs_label
@@ -72,6 +72,8 @@ class AppState:
         self.last_seen = time.time()
         self.shutdown = threading.Event()
         self.window_ready = threading.Event()  # the page loaded in the app window
+        self.update_info = None  # result of the last update check
+        self.update_job = {"state": "idle", "fraction": 0.0, "message": ""}
         self._layers: dict = {}  # (path, layer, mtime, size) -> GeoDataFrame
         self.job = {"id": 0, "state": "idle", "stage": "", "fraction": 0.0}
         self.result = None
@@ -158,6 +160,57 @@ class AppState:
             if self.job["id"] == job_id:
                 self.result = result
                 self.job.update(state="done", stage="Done", fraction=1.0)
+
+    # ---- updates ----------------------------------------------------
+    def check_update(self, force=False) -> dict:
+        with self.lock:
+            cached = self.update_info
+        if cached is not None and not force:
+            return cached
+        info = updates.check(force=force)
+        with self.lock:
+            self.update_info = info
+        return info
+
+    def start_update_install(self) -> dict:
+        info = self.check_update()
+        if not info.get("can_install"):
+            raise ApiError("This copy of OVC cannot install updates by itself.")
+        with self.lock:
+            if self.update_job["state"] in ("downloading", "launching"):
+                raise ApiError(
+                    "The update is already being installed.", HTTPStatus.CONFLICT
+                )
+            self.update_job = {"state": "downloading", "fraction": 0.0, "message": ""}
+        threading.Thread(
+            target=self._install_update, args=(info,), name="ovc-update", daemon=True
+        ).start()
+        return dict(self.update_job)
+
+    def _install_update(self, info) -> None:
+        def progress(fraction):
+            with self.lock:
+                self.update_job["fraction"] = round(float(fraction), 3)
+
+        try:
+            path = updates.download_installer(
+                info["installer_url"], info["checksum_url"], progress
+            )
+            with self.lock:
+                self.update_job.update(state="launching", fraction=1.0)
+            updates.launch_installer(path)
+        except Exception as exc:
+            with self.lock:
+                self.update_job = {
+                    "state": "error",
+                    "fraction": 0.0,
+                    "message": str(exc),
+                }
+            return
+        with self.lock:
+            self.update_job.update(state="launched")
+        # Close OVC so the installer can replace its files; it reopens OVC.
+        threading.Timer(2.0, self.shutdown.set).start()
 
     # ---- map data ---------------------------------------------------
     def display_crs(self, gdf, assume_crs=None):
@@ -510,6 +563,11 @@ class Handler(BaseHTTPRequestHandler):
                     float(q("tol") or 0),
                     edge_only=q("edge") == "1",
                 )
+            if path == "/api/update":
+                return state.check_update(force=q("force") == "1")
+            if path == "/api/update/status":
+                with state.lock:
+                    return dict(state.update_job)
             if path == "/api/job":
                 with state.lock:
                     job = dict(state.job)
@@ -542,6 +600,13 @@ class Handler(BaseHTTPRequestHandler):
                     str(body.get("initial_dir") or ""),
                     str(body.get("initial_name") or ""),
                 )
+            if path == "/api/update/install":
+                return state.start_update_install()
+            if path == "/api/update/settings":
+                updates.set_checks_enabled(bool(body.get("enabled")))
+                with state.lock:
+                    state.update_info = None
+                return {"enabled": updates.checks_enabled()}
             if path == "/api/window-ready":
                 state.window_ready.set()
                 return {"ok": True}

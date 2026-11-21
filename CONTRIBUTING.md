@@ -244,7 +244,9 @@ The version lives in one place, `__version__` in `ovc/__init__.py`. Packaging re
 3. Merge to `main` and wait for CI.
 4. On GitHub, publish a release with the tag `v<version>` (for example `v3.3.0`).
 
-Publishing the release runs the "Windows app" workflow. It fails if the tag does not match `__version__`; otherwise it builds `OVC.exe`, runs its self-test and attaches `OVC-windows.zip` to the release, which is the download the README points to.
+Publishing the release runs the "Windows app" workflow. It fails if the tag does not match `__version__`; otherwise it builds `OVC.exe` and the installer, installs, runs, upgrades and uninstalls it as a test, and attaches `OVC-Setup.exe`, `OVC-Setup.exe.sha256` and `OVC-windows.zip` to the release.
+
+Keep those asset names unchanged. The download link on the website and in the README (`releases/latest/download/OVC-Setup.exe`) and the in-app update both rely on them. Every installed copy of OVC sees the new release the next time it starts and offers **Install update**.
 
 ---
 

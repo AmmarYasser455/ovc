@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.6.0] - 2026-11-21
+
+### Added
+- **Windows installer.** `OVC-Setup.exe` installs OVC like any Windows program: setup wizard, Start menu and optional desktop shortcut, entry in Settings > Apps with an uninstaller, per-user install without administrator rights (all users on request). Installing a newer version upgrades in place. Built and tested (install, run, upgrade, uninstall) by the "Windows app" workflow and attached to every release.
+- **Update notifications.** At start-up OVC asks GitHub for the latest release. When a newer one exists, a bar offers **Install update**: OVC downloads the installer, checks it against the published `OVC-Setup.exe.sha256`, closes, upgrades and reopens. Copies run from the zip are offered the installer download instead. The check can be turned off in About (or with `OVC_NO_UPDATE_CHECK`).
+- Stable download link for websites: `https://github.com/AmmarYasser455/ovc/releases/latest/download/OVC-Setup.exe`. The project page has a download button.
+
 ## [3.5.1] - 2026-11-21
 
 ### Changed
