@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-11-21
+
+### Added
+- **Map app.** `OVC.exe` (Windows, built by the "Windows app" workflow) and the `ovc-gui` command open a local, offline map interface: file picker, layer selector with feature count and CRS, independent overlap and gap checks, a results list linked to the map, filter by issue type, and export to GeoPackage or GeoJSON.
+- **Topology engine** (`ovc.engine`), shared by the app, the CLI, the Python API and the building pipeline. Overlaps are positive-area intersections reported once per pair, classed as `overlap`, `containment` or `duplicate`. Gaps are the uncovered parts of an analyst-supplied coverage layer (opt-in).
+- Run status `clean`, `issues`, `partial` or `failed`. Unreadable files, missing CRS, invalid or empty geometries and failed geometry operations are reported and never look like a clean run.
+- Area measurement in m² with a stated method: planar in the layer's projected CRS when its area distortion is at most 1%, otherwise in the WGS 84 / UTM zone of the layer's centre. Feet are converted to metres.
+- `ovc.check_file()`, `ovc.check_polygons()`, `ovc.export_findings()`.
+- `ovc` console command: `ovc check FILE`, `ovc gui`, and the existing pipeline options. `python scripts/run_qc.py` still works.
+- Sample dataset `ovc/sample_data/ovc_sample.gpkg` and its generator in `examples/sample/`.
+- CI: browser test of the app workflow on Linux and Windows, wheel install check outside the checkout, Windows app build with a self-test.
+
+### Changed
+- `find_building_overlaps` uses the shared engine. A building inside another is now `overlap_type == "contained"` instead of `"duplicate"`; metrics gain `overlap_contained_count`. `duplicate` now means the overlap covers both buildings.
+- `import ovc` loads its public functions on first use.
+- The CLI moved from `scripts/run_qc.py` to `ovc/cli.py`.
+
 ### Fixed
+- Overlap area counted only the largest part of a multi-part intersection (a U-shaped building crossed in two places reported 6 m² instead of 12 m²).
+- A self-intersecting building was dropped from overlap detection without a message, hiding its overlaps. Invalid buildings are now repaired in memory with a logged warning.
+- `find_duplicate_geometries` missed identical polygons whose rings start at a different vertex or run the other way.
+- `load_buildings` numbered generated IDs after dropping non-polygon features, so IDs did not match source rows. It now also logs how many features were left out.
+- `clip_to_boundary` returned the unclipped layer when clipping failed, and `drop_empty_and_fix` ignored a failed repair. Both errors now surface; repairs are logged.
 - Raise the GeoPandas requirement to `>=1.0,<2.0`. The code calls `GeoDataFrame.union_all()`, which was added in GeoPandas 1.0, but the previous `<1.0` pin made a fresh install resolve to GeoPandas 0.14.x, where the QC pipeline and CRS helpers fail with `AttributeError`.
 
 ## [3.1.1] - 2026-02-12

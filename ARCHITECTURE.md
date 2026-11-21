@@ -27,19 +27,60 @@
 
 ```
 ovc/
-├── core/        # Core utilities and shared infrastructure
-├── loaders/     # Data loading and preprocessing
-├── checks/      # Building quality checks and validation logic
-├── metrics/     # Statistics and summary computation
-├── export/      # Output generation (files, web maps, reports)
-├── road_qc/     # Road QC module (New in v1.0.2)
-│   ├── checks/  # Road-specific checks
-│   ├── config.py
-│   ├── metrics.py
-│   ├── pipeline.py
-│   └── webmap.py
-tests/           # Test suite
+├── engine/       # Topology engine: overlaps, gaps, input quality, area measurement
+├── io/           # Read layers with their FIDs; export findings
+├── api.py        # check_file(): read a layer, run the engine
+├── app/          # Map app: local server, launcher, browser UI
+├── cli.py        # `ovc` command (`ovc check`, `ovc gui`, pipeline options)
+├── sample_data/  # Sample GeoPackage bundled with the app
+├── core/         # CRS helpers, config, logging for the pipeline
+├── loaders/      # Pipeline data loading
+├── checks/       # Pipeline building checks
+├── metrics/      # Pipeline statistics
+├── export/       # Pipeline orchestration and outputs
+├── precheck/     # GeoQA pre-check
+└── road_qc/      # Road network QC
+packaging/windows/  # OVC.exe build script
+examples/           # Sample generator, GeoQA -> OVC walkthrough
+tests/              # Test suite
 ```
+
+---
+
+## One engine, several interfaces
+
+```
+map app (ovc/app) ──┐
+ovc check (cli.py) ─┼─> ovc.api.check_file ─> ovc.io.read_layer ─> ovc.engine.check_polygons ─> ScanResult
+Python users ───────┘                                                        │
+building pipeline ─> checks.find_building_overlaps ─> ovc.engine.overlaps ───┘
+```
+
+### `engine/`
+
+**Purpose:** decide what is an overlap or a gap, and how areas are measured.
+
+- `scan.py`: `check_polygons()` validates the input, classifies every feature (usable, invalid, empty, not a polygon), runs the requested checks and returns a `ScanResult`.
+- `overlaps.py`: STRtree candidate pairs, exact polygonal intersection, classification (`overlap`, `containment`, `duplicate`).
+- `gaps.py`: coverage area minus the union of the features; one finding per connected part.
+- `measure.py`: picks the working CRS. Planar area in the layer's projected CRS when it distorts area by at most 1%; otherwise the WGS 84 / UTM zone at the layer's centre.
+- `model.py`: `ScanResult`, `CheckOutcome`, `Measurement`, issue types.
+
+**Constraints:**
+- No file I/O and no mutation of inputs. Repairs happen on copies, only when asked.
+- Data problems never raise and never produce a `clean` status. The status is `clean`, `issues`, `partial` or `failed`.
+- Area thresholds are in m²; a finding whose area equals the threshold is reported.
+
+### `io/`
+
+- `layers.py`: `list_layers()` and `read_layer()`. The file's feature ID (FID) becomes the GeoDataFrame index, so findings can always be traced to source features.
+- `findings.py`: `export_findings()` writes GeoPackage (source CRS) or GeoJSON (EPSG:4326) through a temporary file, refuses to write to an input file, and refuses to replace an existing file unless told to.
+
+### `app/`
+
+- `server.py`: `http.server` bound to 127.0.0.1 with a per-launch token. Scans run in a worker thread; the page polls for progress.
+- `launcher.py`: starts the server, opens the browser, reuses a running instance, stops after Quit or 15 idle minutes. `--self-test` checks an installed or frozen copy.
+- `static/`: the page (plain JavaScript and a bundled Leaflet, so it works offline).
 
 ---
 
@@ -266,7 +307,7 @@ OVC follows these core architectural principles:
 
 **Short-term:**
 - Deprecation of legacy configuration wrappers
-- Enhanced logging and error reporting
+- Move the pipeline's boundary and road checks onto the engine's result model
 
 **Medium-term:**
 - Additional Building QC checks:
