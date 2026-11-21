@@ -1,0 +1,338 @@
+"""OVC command line.
+
+``ovc check FILE``   topology check of one polygon layer (overlaps, gaps)
+``ovc gui``          open the map app
+``ovc --buildings``  building / road QC pipeline (the original interface)
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+from ovc.core.logging import get_logger
+
+logger = get_logger("ovc.cli")
+
+# Exit codes of ``ovc check``
+EXIT_CODES = {"clean": 0, "issues": 1, "partial": 2, "failed": 3}
+
+
+def check_command(argv) -> int:
+    """``ovc check``: run the topology engine on one polygon layer."""
+    from ovc.api import check_file
+    from ovc.engine import DEFAULT_DUPLICATE_RATIO, DEFAULT_MIN_AREA_M2
+    from ovc.io import ExportError, export_findings
+
+    parser = argparse.ArgumentParser(
+        prog="ovc check",
+        description="Check a polygon layer for overlaps and, optionally, gaps. "
+        "Exit code: 0 clean, 1 issues found, 2 partial run, 3 failed.",
+    )
+    parser.add_argument("path", help="Vector file (gpkg, shp, geojson, ...)")
+    parser.add_argument("--layer", help="Layer name, for multi-layer files")
+    parser.add_argument("--id-field", help="Attribute holding your feature ID")
+    parser.add_argument(
+        "--no-overlaps", action="store_true", help="Skip the overlap check"
+    )
+    parser.add_argument(
+        "--gaps",
+        action="store_true",
+        help="Also report gaps. Needs --coverage: a polygon layer of the area "
+        "that should be fully covered.",
+    )
+    parser.add_argument("--coverage", help="File with the coverage polygons")
+    parser.add_argument("--coverage-layer", help="Layer name in --coverage")
+    parser.add_argument(
+        "--exclusions", help="File with polygons to leave out of the coverage area"
+    )
+    parser.add_argument("--exclusions-layer", help="Layer name in --exclusions")
+    parser.add_argument(
+        "--min-overlap-area",
+        type=float,
+        default=DEFAULT_MIN_AREA_M2,
+        help="Smallest overlap reported, in m² (default %(default)s; an area "
+        "equal to it is reported)",
+    )
+    parser.add_argument(
+        "--min-gap-area",
+        type=float,
+        default=DEFAULT_MIN_AREA_M2,
+        help="Smallest gap reported, in m² (default %(default)s)",
+    )
+    parser.add_argument(
+        "--duplicate-ratio",
+        type=float,
+        default=DEFAULT_DUPLICATE_RATIO,
+        help="Covered share that makes a pair a duplicate/containment (default %(default)s)",
+    )
+    parser.add_argument(
+        "--repair-invalid",
+        action="store_true",
+        help="Repair invalid polygons in memory and check them (the file is never changed)",
+    )
+    parser.add_argument(
+        "--assume-crs", help="CRS to use if the layer has none, e.g. EPSG:32636"
+    )
+    parser.add_argument("--out", help="Write findings to this .gpkg or .geojson")
+    parser.add_argument(
+        "--overwrite", action="store_true", help="Replace --out if it exists"
+    )
+    args = parser.parse_args(argv)
+
+    result = check_file(
+        args.path,
+        args.layer,
+        coverage_path=args.coverage,
+        coverage_layer=args.coverage_layer,
+        exclusions_path=args.exclusions,
+        exclusions_layer=args.exclusions_layer,
+        check_overlaps=not args.no_overlaps,
+        check_gaps=args.gaps,
+        id_field=args.id_field,
+        min_overlap_area_m2=args.min_overlap_area,
+        min_gap_area_m2=args.min_gap_area,
+        duplicate_ratio=args.duplicate_ratio,
+        repair_invalid=args.repair_invalid,
+        assume_crs=args.assume_crs,
+    )
+
+    print(f"Status: {result.status.upper()}")
+    print(result.message)
+    for check in result.checks.values():
+        if check.requested:
+            print(
+                f"  {check.name}: {check.status}, {check.count} finding(s). {check.message}"
+            )
+    for kind, count in sorted(result.counts_by_type().items()):
+        print(f"  {kind}: {count}")
+    for warning in result.warnings:
+        print(f"  Warning: {warning}")
+    for item in result.skipped:
+        print(f"  Skipped FID {item['fid']}: {item['problem']}. {item['effect']}")
+    if result.measurement is not None:
+        print(f"  Areas: {result.measurement.method}")
+
+    if args.out and result.status != "failed":
+        try:
+            done = export_findings(
+                result,
+                args.out,
+                overwrite=args.overwrite,
+                protect=[args.path, args.coverage, args.exclusions],
+                source=f"{args.path}" + (f" | {args.layer}" if args.layer else ""),
+            )
+            print(
+                f"  Wrote {done['count']} finding(s) to {done['path']} ({done['crs']})"
+            )
+        except ExportError as exc:
+            print(f"  Export failed: {exc}", file=sys.stderr)
+            return EXIT_CODES["failed"]
+    return EXIT_CODES[result.status]
+
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else list(argv)
+    if argv and argv[0] == "check":
+        sys.exit(check_command(argv[1:]))
+    if argv and argv[0] == "gui":
+        from ovc.app.launcher import main as gui_main
+
+        sys.exit(gui_main(argv[1:]))
+
+    from ovc.export.pipeline import run_pipeline
+
+    logger.info("OVC started. Preparing your data...")
+
+    parser = argparse.ArgumentParser(
+        prog="ovc",
+        description="OVC – Spatial Data Quality Control (local data only)",
+        epilog="Other commands: 'ovc check FILE' checks one polygon layer for "
+        "overlaps and gaps; 'ovc gui' opens the map app.",
+    )
+
+    parser.add_argument(
+        "--buildings",
+        required=False,
+        help="Path to buildings file (shp/geojson/gpkg). "
+        "Required unless --road-qc-only is used.",
+    )
+
+    parser.add_argument(
+        "--boundary",
+        required=False,
+        help="Optional: path to boundary file (shp/geojson/gpkg). "
+        "Enables boundary overlap and outside-boundary checks.",
+    )
+
+    parser.add_argument(
+        "--roads",
+        required=False,
+        help="Optional: path to roads file (shp/geojson/gpkg). "
+        "Enables building-on-road conflict checks.",
+    )
+
+    parser.add_argument(
+        "--road-qc",
+        action="store_true",
+        help="Enable road quality control checks (detect disconnected segments, self-intersections, dangles). "
+        "Requires --roads.",
+    )
+
+    parser.add_argument(
+        "--road-qc-only",
+        action="store_true",
+        help="Run ONLY road quality control checks (skip building QC). "
+        "Requires --roads.",
+    )
+
+    parser.add_argument(
+        "--precheck",
+        action="store_true",
+        help="Run GeoQA pre-check on all input datasets before QC. "
+        "Generates quality reports and warns about data issues.",
+    )
+
+    parser.add_argument(
+        "--precheck-only",
+        action="store_true",
+        help="Run ONLY the GeoQA pre-check (skip all QC checks). "
+        "Generates quality assessment reports for each input dataset.",
+    )
+
+    parser.add_argument(
+        "--out",
+        default="outputs",
+        help="Output directory (default: outputs)",
+    )
+
+    args = parser.parse_args(argv)
+
+    buildings_path = None
+    if args.buildings:
+        buildings_path = Path(args.buildings)
+        if not buildings_path.exists():
+            logger.error(f"Buildings file not found: {buildings_path}")
+            sys.exit(1)
+        logger.info(f"Buildings: {buildings_path}")
+
+    boundary_path = None
+    if args.boundary:
+        boundary_path = Path(args.boundary)
+        if not boundary_path.exists():
+            logger.error(f"Boundary file not found: {boundary_path}")
+            sys.exit(1)
+        logger.info(f"Boundary: {boundary_path}")
+
+    roads_path = None
+    if args.roads:
+        roads_path = Path(args.roads)
+        if not roads_path.exists():
+            logger.error(f"Roads file not found: {roads_path}")
+            sys.exit(1)
+        logger.info(f"Roads: {roads_path}")
+
+    # --- Road QC only mode ---
+    if args.road_qc_only:
+        if roads_path is None:
+            logger.error("--road-qc-only requires --roads to be provided.")
+            sys.exit(1)
+
+        from ovc.road_qc import run_road_qc
+
+        logger.info("Running Road QC checks (road-qc-only mode)...")
+        road_qc_outputs = run_road_qc(
+            roads_path=roads_path,
+            boundary_path=boundary_path,
+            out_dir=Path(args.out) / "road_qc",
+        )
+
+        logger.info("Road QC finished")
+        logger.info(f"GeoPackage: {road_qc_outputs.gpkg_path}")
+        logger.info(f"Metrics CSV: {road_qc_outputs.metrics_csv}")
+        logger.info(f"Web map: {road_qc_outputs.webmap_html}")
+        logger.info(f"Total errors: {road_qc_outputs.total_errors}")
+        if road_qc_outputs.top_3_errors:
+            logger.info("Top 3 errors:")
+            for error_type, count in road_qc_outputs.top_3_errors:
+                logger.info(f"  • {error_type}: {count}")
+        return
+
+    # --- Pre-check (if requested) ---
+    if args.precheck or args.precheck_only:
+        from ovc.precheck import precheck_all
+
+        logger.info("Running GeoQA pre-check on input datasets...")
+        precheck_summary = precheck_all(
+            buildings_path=buildings_path,
+            roads_path=roads_path,
+            boundary_path=boundary_path,
+            out_dir=Path(args.out),
+        )
+
+        if args.precheck_only:
+            if precheck_summary.overall_ready:
+                logger.info("Pre-check complete — all datasets are ready for QC.")
+            else:
+                logger.warning("Pre-check complete — some datasets have issues.")
+            # Print report paths
+            for r in precheck_summary.all_results:
+                if r.report_path:
+                    logger.info(f"  {r.dataset_name} report: {r.report_path}")
+            return
+
+        if precheck_summary.overall_ready:
+            logger.info("Pre-check passed — proceeding with QC pipeline.")
+        else:
+            logger.warning(
+                "Pre-check found issues — proceeding anyway. "
+                "Check the quality reports for details."
+            )
+
+    # --- Building QC ---
+    if buildings_path is None:
+        logger.error("--buildings is required (unless using --road-qc-only).")
+        sys.exit(1)
+
+    logger.info("Running Building QC pipeline...")
+    outputs = run_pipeline(
+        buildings_path=buildings_path,
+        boundary_path=boundary_path,
+        roads_path=roads_path,
+        out_dir=Path(args.out),
+    )
+
+    logger.info("Building QC finished successfully")
+    logger.info(f"GeoPackage: {outputs.gpkg_path}")
+    logger.info(f"Metrics CSV: {outputs.metrics_csv}")
+    logger.info(f"Web map: {outputs.webmap_html}")
+
+    # Run road QC if enabled
+    if args.road_qc:
+        if roads_path is None:
+            logger.error("Road QC requires --roads to be provided.")
+            sys.exit(1)
+
+        from ovc.road_qc import run_road_qc
+
+        logger.info("Running Road QC checks...")
+        road_qc_outputs = run_road_qc(
+            roads_path=roads_path,
+            boundary_path=boundary_path,
+            out_dir=Path(args.out) / "road_qc",
+        )
+
+        logger.info("Road QC finished")
+        logger.info(f"GeoPackage: {road_qc_outputs.gpkg_path}")
+        logger.info(f"Metrics CSV: {road_qc_outputs.metrics_csv}")
+        logger.info(f"Web map: {road_qc_outputs.webmap_html}")
+        logger.info(f"Total errors: {road_qc_outputs.total_errors}")
+        if road_qc_outputs.top_3_errors:
+            logger.info("Top 3 errors:")
+            for error_type, count in road_qc_outputs.top_3_errors:
+                logger.info(f"  • {error_type}: {count}")
+
+
+if __name__ == "__main__":
+    main()
