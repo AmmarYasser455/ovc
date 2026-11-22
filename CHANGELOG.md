@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.0] - 2026-11-22
+
+### Fixed
+- **"OVC is not running any more" while the window was still open.** OVC stopped when the browser process it started exited, but Edge and Chrome can hand the window to another of their processes and exit. OVC now keeps running while any OVC window is connected (a live event stream from the page) and stops 15 seconds after the last one closes. Reproduced and tested with a real Chromium.
+- Edge's "We are now syncing your browsing data" message appeared on every start, because each launch used a new browser profile. The window now keeps one profile (`~/.ovc/window-profile`) with sync and sign-in prompts turned off.
+- Findings were drawn shrunk to a few pixels: the icon style for `<svg>` also applied to the map's drawing layer.
+
+### Added
+- **OVC Toolbox** in the Geoprocessing pane, opened from the OVC icon in the title bar or the ribbon: a tree of tools (Topology > Find Overlaps, Find Gaps), each opening as a form with its parameters, help text and Run. Tools are defined in `ovc/app/static/toolbox.js`; adding one is a single entry.
+- **Contents pane** like ArcGIS Pro: Map > layers tree with visibility boxes and symbol patches, right-click menu (Zoom To Layer, Symbology, Properties, Move Up/Down, Remove), drag to reorder, double-click for symbology. It can be closed and reopened (View > Contents, or F2).
+- Docked panes on the right with tabs: Geoprocessing, Results, Attributes, Symbology.
+- Ribbon with Map, Analysis, View and Help tabs; quick-access toolbar with the OVC Toolbox.
+- Select shows the selected feature with a cyan outline, and its attributes in the Attributes pane.
+- Dark theme (View > Theme); clearer contrast between ribbon, panes and map in the light theme.
+- **Report a Bug** (Help tab and title bar): opens a pre-filled GitHub issue in your browser with the OVC and Windows versions, optionally the last lines of the log.
+- Log file `~/.ovc/logs/ovc-app.log` with start-up, window and shutdown events and unexpected errors; native crashes go to `ovc-crash.log`. Help > Log File opens the folder.
+- The packaged app's self-test also opens a shapefile and draws it.
+
 ## [3.6.0] - 2026-11-21
 
 ### Added
