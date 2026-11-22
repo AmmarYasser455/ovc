@@ -11,6 +11,8 @@ import json
 import mimetypes
 import os
 import string
+import tempfile
+import uuid
 import threading
 import time
 from http import HTTPStatus
@@ -43,7 +45,17 @@ from ovc.io import (
 
 log = diagnostics.get_logger("server")
 BUG_REPORT_URL = "https://github.com/AmmarYasser455/ovc/issues/new"
-MAX_MAP_FEATURES = 20_000  # more than this and only finding-related features are drawn
+MAX_MAP_FEATURES = 20_000
+DISPLAY_VERTEX_BUDGET = 300_000  # above this, the map draws simplified shapes
+UPLOAD_ROOT = Path(tempfile.gettempdir()) / "ovc-dropped"
+
+
+class RawJSON(str):
+    """A response body that is already JSON text."""
+
+    meta: dict = {}  # more than this and only finding-related features are drawn
+
+
 STATIC = resources.files("ovc.app") / "static"
 
 
@@ -74,6 +86,8 @@ class AppState:
         self.last_seen = time.time()
         self.shutdown = threading.Event()
         self.window_ready = threading.Event()  # the page loaded in the app window
+        self.in_window = False  # shown in OVC's own window (set by the launcher)
+        self.previous_session = None  # set when the last run did not stop normally
         self.clients = 0  # pages connected to /api/events (open OVC windows)
         self.clients_changed = time.time()
         self.opened_urls: list = []  # with OVC_NO_OPEN_URL set (tests)
@@ -234,44 +248,64 @@ class AppState:
         return crs
 
     def features_geojson(self, path, layer, assume_crs=None, fids=None, limit=None):
-        """Features of a layer (any geometry type) as WGS 84 GeoJSON for the map."""
+        """Features of a layer (any geometry type) as WGS 84 GeoJSON for the map.
+
+        Returns a :class:`RawJSON` (sent as is) whose ``meta`` holds the counts.
+        Layers with more than ``DISPLAY_VERTEX_BUDGET`` vertices are simplified
+        to screen resolution for drawing only; checks always use the exact
+        geometry. JSON is written by GEOS, which is many times faster than
+        building Python dictionaries for large layers.
+        """
         gdf = self.read(path, layer)
         crs = self.display_crs(gdf, assume_crs)
         total = len(gdf)
         geoms = gdf.geometry
         if fids is not None:
             geoms = geoms[geoms.index.isin(fids)]
-        polys = geoms[geoms.notna() & ~geoms.is_empty]
+        geoms = geoms[geoms.notna() & ~geoms.is_empty]
         # The map is 2D; Z or M values (NaN in some files) would break the JSON.
-        polys = gpd.GeoSeries(
-            shapely.force_2d(polys.values), index=polys.index, crs=crs
-        )
-        truncated = limit is not None and len(polys) > limit
+        series = gpd.GeoSeries(
+            shapely.force_2d(np.asarray(geoms.values, dtype=object)),
+            index=geoms.index,
+            crs=crs,
+        ).to_crs(4326)
+        arr = np.asarray(series.values, dtype=object)
+        index = series.index
+        if len(arr):
+            keep = ~shapely.is_empty(arr) & np.isfinite(shapely.bounds(arr)).all(axis=1)
+            arr, index = arr[keep], index[keep]
+        bounds = [float(v) for v in shapely.total_bounds(arr)] if len(arr) else None
+        truncated = limit is not None and len(arr) > limit
+        simplified = False
         if truncated:
-            polys = polys.iloc[:0]
-        series = gpd.GeoSeries(polys, crs=crs).to_crs(4326)
-        features = [
-            {
-                "type": "Feature",
-                "properties": {"fid": int(fid)},
-                "geometry": geom.__geo_interface__,
-            }
-            for fid, geom in series.items()
-            if geom is not None and not geom.is_empty
-        ]
-        bounds = None
-        if len(series):
-            b = series.total_bounds
-            if np.all(np.isfinite(b)):
-                bounds = [float(v) for v in b]
-        return {
-            "type": "FeatureCollection",
-            "features": features,
+            arr, index = arr[:0], index[:0]
+        elif fids is None and len(arr):
+            vertices = int(shapely.get_num_coordinates(arr).sum())
+            if vertices > DISPLAY_VERTEX_BUDGET:
+                span = max(bounds[2] - bounds[0], bounds[3] - bounds[1])
+                arr = shapely.simplify(arr, span / 4000, preserve_topology=True)
+                simplified = True
+        texts = shapely.to_geojson(arr) if len(arr) else []
+        body = ",".join(
+            '{"type":"Feature","properties":{"fid":%d},"geometry":%s}'
+            % (int(fid), text)
+            for fid, text in zip(index, texts)
+        )
+        meta = {
             "total": total,
-            "shown": len(features),
+            "shown": len(texts),
             "truncated": truncated,
+            "simplified": simplified,
             "bounds": bounds,
         }
+        raw = RawJSON(
+            '{"type":"FeatureCollection","features":['
+            + body
+            + "],"
+            + json.dumps(meta)[1:]
+        )
+        raw.meta = meta
+        return raw
 
     def findings_geojson(self):
         result = self.result
@@ -451,7 +485,8 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _json(self, payload, status=HTTPStatus.OK):
-        self._send(status, json.dumps(payload).encode("utf-8"), "application/json")
+        text = payload if isinstance(payload, RawJSON) else json.dumps(payload)
+        self._send(status, text.encode("utf-8"), "application/json")
 
     def _host_ok(self) -> bool:
         host = (self.headers.get("Host") or "").split(":")[0]
@@ -495,6 +530,11 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/events" and method == "GET":
             return self._events()
         self.state.last_seen = time.time()
+        if url.path == "/api/upload" and method == "POST":
+            try:
+                return self._json(self._upload(query))
+            except ApiError as exc:
+                return self._json({"error": str(exc), "code": exc.code}, exc.status)
         body = {}
         if method == "POST":
             length = int(self.headers.get("Content-Length") or 0)
@@ -552,6 +592,33 @@ class Handler(BaseHTTPRequestHandler):
                 state.clients -= 1
                 state.clients_changed = time.time()
 
+    def _upload(self, query):
+        """Save one file dropped on the window; returns where it was saved.
+
+        A browser never tells the page where a dropped file lives, so the
+        file is copied into a temporary folder, one folder per drop so the
+        parts of a shapefile stay together. The original is not touched.
+        """
+        drop = "".join(c for c in (query.get("drop") or [""])[0] if c.isalnum())[:40]
+        drop = drop or uuid.uuid4().hex
+        name = Path((query.get("name") or [""])[0]).name
+        if not drop or not name or name in (".", ".."):
+            raise ApiError("Bad upload.")
+        folder = UPLOAD_ROOT / drop
+        folder.mkdir(parents=True, exist_ok=True)
+        target = folder / name
+        remaining = int(self.headers.get("Content-Length") or 0)
+        with open(target, "wb") as out:
+            while remaining > 0:
+                chunk = self.rfile.read(min(remaining, 1 << 20))
+                if not chunk:
+                    break
+                out.write(chunk)
+                remaining -= len(chunk)
+        if remaining:
+            raise ApiError(f"The copy of {name} was cut off.")
+        return {"path": str(target)}
+
     def _route(self, method, path, query, body):
         state = self.state
 
@@ -571,6 +638,8 @@ class Handler(BaseHTTPRequestHandler):
                         "founder": FOUNDER,
                     },
                     "native_dialog": native.dialogs_enabled(),
+                    "in_window": state.in_window,
+                    "previous_session": state.previous_session,
                     "sample": str(sample_path()),
                     "places": places(),
                     "extensions": list(SUPPORTED_EXTENSIONS),
@@ -699,9 +768,13 @@ def _default_export_path(req) -> str:
     if not req or not req.get("path"):
         return ""
     src = Path(req["path"])
+    folder = src.parent
+    if UPLOAD_ROOT in src.parents:  # a dropped copy: save next to the user's documents
+        docs = Path.home() / "Documents"
+        folder = docs if docs.is_dir() else Path.home()
     stem = src.stem + (f"_{req['layer']}" if req.get("layer") else "")
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in stem)
-    return str(src.parent / f"{safe}_ovc_findings.gpkg")
+    return str(folder / f"{safe}_ovc_findings.gpkg")
 
 
 class AppServer(ThreadingHTTPServer):

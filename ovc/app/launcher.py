@@ -80,6 +80,76 @@ WINDOW_START_TIMEOUT = 45.0  # seconds for the page to load in a new window
 WINDOW_CLOSE_GRACE = 15.0  # seconds with no open window before OVC stops
 
 
+def _sessions_dir() -> Path:
+    return _state_dir() / "sessions"
+
+
+def _pid_alive(pid: int) -> bool:
+    if os.name == "nt":
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(0x1000, False, int(pid))  # query limited info
+        if not handle:
+            return False
+        code = ctypes.c_ulong()
+        kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+        kernel32.CloseHandle(handle)
+        return code.value == 259  # STILL_ACTIVE
+    try:
+        os.kill(int(pid), 0)
+    except OSError:
+        return False
+    return True
+
+
+def previous_unclean_session() -> dict | None:
+    """The last OVC run that ended without stopping normally, if any.
+
+    Each run leaves a marker file while it runs and removes it when it
+    stops. A marker whose process is gone means OVC was ended from outside
+    (crash, Task Manager, antivirus) and the analyst should hear about it.
+    """
+    found = None
+    for marker in _sessions_dir().glob("*.json"):
+        try:
+            info = json.loads(marker.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            info = {}
+        if info.get("pid") and _pid_alive(info["pid"]):
+            continue  # another OVC that is still running
+        try:
+            marker.unlink()
+        except OSError:
+            pass
+        if not found or info.get("started", "") > found.get("started", ""):
+            found = info
+    return found
+
+
+def _mark_session() -> Path | None:
+    from datetime import datetime
+
+    from ovc import __version__
+
+    try:
+        _sessions_dir().mkdir(parents=True, exist_ok=True)
+        marker = _sessions_dir() / f"{os.getpid()}.json"
+        marker.write_text(
+            json.dumps(
+                {
+                    "pid": os.getpid(),
+                    "version": __version__,
+                    "started": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                }
+            ),
+            encoding="utf-8",
+        )
+        return marker
+    except OSError:
+        return None
+
+
 def wait_for_windows_closed(state, grace: float = WINDOW_CLOSE_GRACE) -> str:
     """Block while at least one OVC window is open; return why it stopped.
 
@@ -153,7 +223,7 @@ def self_test(report_path: str | None = None) -> int:
             report["shapefile"] = {
                 "geometry": shp_info.geometry_type,
                 "crs": shp_info.crs,
-                "drawn": preview["shown"],
+                "drawn": preview.meta["shown"],
             }
         report["ok"] = (
             report["counts"] == {"overlap": 1, "gap": 1}
@@ -282,6 +352,13 @@ def main(argv=None) -> int:
 
         server = boot["server"]
         state = server.state
+        state.in_window = windowed
+        state.previous_session = previous_unclean_session()
+        if state.previous_session:
+            log.warning(
+                "The previous OVC run did not stop normally: %s", state.previous_session
+            )
+        session_marker = _mark_session()
         log.info(
             "OVC %s started (%s), %s",
             diagnostics.environment()["version"],
@@ -344,11 +421,13 @@ def main(argv=None) -> int:
                 webbrowser.open(server.url)
             serve(server)
     finally:
-        if instance is not None:
-            try:
-                instance.unlink()
-            except OSError:
-                pass
+        for marker in (instance, session_marker):
+            if marker is not None:
+                try:
+                    marker.unlink()
+                except OSError:
+                    pass
+        log.info("OVC stopped normally")
     return result
 
 

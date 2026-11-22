@@ -32,10 +32,37 @@ def test_no_app_browser_means_no_window(monkeypatch, tmp_path):
     assert native.open_window("http://127.0.0.1:1/") is None
 
 
-def test_window_profile_is_kept_between_launches(monkeypatch, tmp_path):
+def test_window_is_a_plain_app_window(monkeypatch):
+    """Like Edge's own "install as app": --app and nothing that looks like a
+    program driving a browser in secret (private profile, --disable-...)."""
+    started = {}
+
+    class FakePopen:
+        def __init__(self, cmd, **kwargs):
+            started["cmd"] = cmd
+
+    monkeypatch.setattr(native, "find_app_browser", lambda: "msedge.exe")
+    monkeypatch.setattr(native.subprocess, "Popen", FakePopen)
+    monkeypatch.delenv("OVC_APP_BROWSER_ARGS", raising=False)
+    native.open_window("http://127.0.0.1:5/?t=x")
+    cmd = started["cmd"]
+    assert cmd[1] == "--app=http://127.0.0.1:5/?t=x&w=1"
+    assert not any(a.startswith(("--user-data-dir", "--disable")) for a in cmd)
+
+
+def test_a_run_that_was_ended_from_outside_is_reported(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("USERPROFILE", str(tmp_path))
-    assert native.window_profile() == tmp_path / ".ovc" / "window-profile"
+    sessions = launcher._sessions_dir()
+    sessions.mkdir(parents=True)
+    (sessions / "999999.json").write_text(
+        json.dumps({"pid": 999999, "version": "3.7.0", "started": "2026-11-22 00:12"})
+    )
+    mine = launcher._mark_session()
+    found = launcher.previous_unclean_session()
+    assert found == {"pid": 999999, "version": "3.7.0", "started": "2026-11-22 00:12"}
+    assert mine.exists()  # a running OVC is never reported
+    assert launcher.previous_unclean_session() is None  # reported once
 
 
 def _client_stream(server):
@@ -132,14 +159,13 @@ def _alive(url):
 
 def test_ovc_survives_the_browser_handing_its_window_over(tmp_path, display):
     """The real bug, with a real Chromium: a browser already running on the
-    window profile receives OVC's window, so the process OVC starts exits at
-    once. OVC must keep serving the open window, then stop once it closes."""
+    analyst's profile receives OVC's window, so the process OVC starts exits
+    at once. OVC must keep serving the open window, then stop once it closes."""
     exe = _chromium()
     if not exe or not Path(exe).exists():
         pytest.skip("Chromium is not available")
     home = tmp_path / "home"
-    profile = home / ".ovc" / "window-profile"
-    profile.mkdir(parents=True)
+    home.mkdir()
     env = dict(
         os.environ,
         HOME=str(home),
@@ -154,7 +180,6 @@ def test_ovc_survives_the_browser_handing_its_window_over(tmp_path, display):
         [
             exe,
             "--no-sandbox",
-            f"--user-data-dir={profile}",
             "--no-first-run",
             "about:blank",
         ],

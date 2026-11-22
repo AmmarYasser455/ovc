@@ -1,6 +1,7 @@
 """The map app's local server, driven over HTTP the way the browser does."""
 
 import json
+import os
 import threading
 import time
 import urllib.error
@@ -283,3 +284,43 @@ def test_unexpected_error_is_logged_and_reported_not_dropped(client, monkeypatch
     status, err = client.call("/api/preview", path=SAMPLE, layer="parcels")
     assert status == 500
     assert "unexpected while drawing" in err["error"]
+
+
+def test_dropped_files_are_copied_and_readable(client, tmp_path):
+    import urllib.request as ur
+
+    src = tmp_path / "parcels.geojson"
+    gpd.read_file(SAMPLE, layer="parcels").to_file(src, driver="GeoJSON")
+    req = ur.Request(
+        client.base + "/api/upload?drop=abc123&name=parcels.geojson",
+        data=src.read_bytes(),
+        headers={
+            "X-OVC-Token": client.token,
+            "Content-Type": "application/octet-stream",
+        },
+    )
+    with NO_PROXY.open(req, timeout=30) as resp:
+        saved = json.loads(resp.read())["path"]
+    assert "ovc-dropped" in saved and saved.endswith("parcels.geojson")
+    _, data = client.call("/api/layers", path=saved)
+    assert data["layers"][0]["feature_count"] == 8
+    # a name with a path in it cannot write outside the drop folder
+    req = ur.Request(
+        client.base + "/api/upload?drop=abc123&name=..%2F..%2Fevil.txt",
+        data=b"x",
+        headers={"X-OVC-Token": client.token},
+    )
+    with NO_PROXY.open(req, timeout=30) as resp:
+        assert json.loads(resp.read())["path"].endswith("abc123" + os.sep + "evil.txt")
+
+
+def test_large_layers_are_drawn_simplified_but_checked_exactly(
+    client, tmp_path, monkeypatch
+):
+    from ovc.app import server as server_module
+
+    monkeypatch.setattr(server_module, "DISPLAY_VERTEX_BUDGET", 20)
+    _, preview = client.call("/api/preview", path=SAMPLE, layer="parcels")
+    assert preview["simplified"] is True and preview["shown"] == 8
+    _, exact = client.call("/api/features", path=SAMPLE, layer="parcels", fids="1")
+    assert exact["simplified"] is False  # the features behind a finding: exact
