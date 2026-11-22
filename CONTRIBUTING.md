@@ -133,7 +133,6 @@ ovc/
 ├── api.py        # check_file(): read a layer and run the engine
 ├── app/          # Map app: local server, launcher, browser UI (static/)
 ├── cli.py        # ovc command
-├── sample_data/  # Sample GeoPackage bundled with the app
 ├── checks/ loaders/ export/ metrics/ core/   # Building QC pipeline
 ├── precheck/     # GeoQA pre-check
 └── road_qc/      # Road network quality checks
@@ -165,6 +164,10 @@ The toolbox in the app is defined in [`ovc/app/static/toolbox.js`](ovc/app/stati
 ```
 
 The Geoprocessing pane builds the form from `params` (types: `layer`, `field`, `crs`, `number`, `bool`) and lists the tool in the tree and on the ribbon's Analysis tab. `request` returns the options passed to the engine, so a tool that needs new behaviour also needs the engine change described in "Adding a check" below. Add the tool to the browser test in `tests/test_gui_workflow.py`.
+
+### Icons
+
+App icons come from [Lucide](https://lucide.dev) (ISC licence). To add one, put its name in `ICONS` in [`packaging/brand/make_icon_sprite.py`](packaging/brand/make_icon_sprite.py) and run the script on an unpacked `lucide-static` package; it writes the symbols into `index.html`. Reference it as `<svg><use href="#i-NAME"/></svg>`.
 
 ### Adding a check
 

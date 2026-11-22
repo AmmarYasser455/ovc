@@ -7,45 +7,79 @@
 <link rel="icon" href="/static/ovc.ico" sizes="any">
 <link rel="icon" type="image/png" href="/static/ovc-icon.png">
 <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="/static/vendor/geoman/leaflet-geoman.css">
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
 
 <svg class="sprite" aria-hidden="true">
-  <symbol id="i-add" viewBox="0 0 24 24"><path d="M3 9.5 11 5l8 4.5-8 4.5z"/><path d="M3 14l8 4.5 4-2.2"/><path d="M19 14v6M16 17h6"/></symbol>
-  <symbol id="i-sample" viewBox="0 0 24 24"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.500z"/><path d="M4 7.5 12 12l8-4.500M12 12v9"/></symbol>
-  <symbol id="i-pan" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3 9.500 5.500M12 3l2.500 2.500M12 21l-2.500-2.500M12 21l2.500-2.500M3 12l2.500-2.500M3 12l2.500 2.500M21 12l-2.500-2.500M21 12l-2.500 2.500"/></symbol>
-  <symbol id="i-select" viewBox="0 0 24 24"><path d="M6 3.500v15l4-3.800 2.600 5.800 2.300-1-2.600-5.700H18z"/></symbol>
-  <symbol id="i-zoomin" viewBox="0 0 24 24"><circle cx="10.500" cy="10.500" r="6.500"/><path d="M15.500 15.500 21 21M7.500 10.500h6M10.500 7.500v6"/></symbol>
-  <symbol id="i-zoomout" viewBox="0 0 24 24"><circle cx="10.500" cy="10.500" r="6.500"/><path d="M15.500 15.500 21 21M7.500 10.500h6"/></symbol>
-  <symbol id="i-extent" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><rect x="9" y="9" width="6" height="6"/></symbol>
-  <symbol id="i-zoomlayer" viewBox="0 0 24 24"><path d="M3 8l7-4 7 4-7 4z"/><path d="M3 12.500l7 4 2-1.100"/><circle cx="17" cy="16" r="3.500"/><path d="M19.600 18.600 22 21"/></symbol>
-  <symbol id="i-zoomsel" viewBox="0 0 24 24"><circle cx="10.500" cy="10.500" r="6.500"/><path d="M15.500 15.500 21 21"/><rect x="8" y="8" width="5" height="5"/></symbol>
-  <symbol id="i-clear" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" stroke-dasharray="3 2.500"/><path d="M9 9l6 6M15 9l-6 6"/></symbol>
-  <symbol id="i-run" viewBox="0 0 24 24"><path d="M7 4.500v15l12-7.500z"/></symbol>
-  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6.500 7l1 13h9l1-13M10 11v6M14 11v6"/></symbol>
-  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M8 5 4 9l4 4"/><path d="M4 9h10a5 5 0 0 1 0 10H9"/></symbol>
-  <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3v12M7.500 10.500 12 15l4.500-4.500"/><path d="M4 16v4h16v-4"/></symbol>
-  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
-  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.500v.500"/></symbol>
-  <symbol id="i-caret" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
-  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
-  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
-  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
-  <symbol id="i-map" viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></symbol>
-  <symbol id="i-toolbox" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="1"/><path d="M8 8V5h8v3M3 13h18M11 12v3h2v-3"/></symbol>
-  <symbol id="i-hammer" viewBox="0 0 24 24"><path d="M14 4l6 6-3 3-6-6z"/><path d="M11 7 4 14l3 3 7-7"/><path d="M5.500 18.500 3 21"/></symbol>
-  <symbol id="i-pane-left" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M9 4v16"/></symbol>
-  <symbol id="i-pane-right" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M15 4v16"/></symbol>
-  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></symbol>
-  <symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14.500h18M9 9v11"/></symbol>
-  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.900 4.900l1.400 1.400M17.700 17.700l1.400 1.400M4.900 19.100l1.400-1.400M17.700 6.300l1.400-1.400"/></symbol>
-  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.500A8 8 0 0 1 9.500 4 8 8 0 1 0 20 14.500z"/></symbol>
-  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.500 3 14.500 0 18M12 3c-3 3.500-3 14.500 0 18"/></symbol>
-  <symbol id="i-bug" viewBox="0 0 24 24"><rect x="7" y="8" width="10" height="12" rx="5"/><path d="M12 8v12M9 5l1.500 3M15 5l-1.500 3M3 11h4M17 11h4M3 17h4M17 17h4"/></symbol>
-  <symbol id="i-log" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 11h7M9 15h7M9 19h4"/></symbol>
-  <symbol id="i-update" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.300-5.700"/><path d="M20 4v5h-5"/></symbol>
-  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.500" cy="10.500" r="6.500"/><path d="M15.500 15.500 21 21"/></symbol>
+  <!-- icons:start (Lucide, ISC licence; see vendor/lucide/LICENSE) -->
+  <symbol id="i-add" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M9 15h6" /><path d="M12 18v-6" /></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></symbol>
+  <symbol id="i-pan" viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2" /><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2" /><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8" /><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" /></symbol>
+  <symbol id="i-select" viewBox="0 0 24 24"><path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z" /></symbol>
+  <symbol id="i-zoomin" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><line x1="21" x2="16.65" y1="21" y2="16.65" /><line x1="11" x2="11" y1="8" y2="14" /><line x1="8" x2="14" y1="11" y2="11" /></symbol>
+  <symbol id="i-zoomout" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><line x1="21" x2="16.65" y1="21" y2="16.65" /><line x1="8" x2="14" y1="11" y2="11" /></symbol>
+  <symbol id="i-extent" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" /><path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" /></symbol>
+  <symbol id="i-zoomlayer" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" /></symbol>
+  <symbol id="i-zoomsel" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" /><circle cx="12" cy="12" r="3" /><path d="m16 16-1.9-1.9" /></symbol>
+  <symbol id="i-clear" viewBox="0 0 24 24"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" /><path d="M22 21H7" /><path d="m5 11 9 9" /></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" /></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></symbol>
+  <symbol id="i-run" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3" /></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></symbol>
+  <symbol id="i-caret" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z" /><path d="M15 5.764v15" /><path d="M9 3.236v15" /></symbol>
+  <symbol id="i-toolbox" viewBox="0 0 24 24"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /><rect width="20" height="14" x="2" y="6" rx="2" /></symbol>
+  <symbol id="i-hammer" viewBox="0 0 24 24"><path d="m15 12-8.373 8.373a1 1 0 1 1-3-3L12 9" /><path d="m18 15 4-4" /><path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5" /></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7" /><path d="M12 19V5" /></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></symbol>
+  <symbol id="i-pane-left" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M9 3v18" /></symbol>
+  <symbol id="i-pane-right" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M15 3v18" /></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M3 12h.01" /><path d="M3 18h.01" /><path d="M3 6h.01" /><path d="M8 12h13" /><path d="M8 18h13" /><path d="M8 6h13" /></symbol>
+  <symbol id="i-table" viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18" /></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" /></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></symbol>
+  <symbol id="i-bug" viewBox="0 0 24 24"><path d="m8 2 1.88 1.88" /><path d="M14.12 3.88 16 2" /><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" /><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6" /><path d="M12 20v-9" /><path d="M6.53 9C4.6 8.8 3 7.1 3 5" /><path d="M6 13H2" /><path d="M3 21c0-2.1 1.7-3.9 3.8-4" /><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4" /><path d="M22 13h-4" /><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4" /></symbol>
+  <symbol id="i-log" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" /></symbol>
+  <symbol id="i-update" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor" /><circle cx="17.5" cy="10.5" r=".5" fill="currentColor" /><circle cx="8.5" cy="7.5" r=".5" fill="currentColor" /><circle cx="6.5" cy="12.5" r=".5" fill="currentColor" /><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" /></symbol>
+  <symbol id="i-properties" viewBox="0 0 24 24"><path d="M20 7h-9" /><path d="M14 17H5" /><circle cx="17" cy="17" r="3" /><circle cx="7" cy="7" r="3" /></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></symbol>
+  <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z" /><path d="m14.5 12.5 2-2" /><path d="m11.5 9.5 2-2" /><path d="m8.5 6.5 2-2" /><path d="m17.5 15.5 2-2" /></symbol>
+  <symbol id="i-area" viewBox="0 0 24 24"><path d="m12 8 6-3-6-3v10" /><path d="m8 11.99-5.5 3.14a1 1 0 0 0 0 1.74l8.5 4.86a2 2 0 0 0 2 0l8.5-4.86a1 1 0 0 0 0-1.74L16 12" /><path d="m6.49 12.85 11.02 6.3" /><path d="M17.51 12.85 6.5 19.15" /></symbol>
+  <symbol id="i-select-rect" viewBox="0 0 24 24"><path d="M12.034 12.681a.498.498 0 0 1 .647-.647l9 3.5a.5.5 0 0 1-.033.943l-3.444 1.068a1 1 0 0 0-.66.66l-1.067 3.443a.5.5 0 0 1-.943.033z" /><path d="M5 3a2 2 0 0 0-2 2" /><path d="M19 3a2 2 0 0 1 2 2" /><path d="M5 21a2 2 0 0 1-2-2" /><path d="M9 3h1" /><path d="M9 21h2" /><path d="M14 3h1" /><path d="M3 9v1" /><path d="M21 9v2" /><path d="M3 14v1" /></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /><path d="m15 5 4 4" /></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" /><path d="M7 3v4a1 1 0 0 0 1 1h7" /></symbol>
+  <symbol id="i-discard" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="m15 9-6 6" /><path d="m9 9 6 6" /></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5" /><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13" /></symbol>
+  <symbol id="i-polygon" viewBox="0 0 24 24"><path d="M10.83 2.38a2 2 0 0 1 2.34 0l8 5.74a2 2 0 0 1 .73 2.25l-3.04 9.26a2 2 0 0 1-1.9 1.37H7.04a2 2 0 0 1-1.9-1.37L2.1 10.37a2 2 0 0 1 .73-2.25z" /></symbol>
+  <symbol id="i-rectangle" viewBox="0 0 24 24"><rect width="20" height="12" x="2" y="6" rx="2" /></symbol>
+  <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /></symbol>
+  <symbol id="i-line" viewBox="0 0 24 24"><circle cx="19" cy="5" r="2" /><circle cx="5" cy="19" r="2" /><path d="M5 17A12 12 0 0 1 17 5" /></symbol>
+  <symbol id="i-point" viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" /><circle cx="12" cy="10" r="3" /></symbol>
+  <symbol id="i-move" viewBox="0 0 24 24"><path d="M12 2v20" /><path d="m15 19-3 3-3-3" /><path d="m19 9 3 3-3 3" /><path d="M2 12h20" /><path d="m5 9-3 3 3 3" /><path d="m9 5 3-3 3 3" /></symbol>
+  <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></symbol>
+  <symbol id="i-reshape" viewBox="0 0 24 24"><path d="M15.707 21.293a1 1 0 0 1-1.414 0l-1.586-1.586a1 1 0 0 1 0-1.414l5.586-5.586a1 1 0 0 1 1.414 0l1.586 1.586a1 1 0 0 1 0 1.414z" /><path d="m18 13-1.375-6.874a1 1 0 0 0-.746-.776L3.235 2.028a1 1 0 0 0-1.207 1.207L5.35 15.879a1 1 0 0 0 .776.746L13 18" /><path d="m2.3 2.3 7.286 7.286" /><circle cx="11" cy="11" r="2" /></symbol>
+  <symbol id="i-merge" viewBox="0 0 24 24"><path d="m8 6 4-4 4 4" /><path d="M12 2v10.3a4 4 0 0 1-1.172 2.872L4 22" /><path d="m20 22-5-5" /></symbol>
+  <symbol id="i-split" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3" /><path d="M8.12 8.12 12 12" /><path d="M20 4 8.12 15.88" /><circle cx="6" cy="18" r="3" /><path d="M14.8 14.8 20 20" /></symbol>
+  <symbol id="i-catalog" viewBox="0 0 24 24"><path d="M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z" /><path d="M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z" /><path d="M3 5a2 2 0 0 0 2 2h3" /><path d="M3 3v13a2 2 0 0 0 2 2h3" /></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l4 2" /></symbol>
+  <symbol id="i-exit" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></symbol>
+  <symbol id="i-export-layer" viewBox="0 0 24 24"><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M4 7V4a2 2 0 0 1 2-2 2 2 0 0 0-2 2" /><path d="M4.063 20.999a2 2 0 0 0 2 1L18 22a2 2 0 0 0 2-2V7l-5-5H6" /><path d="m5 11-3 3" /><path d="m5 17-3-3h10" /></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 24 24"><path d="M10 8h.01" /><path d="M12 12h.01" /><path d="M14 8h.01" /><path d="M16 12h.01" /><path d="M18 8h.01" /><path d="M6 8h.01" /><path d="M7 16h10" /><path d="M8 12h.01" /><rect width="20" height="16" x="2" y="4" rx="2" /></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+  <!-- icons:end -->
 </svg>
 
 <div id="splash" class="splash">
@@ -59,14 +93,8 @@
   </div>
 </div>
 
-<header class="titlebar">
+<header class="titlebar" id="titlebar">
   <img src="/static/ovc-icon.png" alt="" class="app-icon">
-  <div class="quick" role="toolbar" aria-label="Quick access">
-    <button class="qa" id="qa-toolbox" data-cmd="toolbox" title="OVC Toolbox"><img src="/static/ovc-icon.png" alt=""><span>Toolbox</span></button>
-    <button class="qa" data-cmd="add-data" title="Add data (Ctrl+O)"><svg><use href="#i-add"/></svg></button>
-    <button class="qa" data-cmd="report-bug" title="Report a bug"><svg><use href="#i-bug"/></svg></button>
-  </div>
-  <span class="grow"></span>
   <span class="app-title"><strong>OVC</strong> Overlap Violation Checker</span>
   <span class="grow"></span>
   <span class="app-org" id="app-org">OpenTerra</span>
@@ -75,24 +103,27 @@
 
 <nav class="ribbon" aria-label="Ribbon">
   <div class="rtabs" role="tablist">
+    <button class="rtab project" role="tab" data-tab="project" aria-selected="false" title="New, open and save projects; settings">Project</button>
     <button class="rtab" role="tab" data-tab="map" aria-selected="true">Map</button>
+    <button class="rtab" role="tab" data-tab="edit" aria-selected="false">Edit</button>
     <button class="rtab" role="tab" data-tab="analysis" aria-selected="false">Analysis</button>
     <button class="rtab" role="tab" data-tab="view" aria-selected="false">View</button>
     <button class="rtab" role="tab" data-tab="help" aria-selected="false">Help</button>
+    <span class="grow"></span>
+    <span id="project-name" class="project-name"></span>
   </div>
 
   <div class="rpanel" id="rp-map" role="tabpanel">
     <div class="group"><div class="tools">
-      <button class="tool big" data-cmd="add-data" id="add-data" title="Add data from a file (Ctrl+O)"><svg><use href="#i-add"/></svg><span>Add Data</span></button>
-      <button class="tool big" data-cmd="sample" id="use-sample" title="Load the sample parcels and block"><svg><use href="#i-sample"/></svg><span>Sample Data</span></button>
+      <button class="tool big" data-cmd="add-data" id="add-data" title="Add data from a file"><svg><use href="#i-add"/></svg><span>Add Data</span></button>
     </div><div class="caption">Layer</div></div>
 
     <div class="group"><div class="tools">
-      <button class="tool big toggle" data-cmd="pan" id="tool-pan" aria-pressed="true" title="Explore: pan and zoom the map (P)"><svg><use href="#i-pan"/></svg><span>Explore</span></button>
+      <button class="tool big toggle" data-cmd="pan" id="tool-pan" aria-pressed="true" title="Explore: pan and zoom the map"><svg><use href="#i-pan"/></svg><span>Explore</span></button>
       <div class="stack">
-        <button class="tool small" data-cmd="zoom-in" id="zoom-in" title="Zoom in (+)"><svg><use href="#i-zoomin"/></svg><span>Zoom In</span></button>
-        <button class="tool small" data-cmd="zoom-out" id="zoom-out" title="Zoom out (-)"><svg><use href="#i-zoomout"/></svg><span>Zoom Out</span></button>
-        <button class="tool small" data-cmd="zoom-full" id="zoom-full" title="Full extent (Home)"><svg><use href="#i-extent"/></svg><span>Full Extent</span></button>
+        <button class="tool small" data-cmd="zoom-in" id="zoom-in" title="Zoom in"><svg><use href="#i-zoomin"/></svg><span>Zoom In</span></button>
+        <button class="tool small" data-cmd="zoom-out" id="zoom-out" title="Zoom out"><svg><use href="#i-zoomout"/></svg><span>Zoom Out</span></button>
+        <button class="tool small" data-cmd="zoom-full" id="zoom-full" title="Full extent"><svg><use href="#i-extent"/></svg><span>Full Extent</span></button>
       </div>
       <div class="stack">
         <button class="tool small" data-cmd="zoom-layer" id="zoom-layer" title="Zoom to the layer selected in Contents"><svg><use href="#i-zoomlayer"/></svg><span>Zoom To Layer</span></button>
@@ -101,18 +132,57 @@
     </div><div class="caption">Navigate</div></div>
 
     <div class="group"><div class="tools">
-      <button class="tool big toggle" data-cmd="select" id="tool-select" aria-pressed="false" title="Select a feature and show its attributes (S)"><svg><use href="#i-select"/></svg><span>Select</span></button>
+      <button class="tool big toggle" data-cmd="select" id="tool-select" aria-pressed="false" title="Select features: click one, drag a box for many; Shift adds, Ctrl removes"><svg><use href="#i-select-rect"/></svg><span>Select</span></button>
       <div class="stack">
-        <button class="tool small" data-cmd="clear" id="clear-selection" title="Clear the selection (Esc)"><svg><use href="#i-clear"/></svg><span>Clear</span></button>
-        <button class="tool small" data-cmd="delete" id="delete-item" title="Dismiss the selected finding, or remove the layer selected in Contents (Delete). Files are never changed."><svg><use href="#i-trash"/></svg><span>Delete</span></button>
-        <button class="tool small" data-cmd="restore" id="restore" title="Bring back dismissed findings"><svg><use href="#i-undo"/></svg><span>Restore</span></button>
+        <button class="tool small" data-cmd="clear" id="clear-selection" title="Clear the selection"><svg><use href="#i-clear"/></svg><span>Clear</span></button>
+        <button class="tool small" data-cmd="show-attributes" title="Attributes of the selected features"><svg><use href="#i-table"/></svg><span>Attributes</span></button>
       </div>
     </div><div class="caption">Selection</div></div>
 
     <div class="group"><div class="tools">
+      <button class="tool big toggle" data-cmd="measure-distance" id="measure-distance" aria-pressed="false" title="Measure a distance on the ellipsoid"><svg><use href="#i-ruler"/></svg><span>Distance</span></button>
+      <button class="tool big toggle" data-cmd="measure-area" id="measure-area" aria-pressed="false" title="Measure an area on the ellipsoid"><svg><use href="#i-area"/></svg><span>Area</span></button>
+    </div><div class="caption">Measure</div></div>
+
+    <div class="group"><div class="tools">
       <button class="tool big brand" data-cmd="toolbox" id="open-toolbox" title="Open the OVC Toolbox"><img src="/static/ovc-icon.png" alt=""><span>OVC Toolbox</span></button>
-      <button class="tool big" data-cmd="export" id="export" disabled title="Save the findings as a GIS layer (Ctrl+E)"><svg><use href="#i-export"/></svg><span>Export Findings</span></button>
     </div><div class="caption">Analysis</div></div>
+  </div>
+
+  <div class="rpanel" id="rp-edit" role="tabpanel" hidden>
+    <div class="group"><div class="tools">
+      <button class="tool big toggle" data-cmd="edit-toggle" id="edit-toggle" aria-pressed="false" title="Start or stop editing the layer selected in Contents"><svg><use href="#i-edit"/></svg><span id="edit-toggle-label">Start Editing</span></button>
+      <button class="tool big" data-cmd="edit-save" id="edit-save" disabled title="Save edits to the layer's file (a backup of the original is kept)"><svg><use href="#i-save"/></svg><span>Save Edits</span></button>
+      <div class="stack">
+        <button class="tool small" data-cmd="edit-discard" id="edit-discard" disabled title="Throw away unsaved edits"><svg><use href="#i-discard"/></svg><span>Discard</span></button>
+        <button class="tool small" data-cmd="edit-undo" id="edit-undo" disabled title="Undo"><svg><use href="#i-undo"/></svg><span>Undo</span></button>
+        <button class="tool small" data-cmd="edit-redo" id="edit-redo" disabled title="Redo"><svg><use href="#i-redo"/></svg><span>Redo</span></button>
+      </div>
+    </div><div class="caption">Manage Edits</div></div>
+
+    <div class="group"><div class="tools">
+      <button class="tool big toggle edit-only" data-cmd="draw-polygon" id="draw-polygon" data-geom="Polygon" disabled title="Draw a polygon: click each corner, click the first to finish"><svg><use href="#i-polygon"/></svg><span>Polygon</span></button>
+      <button class="tool big toggle edit-only" data-cmd="draw-rectangle" id="draw-rectangle" data-geom="Polygon" disabled title="Draw a rectangle: drag on the map"><svg><use href="#i-rectangle"/></svg><span>Rectangle</span></button>
+      <button class="tool big toggle edit-only" data-cmd="draw-circle" id="draw-circle" data-geom="Polygon" disabled title="Draw a circle: drag from the centre"><svg><use href="#i-circle"/></svg><span>Circle</span></button>
+      <button class="tool big toggle edit-only" data-cmd="draw-line" id="draw-line" data-geom="LineString" disabled title="Draw a line"><svg><use href="#i-line"/></svg><span>Line</span></button>
+      <button class="tool big toggle edit-only" data-cmd="draw-point" id="draw-point" data-geom="Point" disabled title="Place a point"><svg><use href="#i-point"/></svg><span>Point</span></button>
+    </div><div class="caption">Create</div></div>
+
+    <div class="group"><div class="tools">
+      <button class="tool big toggle edit-only" data-cmd="edit-move" id="edit-move" disabled title="Move the selected features: drag them, then press Enter"><svg><use href="#i-move"/></svg><span>Move</span></button>
+      <button class="tool big toggle edit-only" data-cmd="edit-rotate" id="edit-rotate" disabled title="Rotate the selected features: drag a corner handle, then press Enter"><svg><use href="#i-rotate"/></svg><span>Rotate</span></button>
+      <button class="tool big toggle edit-only" data-cmd="edit-reshape" id="edit-reshape" disabled title="Edit vertices: drag, add or remove vertices, then press Enter"><svg><use href="#i-reshape"/></svg><span>Vertices</span></button>
+      <div class="stack">
+        <button class="tool small edit-only" data-cmd="edit-merge" id="edit-merge" disabled title="Merge the selected features into one"><svg><use href="#i-merge"/></svg><span>Merge</span></button>
+        <button class="tool small toggle edit-only" data-cmd="edit-split" id="edit-split" disabled title="Split the selected feature along a line you draw"><svg><use href="#i-split"/></svg><span>Split</span></button>
+        <button class="tool small edit-only" data-cmd="edit-delete" id="edit-delete" disabled title="Delete the selected features"><svg><use href="#i-trash"/></svg><span>Delete</span></button>
+      </div>
+    </div><div class="caption">Modify</div></div>
+
+    <div class="group"><div class="tools">
+      <button class="tool big" data-cmd="select" title="Select features to modify"><svg><use href="#i-select-rect"/></svg><span>Select</span></button>
+      <button class="tool big" data-cmd="export-layer" title="Save the layer, with its edits, as a new file"><svg><use href="#i-export-layer"/></svg><span>Export Layer</span></button>
+    </div><div class="caption">Selection</div></div>
   </div>
 
   <div class="rpanel" id="rp-analysis" role="tabpanel" hidden>
@@ -122,23 +192,28 @@
     <div class="group"><div class="tools" id="ribbon-tools"></div><div class="caption">Tools</div></div>
     <div class="group"><div class="tools">
       <button class="tool big" data-cmd="show-results" title="Show the Results pane"><svg><use href="#i-list"/></svg><span>Results</span></button>
-      <button class="tool big" data-cmd="export" title="Save the findings as a GIS layer (Ctrl+E)"><svg><use href="#i-export"/></svg><span>Export</span></button>
+      <button class="tool big" data-cmd="export" id="export" disabled title="Save the findings as a GIS layer"><svg><use href="#i-export"/></svg><span>Export Findings</span></button>
+      <div class="stack">
+        <button class="tool small" data-cmd="delete" id="delete-item" title="Dismiss the selected finding (left out of the export)"><svg><use href="#i-trash"/></svg><span>Dismiss</span></button>
+        <button class="tool small" data-cmd="restore" id="restore" title="Bring back dismissed findings"><svg><use href="#i-undo"/></svg><span>Restore</span></button>
+      </div>
     </div><div class="caption">Findings</div></div>
   </div>
 
   <div class="rpanel" id="rp-view" role="tabpanel" hidden>
     <div class="group"><div class="tools">
-      <button class="tool big" data-cmd="show-contents" title="Show or hide the Contents pane (F2)"><svg><use href="#i-pane-left"/></svg><span>Contents</span></button>
+      <button class="tool big" data-cmd="show-contents" title="Show or hide Contents"><svg><use href="#i-pane-left"/></svg><span>Contents</span></button>
+      <button class="tool big" data-cmd="show-catalog" title="Folders and data files"><svg><use href="#i-catalog"/></svg><span>Catalog</span></button>
       <button class="tool big" data-cmd="toolbox" title="Geoprocessing pane"><svg><use href="#i-hammer"/></svg><span>Geoprocessing</span></button>
       <button class="tool big" data-cmd="show-results" title="Results pane"><svg><use href="#i-list"/></svg><span>Results</span></button>
-      <button class="tool big" data-cmd="show-attributes" title="Attributes of the selected feature"><svg><use href="#i-table"/></svg><span>Attributes</span></button>
+      <button class="tool big" data-cmd="show-attributes" title="Attributes of the selected features"><svg><use href="#i-table"/></svg><span>Attributes</span></button>
     </div><div class="caption">Windows</div></div>
     <div class="group"><div class="tools">
       <button class="tool big toggle" data-cmd="theme-light" id="theme-light" aria-pressed="true"><svg><use href="#i-sun"/></svg><span>Light</span></button>
       <button class="tool big toggle" data-cmd="theme-dark" id="theme-dark" aria-pressed="false"><svg><use href="#i-moon"/></svg><span>Dark</span></button>
     </div><div class="caption">Theme</div></div>
     <div class="group"><div class="tools">
-      <button class="tool big toggle" data-cmd="basemap" id="basemap" aria-pressed="false" title="OpenStreetMap background (needs internet)"><svg><use href="#i-globe"/></svg><span>OpenStreetMap</span></button>
+      <button class="tool big" data-cmd="basemap-menu" id="basemap" title="Choose the background map"><svg><use href="#i-globe"/></svg><span id="basemap-label">Basemap</span></button>
     </div><div class="caption">Basemap</div></div>
   </div>
 
@@ -148,11 +223,20 @@
       <button class="tool big" data-cmd="show-log" title="Open the folder with OVC's log file"><svg><use href="#i-log"/></svg><span>Log File</span></button>
     </div><div class="caption">Support</div></div>
     <div class="group"><div class="tools">
+      <button class="tool big" data-cmd="shortcuts" title="Keyboard shortcuts"><svg><use href="#i-keyboard"/></svg><span>Shortcuts</span></button>
       <button class="tool big" data-cmd="check-updates" title="Look for a newer OVC"><svg><use href="#i-update"/></svg><span>Check for Updates</span></button>
       <button class="tool big" data-cmd="about" id="about" title="About OVC"><svg><use href="#i-info"/></svg><span>About</span></button>
     </div><div class="caption">OVC</div></div>
   </div>
 </nav>
+
+<div id="notice-bar" class="update-bar notice" role="status" hidden>
+  <svg><use href="#i-info"/></svg>
+  <span id="notice-text"></span>
+  <span class="grow"></span>
+  <button id="notice-report" class="primary">Report a bug</button>
+  <button id="notice-dismiss">Dismiss</button>
+</div>
 
 <div id="update-bar" class="update-bar" role="status" hidden>
   <svg><use href="#i-info"/></svg>
@@ -164,30 +248,59 @@
 </div>
 
 <main>
-  <aside class="dock left" id="dock-left" aria-label="Contents">
-    <div class="pane-head">
-      <span>Contents</span>
+  <button class="rail left" id="rail-left" hidden title="Show Contents"><svg><use href="#i-pane-left"/></svg><span>Contents</span></button>
+  <aside class="dock left" id="dock-left" aria-label="Contents and Catalog">
+    <div class="pane-head tabs">
+      <div class="dock-tabs" role="tablist">
+        <button class="dock-tab" role="tab" data-left="contents" aria-selected="true">Contents</button>
+        <button class="dock-tab" role="tab" data-left="catalog" aria-selected="false">Catalog</button>
+      </div>
       <span class="grow"></span>
-      <button class="icon-btn" id="contents-close" title="Close Contents (View > Contents brings it back)"><svg><use href="#i-close"/></svg></button>
+      <button class="icon-btn" id="contents-close" title="Hide this pane"><svg><use href="#i-pane-left"/></svg></button>
     </div>
     <div class="pane-body" id="pane-contents">
       <div class="toc-hint">Drawing order</div>
       <ul id="toc" class="toc" role="tree"></ul>
-      <div id="toc-empty" class="empty">No layers yet. Use <strong>Add Data</strong> to open a GeoPackage, Shapefile or GeoJSON, or <strong>Sample Data</strong> to try OVC.</div>
+      <div id="toc-empty" class="empty">No layers yet. Drop files here, use <strong>Add Data</strong>, or open a folder in <strong>Catalog</strong>.</div>
       <button id="add-gdb" class="mini-link" title="Browse for a file geodatabase (.gdb) folder or type a path">Browse files in OVC…</button>
+    </div>
+    <div class="pane-body" id="pane-catalog" hidden>
+      <div class="cat-places" id="cat-places"></div>
+      <div class="cat-path">
+        <button class="icon-btn" id="cat-up" title="Up one folder"><svg><use href="#i-back"/></svg></button>
+        <input id="cat-dir" type="text" spellcheck="false" aria-label="Folder">
+      </div>
+      <ul id="cat-list" class="cat-list" role="tree"></ul>
+      <small>Double-click a data file, or drag it onto the map, to add it.</small>
     </div>
   </aside>
 
+  <div class="splitter" id="split-left" role="separator" aria-orientation="vertical" aria-label="Resize Contents" tabindex="0"></div>
   <div class="mapwrap">
     <div id="map" aria-label="Map"></div>
     <div id="map-hint" class="map-hint">Add data to see it here.</div>
     <div id="map-note" class="map-note" hidden></div>
+    <div id="measure-box" class="map-float measure-box" hidden>
+      <div id="measure-value" class="measure-value"></div>
+      <div id="measure-detail" class="measure-detail"></div>
+      <small>Click to add points, double-click to finish, Esc to clear.</small>
+    </div>
+    <div id="edit-bar" class="map-float edit-bar" hidden>
+      <span id="edit-bar-text"></span>
+      <button id="edit-bar-finish" class="primary">Finish</button>
+      <button id="edit-bar-cancel">Cancel</button>
+    </div>
+    <div id="drop-zone" class="drop-zone" hidden>
+      <div class="drop-card"><svg><use href="#i-upload"/></svg><strong>Drop to add data</strong><span>GeoPackage, GeoJSON, FlatGeobuf, KML, or all the files of a shapefile</span></div>
+    </div>
   </div>
+  <div class="splitter" id="split-right" role="separator" aria-orientation="vertical" aria-label="Resize panes" tabindex="0" hidden></div>
 
   <aside class="dock right" id="dock-right" aria-label="Panes" hidden>
     <div class="pane-head tabs">
       <div id="dock-tabs" class="dock-tabs" role="tablist"></div>
       <span class="grow"></span>
+      <button class="icon-btn" id="dock-collapse" title="Hide panes"><svg><use href="#i-pane-right"/></svg></button>
       <button class="icon-btn" id="dock-close" title="Close this pane"><svg><use href="#i-close"/></svg></button>
     </div>
 
@@ -252,6 +365,7 @@
       </div>
     </section>
   </aside>
+  <button class="rail right" id="rail-right" hidden title="Show panes"><svg><use href="#i-pane-right"/></svg><span id="rail-right-label">Panes</span></button>
 </main>
 
 <footer class="statusbar">
@@ -262,10 +376,39 @@
   <span id="sb-message"></span>
 </footer>
 
+<ul id="basemap-list" class="ctx" role="menu" hidden></ul>
+
+<div id="backstage" class="backstage" hidden>
+  <nav class="bs-nav">
+    <button class="bs-back" id="bs-back" title="Back to the map"><svg><use href="#i-back"/></svg></button>
+    <button class="bs-item" data-bs="home" aria-selected="true"><svg><use href="#i-history"/></svg>Projects</button>
+    <button class="bs-item" data-cmd="project-new"><svg><use href="#i-file"/></svg>New</button>
+    <button class="bs-item" data-cmd="project-open"><svg><use href="#i-folder"/></svg>Open…</button>
+    <button class="bs-item" data-cmd="project-save"><svg><use href="#i-save"/></svg>Save</button>
+    <button class="bs-item" data-cmd="project-save-as"><svg><use href="#i-save"/></svg>Save As…</button>
+    <span class="bs-sep"></span>
+    <button class="bs-item" data-cmd="settings"><svg><use href="#i-settings"/></svg>Settings</button>
+    <button class="bs-item" data-cmd="about"><svg><use href="#i-info"/></svg>About</button>
+    <button class="bs-item" data-cmd="quit" id="bs-exit"><svg><use href="#i-exit"/></svg>Exit</button>
+  </nav>
+  <section class="bs-main">
+    <h2>Projects</h2>
+    <p class="hint">A project keeps your layers, their order and symbology, the map view and the basemap. Data stays in its own files.</p>
+    <div class="bs-actions">
+      <button class="bs-card" data-cmd="project-new"><svg><use href="#i-file"/></svg><strong>New project</strong><span>Start with an empty map</span></button>
+      <button class="bs-card" data-cmd="project-open"><svg><use href="#i-folder"/></svg><strong>Open project</strong><span>An .ovcproj file</span></button>
+    </div>
+    <h3>Recent</h3>
+    <ul id="bs-recent" class="bs-recent"></ul>
+  </section>
+</div>
+
 <ul id="ctx" class="ctx" role="menu" hidden>
   <li role="menuitem" data-ctx="zoom"><svg><use href="#i-zoomlayer"/></svg>Zoom To Layer</li>
-  <li role="menuitem" data-ctx="symbology"><svg><use href="#i-sun"/></svg>Symbology…</li>
-  <li role="menuitem" data-ctx="properties"><svg><use href="#i-info"/></svg>Properties</li>
+  <li role="menuitem" data-ctx="symbology"><svg><use href="#i-palette"/></svg>Symbology…</li>
+  <li role="menuitem" data-ctx="properties"><svg><use href="#i-properties"/></svg>Properties</li>
+  <li role="menuitem" data-ctx="edit"><svg><use href="#i-edit"/></svg>Edit Features</li>
+  <li role="menuitem" data-ctx="export"><svg><use href="#i-export-layer"/></svg>Export Layer…</li>
   <li class="sep"></li>
   <li role="menuitem" data-ctx="up"><svg><use href="#i-up"/></svg>Move Up</li>
   <li role="menuitem" data-ctx="down"><svg><use href="#i-down"/></svg>Move Down</li>
@@ -310,7 +453,11 @@
 </div>
 
 <script src="/static/vendor/leaflet/leaflet.js"></script>
+<script src="/static/vendor/geoman/leaflet-geoman.js"></script>
 <script src="/static/toolbox.js"></script>
 <script src="/static/app.js"></script>
+<script src="/static/files.js"></script>
+<script src="/static/measure.js"></script>
+<script src="/static/edit.js"></script>
 </body>
 </html>

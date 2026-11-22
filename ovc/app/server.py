@@ -11,6 +11,8 @@ import json
 import mimetypes
 import os
 import string
+import tempfile
+import uuid
 import threading
 import time
 from http import HTTPStatus
@@ -27,11 +29,11 @@ from shapely.geometry import Point
 
 from ovc import __version__
 from ovc.api import check_file
-from ovc.app import diagnostics, native, updates
+from ovc.app import diagnostics, native, project, settings, updates
+from ovc.app.editing import EditError, EditSession, write_layer
 from ovc.app.branding import APP_NAME, APP_TITLE, FOUNDER, ORGANIZATION
 from ovc.engine import DEFAULT_DUPLICATE_RATIO, DEFAULT_MIN_AREA_M2, ISSUE_TYPES
 from ovc.engine.model import crs_label
-from ovc.sample_data import sample_path
 from ovc.io import (
     SUPPORTED_EXTENSIONS,
     ExportError,
@@ -43,7 +45,17 @@ from ovc.io import (
 
 log = diagnostics.get_logger("server")
 BUG_REPORT_URL = "https://github.com/AmmarYasser455/ovc/issues/new"
-MAX_MAP_FEATURES = 20_000  # more than this and only finding-related features are drawn
+MAX_MAP_FEATURES = 20_000
+DISPLAY_VERTEX_BUDGET = 300_000  # above this, the map draws simplified shapes
+UPLOAD_ROOT = Path(tempfile.gettempdir()) / "ovc-dropped"
+
+
+class RawJSON(str):
+    """A response body that is already JSON text."""
+
+    meta: dict = {}  # more than this and only finding-related features are drawn
+
+
 STATIC = resources.files("ovc.app") / "static"
 
 
@@ -52,6 +64,13 @@ class ApiError(Exception):
         super().__init__(message)
         self.status = status
         self.code = code
+
+
+def _plain(value):
+    value = _jsonable(value)
+    if value is not None and not isinstance(value, (int, float, bool, str)):
+        value = str(value)
+    return value
 
 
 def _jsonable(value):
@@ -74,9 +93,12 @@ class AppState:
         self.last_seen = time.time()
         self.shutdown = threading.Event()
         self.window_ready = threading.Event()  # the page loaded in the app window
+        self.in_window = False  # shown in OVC's own window (set by the launcher)
+        self.previous_session = None  # set when the last run did not stop normally
         self.clients = 0  # pages connected to /api/events (open OVC windows)
         self.clients_changed = time.time()
         self.opened_urls: list = []  # with OVC_NO_OPEN_URL set (tests)
+        self.edits: dict = {}  # (path, layer) -> EditSession
         self.update_info = None  # result of the last update check
         self.update_job = {"state": "idle", "fraction": 0.0, "message": ""}
         self._layers: dict = {}  # (path, layer, mtime, size) -> GeoDataFrame
@@ -85,7 +107,16 @@ class AppState:
         self.request = None  # the scan request behind ``result``
 
     # ---- layers -----------------------------------------------------
+    @staticmethod
+    def _edit_key(path, layer):
+        return (str(Path(path)), layer or "")
+
     def read(self, path, layer=None) -> gpd.GeoDataFrame:
+        """A layer's features: the edit copy while it is being edited."""
+        with self.lock:
+            session = self.edits.get(self._edit_key(path, layer))
+        if session is not None:
+            return session.gdf
         p = Path(path)
         try:
             stat = p.stat()
@@ -166,6 +197,105 @@ class AppState:
                 self.result = result
                 self.job.update(state="done", stage="Done", fraction=1.0)
 
+    # ---- editing ----------------------------------------------------
+    def _session(self, path, layer) -> EditSession:
+        with self.lock:
+            session = self.edits.get(self._edit_key(path, layer))
+        if session is None:
+            raise ApiError("This layer is not being edited. Press Start Editing first.")
+        return session
+
+    def edit_start(self, path, layer, assume_crs=None) -> dict:
+        key = self._edit_key(path, layer)
+        with self.lock:
+            if key in self.edits:
+                return self.edits[key].status()
+        gdf = self.read(path, layer)
+        crs = self.display_crs(gdf, assume_crs)
+        session = EditSession(path, layer, gdf, crs)
+        with self.lock:
+            self.edits[key] = session
+        log.info("Editing %s | %s", path, layer)
+        return session.status()
+
+    def edit_op(self, path, layer, op) -> dict:
+        try:
+            return self._session(path, layer).apply(op)
+        except EditError as exc:
+            raise ApiError(str(exc)) from exc
+
+    def _end_session(self, path, layer):
+        with self.lock:
+            self.edits.pop(self._edit_key(path, layer), None)
+            for key in [k for k in self._layers if k[0] == str(Path(path))]:
+                self._layers.pop(key)
+
+    def edit_save(self, path, layer) -> dict:
+        session = self._session(path, layer)
+        try:
+            result = session.save()
+        except (EditError, OSError) as exc:
+            raise ApiError(f"The edits were not saved: {exc}") from exc
+        self._end_session(path, layer)
+        log.info("Saved edits to %s (backup %s)", path, result["backup"])
+        return result
+
+    def edit_discard(self, path, layer) -> dict:
+        self._end_session(path, layer)
+        return {"editing": False}
+
+    def export_layer(self, path, layer, target, overwrite=False) -> dict:
+        target = Path(target)
+        if target.exists() and not overwrite and target.suffix.lower() != ".gpkg":
+            raise ApiError(f"{target.name} already exists.", code="exists")
+        if target.resolve() == Path(path).resolve():
+            raise ApiError("To write to the layer's own file, use Save Edits.")
+        try:
+            write_layer(self.read(path, layer), target, target.stem, replace=overwrite)
+        except (EditError, OSError, Exception) as exc:
+            raise ApiError(f"The layer was not exported: {exc}") from exc
+        return {"saved": str(target)}
+
+    # ---- selection --------------------------------------------------
+    def select(self, path, layer, assume_crs, bbox=None, fids=None) -> dict:
+        """Features of a layer inside a WGS 84 box, or with the given FIDs:
+        their FIDs, exact shapes (WGS 84) and attributes."""
+        gdf = self.read(path, layer)
+        crs = self.display_crs(gdf, assume_crs)
+        if fids is not None:
+            sub = gdf[gdf.index.isin([int(f) for f in fids])]
+        else:
+            area = gpd.GeoSeries([shapely.box(*bbox)], crs=4326).to_crs(crs).iloc[0]
+            hits = np.sort(gdf.sindex.query(area, predicate="intersects"))
+            sub = gdf.iloc[hits]
+        shapes = sub.geometry.iloc[:5000]
+        shapes = gpd.GeoSeries(
+            shapely.force_2d(np.asarray(shapes.values, dtype=object)),
+            index=shapes.index,
+            crs=crs,
+        ).to_crs(4326)
+        rows = []
+        for fid, row in sub.drop(columns=[gdf.geometry.name]).iloc[:500].iterrows():
+            rows.append(
+                {
+                    "fid": int(fid),
+                    **{str(k): _plain(v) for k, v in list(row.items())[:60]},
+                }
+            )
+        return {
+            "fids": [int(f) for f in sub.index],
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"fid": int(f)},
+                    "geometry": g.__geo_interface__,
+                }
+                for f, g in shapes.items()
+                if g is not None and not g.is_empty
+            ],
+            "rows": rows,
+        }
+
     # ---- updates ----------------------------------------------------
     def check_update(self, force=False) -> dict:
         with self.lock:
@@ -234,44 +364,64 @@ class AppState:
         return crs
 
     def features_geojson(self, path, layer, assume_crs=None, fids=None, limit=None):
-        """Features of a layer (any geometry type) as WGS 84 GeoJSON for the map."""
+        """Features of a layer (any geometry type) as WGS 84 GeoJSON for the map.
+
+        Returns a :class:`RawJSON` (sent as is) whose ``meta`` holds the counts.
+        Layers with more than ``DISPLAY_VERTEX_BUDGET`` vertices are simplified
+        to screen resolution for drawing only; checks always use the exact
+        geometry. JSON is written by GEOS, which is many times faster than
+        building Python dictionaries for large layers.
+        """
         gdf = self.read(path, layer)
         crs = self.display_crs(gdf, assume_crs)
         total = len(gdf)
         geoms = gdf.geometry
         if fids is not None:
             geoms = geoms[geoms.index.isin(fids)]
-        polys = geoms[geoms.notna() & ~geoms.is_empty]
+        geoms = geoms[geoms.notna() & ~geoms.is_empty]
         # The map is 2D; Z or M values (NaN in some files) would break the JSON.
-        polys = gpd.GeoSeries(
-            shapely.force_2d(polys.values), index=polys.index, crs=crs
-        )
-        truncated = limit is not None and len(polys) > limit
+        series = gpd.GeoSeries(
+            shapely.force_2d(np.asarray(geoms.values, dtype=object)),
+            index=geoms.index,
+            crs=crs,
+        ).to_crs(4326)
+        arr = np.asarray(series.values, dtype=object)
+        index = series.index
+        if len(arr):
+            keep = ~shapely.is_empty(arr) & np.isfinite(shapely.bounds(arr)).all(axis=1)
+            arr, index = arr[keep], index[keep]
+        bounds = [float(v) for v in shapely.total_bounds(arr)] if len(arr) else None
+        truncated = limit is not None and len(arr) > limit
+        simplified = False
         if truncated:
-            polys = polys.iloc[:0]
-        series = gpd.GeoSeries(polys, crs=crs).to_crs(4326)
-        features = [
-            {
-                "type": "Feature",
-                "properties": {"fid": int(fid)},
-                "geometry": geom.__geo_interface__,
-            }
-            for fid, geom in series.items()
-            if geom is not None and not geom.is_empty
-        ]
-        bounds = None
-        if len(series):
-            b = series.total_bounds
-            if np.all(np.isfinite(b)):
-                bounds = [float(v) for v in b]
-        return {
-            "type": "FeatureCollection",
-            "features": features,
+            arr, index = arr[:0], index[:0]
+        elif fids is None and len(arr):
+            vertices = int(shapely.get_num_coordinates(arr).sum())
+            if vertices > DISPLAY_VERTEX_BUDGET:
+                span = max(bounds[2] - bounds[0], bounds[3] - bounds[1])
+                arr = shapely.simplify(arr, span / 4000, preserve_topology=True)
+                simplified = True
+        texts = shapely.to_geojson(arr) if len(arr) else []
+        body = ",".join(
+            '{"type":"Feature","properties":{"fid":%d},"geometry":%s}'
+            % (int(fid), text)
+            for fid, text in zip(index, texts)
+        )
+        meta = {
             "total": total,
-            "shown": len(features),
+            "shown": len(texts),
             "truncated": truncated,
+            "simplified": simplified,
             "bounds": bounds,
         }
+        raw = RawJSON(
+            '{"type":"FeatureCollection","features":['
+            + body
+            + "],"
+            + json.dumps(meta)[1:]
+        )
+        raw.meta = meta
+        return raw
 
     def findings_geojson(self):
         result = self.result
@@ -373,6 +523,36 @@ class AppState:
             raise ApiError(str(exc), code=code)
 
 
+# ---- measuring --------------------------------------------------------
+
+
+def measure(coords, area: bool) -> dict:
+    """Length (and area) on the WGS 84 ellipsoid for map clicks in lon/lat.
+
+    Geodesic measures are independent of the map's Web Mercator display,
+    which exaggerates sizes away from the equator.
+    """
+    from pyproj import Geod
+
+    try:
+        lons = [float(c[0]) for c in coords]
+        lats = [float(c[1]) for c in coords]
+    except (TypeError, ValueError, IndexError) as exc:
+        raise ApiError("The points to measure could not be read.") from exc
+    geod = Geod(ellps="WGS84")
+    out = {"length_m": 0.0, "segment_m": 0.0, "area_m2": None, "perimeter_m": None}
+    if len(lons) >= 2:
+        _, _, dists = geod.inv(lons[:-1], lats[:-1], lons[1:], lats[1:])
+        dists = [float(d) for d in np.atleast_1d(dists)]
+        out["length_m"] = sum(dists)
+        out["segment_m"] = dists[-1]
+    if area and len(lons) >= 3:
+        signed, perimeter = geod.polygon_area_perimeter(lons, lats)
+        out["area_m2"] = abs(float(signed))
+        out["perimeter_m"] = float(perimeter)
+    return out
+
+
 # ---- file browser ----------------------------------------------------
 
 
@@ -400,7 +580,8 @@ def is_layer_file(path: Path) -> bool:
     return path.suffix.lower() in SUPPORTED_EXTENSIONS
 
 
-def browse(directory: str | None) -> dict:
+def browse(directory: str | None, kind: str = "data") -> dict:
+    """Folders and files in ``directory``: vector data, or OVC projects."""
     d = Path(directory) if directory else Path.home()
     if not d.is_dir():
         raise ApiError(f"Folder not found: {d}")
@@ -413,7 +594,16 @@ def browse(directory: str | None) -> dict:
         if child.name.startswith((".", "$", "~")):
             continue
         try:
-            if is_layer_file(child):  # includes .gdb folders
+            if kind == "project":
+                if child.suffix.lower() == project.EXTENSION:
+                    entries.append(
+                        {"name": child.name, "path": str(child), "type": "file"}
+                    )
+                elif child.is_dir():
+                    entries.append(
+                        {"name": child.name, "path": str(child), "type": "dir"}
+                    )
+            elif is_layer_file(child):  # includes .gdb folders
                 entries.append({"name": child.name, "path": str(child), "type": "file"})
             elif child.is_dir():
                 entries.append({"name": child.name, "path": str(child), "type": "dir"})
@@ -451,7 +641,8 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _json(self, payload, status=HTTPStatus.OK):
-        self._send(status, json.dumps(payload).encode("utf-8"), "application/json")
+        text = payload if isinstance(payload, RawJSON) else json.dumps(payload)
+        self._send(status, text.encode("utf-8"), "application/json")
 
     def _host_ok(self) -> bool:
         host = (self.headers.get("Host") or "").split(":")[0]
@@ -495,6 +686,11 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/events" and method == "GET":
             return self._events()
         self.state.last_seen = time.time()
+        if url.path == "/api/upload" and method == "POST":
+            try:
+                return self._json(self._upload(query))
+            except ApiError as exc:
+                return self._json({"error": str(exc), "code": exc.code}, exc.status)
         body = {}
         if method == "POST":
             length = int(self.headers.get("Content-Length") or 0)
@@ -552,6 +748,33 @@ class Handler(BaseHTTPRequestHandler):
                 state.clients -= 1
                 state.clients_changed = time.time()
 
+    def _upload(self, query):
+        """Save one file dropped on the window; returns where it was saved.
+
+        A browser never tells the page where a dropped file lives, so the
+        file is copied into a temporary folder, one folder per drop so the
+        parts of a shapefile stay together. The original is not touched.
+        """
+        drop = "".join(c for c in (query.get("drop") or [""])[0] if c.isalnum())[:40]
+        drop = drop or uuid.uuid4().hex
+        name = Path((query.get("name") or [""])[0]).name
+        if not drop or not name or name in (".", ".."):
+            raise ApiError("Bad upload.")
+        folder = UPLOAD_ROOT / drop
+        folder.mkdir(parents=True, exist_ok=True)
+        target = folder / name
+        remaining = int(self.headers.get("Content-Length") or 0)
+        with open(target, "wb") as out:
+            while remaining > 0:
+                chunk = self.rfile.read(min(remaining, 1 << 20))
+                if not chunk:
+                    break
+                out.write(chunk)
+                remaining -= len(chunk)
+        if remaining:
+            raise ApiError(f"The copy of {name} was cut off.")
+        return {"path": str(target)}
+
     def _route(self, method, path, query, body):
         state = self.state
 
@@ -571,7 +794,8 @@ class Handler(BaseHTTPRequestHandler):
                         "founder": FOUNDER,
                     },
                     "native_dialog": native.dialogs_enabled(),
-                    "sample": str(sample_path()),
+                    "in_window": state.in_window,
+                    "previous_session": state.previous_session,
                     "places": places(),
                     "extensions": list(SUPPORTED_EXTENSIONS),
                     "issue_types": {k: v[1] for k, v in ISSUE_TYPES.items()},
@@ -583,7 +807,7 @@ class Handler(BaseHTTPRequestHandler):
                     "max_map_features": MAX_MAP_FEATURES,
                 }
             if path == "/api/browse":
-                return browse(q("dir"))
+                return browse(q("dir"), q("kind") or "data")
             if path == "/api/layers":
                 if not q("path"):
                     raise ApiError("No file chosen.")
@@ -607,6 +831,8 @@ class Handler(BaseHTTPRequestHandler):
                     float(q("tol") or 0),
                     edge_only=q("edge") == "1",
                 )
+            if path == "/api/settings":
+                return settings.load()
             if path == "/api/diagnostics":
                 info = diagnostics.environment()
                 info["log_path"] = str(diagnostics.log_path())
@@ -649,6 +875,56 @@ class Handler(BaseHTTPRequestHandler):
                     str(body.get("title") or ""),
                     str(body.get("initial_dir") or ""),
                     str(body.get("initial_name") or ""),
+                    kind=str(body.get("kind") or "data"),
+                )
+            if path == "/api/settings":
+                return settings.update(body)
+            if path == "/api/project/save":
+                target = Path(str(body.get("path") or ""))
+                if target.suffix.lower() != project.EXTENSION:
+                    target = target.with_name(target.name + project.EXTENSION)
+                if target.exists() and not body.get("overwrite"):
+                    raise ApiError(f"{target.name} already exists.", code="exists")
+                try:
+                    saved = project.save(target, body.get("project") or {})
+                except (project.ProjectError, OSError) as exc:
+                    raise ApiError(f"The project was not saved: {exc}") from exc
+                return {"path": saved, "recent": settings.remember_project(saved)}
+            if path == "/api/project/open":
+                try:
+                    data = project.open_project(body["path"])
+                except project.ProjectError as exc:
+                    raise ApiError(str(exc)) from exc
+                data["recent"] = settings.remember_project(data["path"])
+                return data
+            if path == "/api/edit/start":
+                return state.edit_start(
+                    body["path"], body.get("layer"), body.get("assume_crs") or None
+                )
+            if path == "/api/edit/op":
+                return state.edit_op(
+                    body["path"], body.get("layer"), body.get("op") or {}
+                )
+            if path == "/api/edit/save":
+                return state.edit_save(body["path"], body.get("layer"))
+            if path == "/api/edit/discard":
+                return state.edit_discard(body["path"], body.get("layer"))
+            if path == "/api/layer/export":
+                return state.export_layer(
+                    body["path"],
+                    body.get("layer"),
+                    body["out"],
+                    bool(body.get("overwrite")),
+                )
+            if path == "/api/measure":
+                return measure(body.get("coords") or [], body.get("kind") == "area")
+            if path == "/api/select":
+                return state.select(
+                    body["path"],
+                    body.get("layer"),
+                    body.get("assume_crs"),
+                    bbox=body.get("bbox"),
+                    fids=body.get("fids"),
                 )
             if path == "/api/open-url":
                 target = str(body.get("url") or "")
@@ -699,9 +975,13 @@ def _default_export_path(req) -> str:
     if not req or not req.get("path"):
         return ""
     src = Path(req["path"])
+    folder = src.parent
+    if UPLOAD_ROOT in src.parents:  # a dropped copy: save next to the user's documents
+        docs = Path.home() / "Documents"
+        folder = docs if docs.is_dir() else Path.home()
     stem = src.stem + (f"_{req['layer']}" if req.get("layer") else "")
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in stem)
-    return str(src.parent / f"{safe}_ovc_findings.gpkg")
+    return str(folder / f"{safe}_ovc_findings.gpkg")
 
 
 class AppServer(ThreadingHTTPServer):

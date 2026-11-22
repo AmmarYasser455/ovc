@@ -10,7 +10,6 @@ pyinstaller --noconfirm --clean --windowed --name OVC `
   --hidden-import tkinter `
   --hidden-import tkinter.filedialog `
   --collect-data ovc.app `
-  --collect-data ovc.sample_data `
   --collect-all pyogrio `
   --collect-all pyproj `
   --collect-data geopandas `
@@ -22,6 +21,8 @@ if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
 
 Copy-Item LICENSE dist\OVC\LICENSE.txt
 Copy-Item ovc\app\static\vendor\leaflet\LICENSE dist\OVC\LICENSE-Leaflet.txt
+Copy-Item ovc\app\static\vendor\lucide\LICENSE dist\OVC\LICENSE-Lucide.txt
+Copy-Item ovc\app\static\vendor\geoman\LICENSE dist\OVC\LICENSE-Leaflet-Geoman.txt
 
 # Prove the frozen app has its data files and geospatial libraries.
 $report = Join-Path $PWD "dist\self-test.json"

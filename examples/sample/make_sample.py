@@ -1,4 +1,4 @@
-"""Rebuild the tiny dataset bundled with OVC (``ovc/sample_data/ovc_sample.gpkg``).
+"""Rebuild the small example dataset (``examples/sample/ovc_sample.gpkg``).
 
 Synthetic, public-domain geometry in EPSG:32636 (WGS 84 / UTM zone 36N), so
 every planted problem has an exact area in square metres.
@@ -11,7 +11,7 @@ from pathlib import Path
 import geopandas as gpd
 from shapely.geometry import Polygon, box
 
-OUT = Path(__file__).resolve().parents[2] / "ovc" / "sample_data" / "ovc_sample.gpkg"
+OUT = Path(__file__).resolve().parent / "ovc_sample.gpkg"
 CRS = "EPSG:32636"
 X0, Y0 = 330_000, 3_320_000  # metres; south-west corner of the block
 

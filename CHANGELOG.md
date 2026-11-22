@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-11-22
+
+OVC becomes a small desktop GIS for topology QC: projects, a Catalog,
+editing, measuring and configurable shortcuts. Includes the unreleased
+3.8.0 changes below.
+
+### Added
+- **Projects** (`.ovcproj`): Project tab with New, Open, Save, Save As and Recent projects. A project keeps the layers in drawing order with their symbology and visibility, the declared CRS, the map view and the basemap. Layer paths are also stored relative to the project file, so a moved or shared project folder still opens; missing files are listed instead of failing. OVC offers to save a changed project before it starts another one or closes.
+- **Catalog pane** beside Contents: browse folders, double-click a data file or drag it onto the map to add it.
+- **Editing**, as in desktop GIS: Start Editing on the layer chosen in Contents, then draw polygons, rectangles, circles, lines or points into it (with snapping); move, rotate and reshape (vertices) the selected features; merge, split along a drawn line and delete; undo and redo. While editing, the map, Select and the OVC tools read the edited shapes. **Save Edits** writes the layer back after copying the original to `~/.ovc/backups/`; other layers in a GeoPackage are kept. **Discard** drops unsaved edits. Drawing and vertex editing use [Leaflet-Geoman](https://github.com/geoman-io/leaflet-geoman) (MIT), bundled for offline use.
+- **Export Layer**: save any layer, with its edits, as GeoPackage, shapefile, GeoJSON, FlatGeobuf, GML or KML.
+- **Select** by rectangle: drag a box; Shift adds and Ctrl removes. The Attributes pane lists every selected feature.
+- **Measure distance and area**, geodesic on the WGS 84 ellipsoid (pyproj), independent of the Web Mercator display.
+- **Settings** (Project > Settings): theme, update checks, the default basemap (OpenStreetMap, CARTO light or dark, OpenTopoMap, or a custom XYZ address) and **keyboard shortcuts**, all editable. Settings are kept in `~/.ovc/settings.json`, so they survive restarts (the page itself could not keep them, since OVC uses a new port each time).
+- Basemap picker on the View tab.
+
+### Changed
+- Quieter look: no coloured accent stripes on tabs, messages or the selected finding; pressed tools use a neutral tint; the dark theme uses a muted steel blue instead of a bright accent; primary buttons are blue.
+- Keyboard shortcuts are defined in one list (see Settings > Keyboard shortcuts); Ctrl+Z and Ctrl+Y act on edits, and keep their normal meaning in text boxes.
+
+### Removed
+- **Sample Data** button and the sample GeoPackage bundled with the app. The example file is now `examples/sample/ovc_sample.gpkg` in the repository, used by the tests and documentation.
+
+The changes below were prepared as 3.8.0, which was not released separately.
+
+
+### Fixed
+- **OVC's window is opened the way Edge opens an installed app**: the analyst's normal Edge profile and `--app`, nothing else. 3.7.0 started Edge with a private profile folder and several `--disable-…` switches, which can look to antivirus software like a program driving a browser in secret, and made Edge show first-run and "syncing" messages.
+- Large layers load much faster and lighter: the map preview is written by GEOS instead of Python, and layers above 300,000 vertices are drawn simplified to screen detail. Checks, highlights and exports always use the exact shapes. A 3,000-polygon, 2.4-million-vertex shapefile had needed about 100 MB of map data.
+- A truncated layer (over 20,000 features) now still knows its extent, so Zoom To Layer works.
+- When one request fails, the message says whether OVC has stopped or the request was only interrupted, instead of always "OVC is not running any more".
+
+### Added
+- **Drop files to add them**: drag GeoPackage, GeoJSON, FlatGeobuf, GML or KML files, or all the parts of a shapefile (or its folder), from Windows Explorer onto OVC. They are copied to a temporary folder for reading; the originals are not touched.
+- **Resizable, collapsible panes**: drag the edge of Contents or the right-hand panes to resize them; drag a pane narrow, double-click its edge or use its header button to tuck it into a rail at the window edge, and click the rail to bring it back. Sizes are remembered.
+- If OVC was ended from outside (crash, Task Manager, antivirus), the next start says so and offers Report a bug with the log.
+- Clean icon set: [Lucide](https://lucide.dev) (ISC licence), bundled for offline use.
+
+### Changed
+- Refined look: rounded controls and floating surfaces, quieter ribbon groups, sentence-case labels.
+- Inside OVC's own window the in-page title bar is gone (Windows already draws one), and the quick-access buttons were removed from it; Report a Bug lives in the Help tab.
+
 ## [3.7.0] - 2026-11-22
 
 ### Fixed

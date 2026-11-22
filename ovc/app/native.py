@@ -31,6 +31,20 @@ OPEN_TYPES = [
     ("All files", "*.*"),
 ]
 SAVE_TYPES = [("GeoPackage", "*.gpkg"), ("GeoJSON", "*.geojson")]
+PROJECT_TYPES = [("OVC project", "*.ovcproj")]
+LAYER_SAVE_TYPES = [
+    ("GeoPackage", "*.gpkg"),
+    ("Shapefile", "*.shp"),
+    ("GeoJSON", "*.geojson"),
+    ("FlatGeobuf", "*.fgb"),
+]
+TYPES = {
+    # kind -> (open types, save types, default extension)
+    "data": (OPEN_TYPES, SAVE_TYPES, ".gpkg"),
+    "findings": (OPEN_TYPES, SAVE_TYPES, ".gpkg"),
+    "layer": (OPEN_TYPES, LAYER_SAVE_TYPES, ".gpkg"),
+    "project": (PROJECT_TYPES, PROJECT_TYPES, ".ovcproj"),
+}
 _UNAVAILABLE = 3  # exit code of the child when Tk cannot open a window
 
 
@@ -62,7 +76,11 @@ def _child_command(request_file: str) -> list[str]:
 
 
 def pick_path(
-    mode: str, title: str, initial_dir: str = "", initial_name: str = ""
+    mode: str,
+    title: str,
+    initial_dir: str = "",
+    initial_name: str = "",
+    kind: str = "data",
 ) -> dict:
     """Ask the analyst for a file with the operating system's own dialog.
 
@@ -80,6 +98,7 @@ def pick_path(
                     "title": title,
                     "initial_dir": initial_dir,
                     "initial_name": initial_name,
+                    "kind": kind if kind in TYPES else "data",
                     "result": str(Path(tmp) / "result.json"),
                 }
             ),
@@ -123,18 +142,19 @@ def run_picker(request_file: str) -> int:
         options = {"parent": root, "title": req.get("title") or APP_NAME}
         if req.get("initial_dir") and Path(req["initial_dir"]).is_dir():
             options["initialdir"] = req["initial_dir"]
+        open_types, save_types, default_ext = TYPES.get(req.get("kind"), TYPES["data"])
         if req.get("mode") == "save":
             path = filedialog.asksaveasfilename(
                 initialfile=req.get("initial_name") or "ovc_findings.gpkg",
-                defaultextension=".gpkg",
-                filetypes=SAVE_TYPES,
+                defaultextension=default_ext,
+                filetypes=save_types,
                 confirmoverwrite=True,
                 **options,
             )
         elif req.get("mode") == "test":  # packaging check: no dialog to click
             path = ""
         else:
-            path = filedialog.askopenfilename(filetypes=OPEN_TYPES, **options)
+            path = filedialog.askopenfilename(filetypes=open_types, **options)
         Path(req["result"]).write_text(
             json.dumps({"path": path or ""}), encoding="utf-8"
         )
@@ -246,43 +266,25 @@ def window_available() -> bool:
     return find_app_browser() is not None
 
 
-def window_profile() -> Path:
-    """The browser profile used for OVC's window, kept between launches.
-
-    A fresh profile on every launch made Edge show its first-run and
-    "we are now syncing" messages each time. One persistent profile shows
-    any such message at most once, and keeps the app's settings.
-    """
-    return Path.home() / ".ovc" / "window-profile"
-
-
 def open_window(url: str):
-    """Open OVC in its own window (the installed browser in app mode).
+    """Open OVC in its own window: the installed browser in app mode.
 
-    Returns the started process, or None when no window can be opened.
-    The process is not the window's lifetime: a Chromium-based browser can
-    hand the window to another of its processes and exit. The launcher
-    watches the page's event stream instead (see ``/api/events``).
+    This is exactly what Edge does for a site "installed as an app": the
+    analyst's normal browser profile, ``--app`` and nothing else. No private
+    profile folder and no ``--disable-...`` switches, which made Edge show
+    first-run prompts and look like a program driving a browser in secret.
+
+    Returns the started process, or None when no window can be opened. The
+    process is not the window's lifetime: Edge usually hands the window to
+    its already-running browser and exits. The launcher watches the page's
+    event stream instead (see ``/api/events``).
     """
     exe = find_app_browser()
     if exe is None:
         return None
-    profile = window_profile()
-    try:
-        profile.mkdir(parents=True, exist_ok=True)
-    except OSError:
-        profile = Path(tempfile.mkdtemp(prefix="ovc-window-"))
     command = [
         exe,
         "--app=" + url + ("&" if "?" in url else "?") + "w=1",
-        "--user-data-dir=" + str(profile),
-        "--no-first-run",
-        "--no-default-browser-check",
-        "--disable-sync",
-        "--disable-extensions",
-        "--disable-background-networking",
-        "--disable-component-update",
-        "--disable-features=msImplicitSignin,Translate",
         "--window-size=1440,900",
     ] + os.environ.get("OVC_APP_BROWSER_ARGS", "").split()
     try:
