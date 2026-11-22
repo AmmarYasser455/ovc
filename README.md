@@ -43,9 +43,9 @@ No installer wanted? The [portable zip](https://github.com/AmmarYasser455/ovc/re
 
 ### Review workflow
 
-1. **Add Data.** The Windows file dialog opens; pick a GeoPackage, Shapefile, GeoJSON, FlatGeobuf, GML or KML. If the file has several layers, tick the ones to add. Or press **Sample Data**.
-2. **Contents.** Layers are listed in drawing order with a visibility box and their symbol. Drag to reorder; right-click for Zoom To Layer, Symbology, Properties, Move Up/Down and Remove. Close the pane with its X and bring it back with **View > Contents** (F2). Removing a layer only takes it off the map.
-3. **OVC Toolbox.** Click the OVC icon in the title bar or on the ribbon. The Geoprocessing pane lists the tools: **Topology > Find Overlaps** needs only the input layer; **Find Gaps** also needs a coverage layer, the area that should be fully covered, such as a parcel block. Each parameter explains what it needs. Press **Run**.
+1. **Add Data.** The Windows file dialog opens; pick a GeoPackage, Shapefile, GeoJSON, FlatGeobuf, GML or KML. Or drag files from Explorer onto OVC (for a shapefile, all its files or its folder). If a file has several layers, tick the ones to add. **Sample Data** loads a small example.
+2. **Contents.** Layers are listed in drawing order with a visibility box and their symbol. Drag to reorder; right-click for Zoom To Layer, Symbology, Properties, Move Up/Down and Remove. Drag a pane's edge to resize it; drag it narrow (or use its header button) to tuck it into a rail at the window edge, and click the rail to bring it back. Removing a layer only takes it off the map.
+3. **OVC Toolbox.** Click **OVC Toolbox** on the ribbon. The Geoprocessing pane lists the tools: **Topology > Find Overlaps** needs only the input layer; **Find Gaps** also needs a coverage layer, the area that should be fully covered, such as a parcel block. Each parameter explains what it needs. Press **Run**.
 4. **Results.** The banner says whether the run is clean, found issues, is partial (features were skipped) or failed. A file that cannot be read is a failed run, never "0 issues".
 5. **Review.** Click a finding in the list or on the map. OVC zooms to its geometry, outlines the source features and shows the check, the feature IDs, the area in m² and the reason. Filter by issue type, add a review note, or press **Delete** to dismiss a finding (**Restore** brings it back). **Select** outlines any feature you click in cyan and shows its attributes.
 6. **Export Findings** (Ctrl+E). Save them as a GeoPackage in the layer's CRS, or as GeoJSON in WGS 84. Dismissed findings are left out; notes are saved. Your input files are opened read-only and never changed.
@@ -300,7 +300,7 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Acknowledgments
 
-OVC works alongside [GeoQA](https://github.com/AmmarYasser455/geoqa). It is built on [GeoPandas](https://geopandas.org/), [Shapely](https://shapely.readthedocs.io/), [pyogrio](https://pyogrio.readthedocs.io/) and [Folium](https://python-visualization.github.io/folium/). The map app bundles [Leaflet](https://leafletjs.com/) (BSD 2-Clause, [license](ovc/app/static/vendor/leaflet/LICENSE)).
+OVC works alongside [GeoQA](https://github.com/AmmarYasser455/geoqa). It is built on [GeoPandas](https://geopandas.org/), [Shapely](https://shapely.readthedocs.io/), [pyogrio](https://pyogrio.readthedocs.io/) and [Folium](https://python-visualization.github.io/folium/). The map app bundles [Leaflet](https://leafletjs.com/) (BSD 2-Clause, [license](ovc/app/static/vendor/leaflet/LICENSE)) and [Lucide](https://lucide.dev) icons (ISC, [license](ovc/app/static/vendor/lucide/LICENSE)).
 
 ## Citation
 

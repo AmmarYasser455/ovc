@@ -85,6 +85,7 @@ building pipeline ─> checks.find_building_overlaps ─> ovc.engine.overlaps �
 - `branding.py`: app name, organisation and founder shown in the title bar, splash and About box.
 - `diagnostics.py`: the app log (`~/.ovc/logs`), used by Help > Report a Bug and Log File.
 - `static/`: the page (plain JavaScript and a bundled Leaflet, so it works offline): ribbon, Contents pane, docked panes, and the OVC Toolbox whose tools are defined in `static/toolbox.js`.
+- The window is Edge (or Chrome) started with `--app` in the analyst's normal profile, as Edge does for an installed site; no private profile or extra switches.
 - Window lifetime: each open page holds `/api/events` (server-sent events). The launcher keeps OVC running while any window is connected and stops 15 s after the last one closes; it never relies on the browser process it started, because Edge and Chrome can hand a window to another process. Layers are listed in a panel (visibility, order, symbology); the toolbar holds the map, selection and review tools.
 
 ---

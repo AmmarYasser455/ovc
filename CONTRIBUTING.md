@@ -166,6 +166,10 @@ The toolbox in the app is defined in [`ovc/app/static/toolbox.js`](ovc/app/stati
 
 The Geoprocessing pane builds the form from `params` (types: `layer`, `field`, `crs`, `number`, `bool`) and lists the tool in the tree and on the ribbon's Analysis tab. `request` returns the options passed to the engine, so a tool that needs new behaviour also needs the engine change described in "Adding a check" below. Add the tool to the browser test in `tests/test_gui_workflow.py`.
 
+### Icons
+
+App icons come from [Lucide](https://lucide.dev) (ISC licence). To add one, put its name in `ICONS` in [`packaging/brand/make_icon_sprite.py`](packaging/brand/make_icon_sprite.py) and run the script on an unpacked `lucide-static` package; it writes the symbols into `index.html`. Reference it as `<svg><use href="#i-NAME"/></svg>`.
+
 ### Adding a check
 
 A check added to the engine is available to the map app, `ovc check` and the Python API at once. The steps, in order:

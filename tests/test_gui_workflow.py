@@ -130,7 +130,7 @@ def node(page, layer):
 
 
 def open_tool(page, tool_id):
-    page.click("#qa-toolbox")
+    page.click("#open-toolbox")
     page.wait_for_selector("#pane-geoprocessing:not([hidden])")
     if page.is_visible("#gp-back"):
         page.click("#gp-back")
@@ -202,7 +202,23 @@ def test_review_workflow_from_launch_to_export(app, page, tmp_path):
     assert toc(page)[0] == after[2]  # dragged to the top of the drawing order
 
     page.click("#contents-close")
-    assert page.is_hidden("#dock-left")
+    assert page.is_hidden("#dock-left") and page.is_visible("#rail-left")
+    page.click("#rail-left")
+    assert page.is_visible("#dock-left")
+    # drag the splitter: narrower, then far enough to tuck the pane away
+    bar = page.locator("#split-left").bounding_box()
+    page.mouse.move(bar["x"], bar["y"] + 200)
+    page.mouse.down()
+    page.mouse.move(bar["x"] - 60, bar["y"] + 200, steps=4)
+    page.mouse.up()
+    width = page.evaluate("() => document.getElementById('dock-left').offsetWidth")
+    assert 200 <= width < 260
+    bar = page.locator("#split-left").bounding_box()
+    page.mouse.move(bar["x"], bar["y"] + 200)
+    page.mouse.down()
+    page.mouse.move(40, bar["y"] + 200, steps=4)
+    page.mouse.up()
+    assert page.is_hidden("#dock-left") and page.is_visible("#rail-left")
     page.click(".rtab[data-tab='view']")
     page.click("#rp-view [data-cmd='show-contents']")
     assert page.is_visible("#dock-left")
@@ -353,6 +369,7 @@ def test_review_workflow_from_launch_to_export(app, page, tmp_path):
     assert page.get_attribute("html", "data-theme") == "dark"
     page.click(".rtab[data-tab='help']")
     page.click("#report-bug")
+    page.wait_for_selector("#bug-what")
     page.fill("#bug-what", "The layer did not draw")
     page.check("#bug-include-log")
     with page.expect_request("**/api/open-url") as request:
@@ -368,6 +385,54 @@ def test_review_workflow_from_launch_to_export(app, page, tmp_path):
     page.click("#modal-close")
     page.click("#quit")
     assert proc.wait(timeout=15) == 0
+
+
+def drop_files(page, paths):
+    """Drop files on the map the way Windows Explorer does."""
+    import base64
+
+    files = [
+        {"name": Path(p).name, "b64": base64.b64encode(Path(p).read_bytes()).decode()}
+        for p in paths
+    ]
+    page.evaluate("() => { delete document.body.dataset.lastAdd; }")
+    page.evaluate(
+        """(files) => {
+            const dt = new DataTransfer();
+            for (const f of files) {
+                const bytes = Uint8Array.from(atob(f.b64), (c) => c.charCodeAt(0));
+                dt.items.add(new File([bytes], f.name));
+            }
+            const target = document.getElementById('map');
+            for (const type of ['dragenter', 'dragover', 'drop']) {
+                target.dispatchEvent(new DragEvent(type, { dataTransfer: dt, bubbles: true, cancelable: true }));
+            }
+        }""",
+        files,
+    )
+
+
+def test_dropping_a_shapefile_adds_it(page, tmp_path):
+    folder = tmp_path / "data"
+    folder.mkdir()
+    gpd.read_file(SAMPLE, layer="buildings").to_file(folder / "مباني.shp")
+    parts = sorted(folder.iterdir())
+    assert {p.suffix for p in parts} >= {".shp", ".shx", ".dbf", ".prj"}
+
+    # the .shp alone is not enough: say which parts are missing
+    drop_files(page, [folder / "مباني.shp"])
+    page.wait_for_selector("#modal:not([hidden])")
+    assert "Shapefile parts missing" in page.inner_text("#modal-title")
+    page.click("#modal-close")
+
+    drop_files(page, parts)
+    page.wait_for_function("() => !!document.body.dataset.lastAdd")
+    assert toc(page) == ["مباني"]
+    open_tool(page, "find-overlaps")
+    assert run_tool(page) == "issues"
+    assert page.locator("#findings li").count() == 3
+    # the dropped copy is not next to the user's data: save to Documents/home
+    assert "ovc-dropped" not in page.evaluate("() => window.ovcApp.state.exportDefault")
 
 
 def test_sample_button_opens_find_gaps_ready_to_run(page):

@@ -73,6 +73,6 @@ include = ["ovc*"]
 version = { attr = "ovc.__version__" }
 
 [tool.setuptools.package-data]
-"ovc.app" = ["static/*", "static/vendor/leaflet/*", "static/vendor/leaflet/images/*"]
+"ovc.app" = ["static/*", "static/vendor/leaflet/*", "static/vendor/leaflet/images/*", "static/vendor/lucide/*"]
 "ovc.sample_data" = ["*.gpkg"]
 

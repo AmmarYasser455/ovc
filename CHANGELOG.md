@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.8.0] - 2026-11-22
+
+### Fixed
+- **OVC's window is opened the way Edge opens an installed app**: the analyst's normal Edge profile and `--app`, nothing else. 3.7.0 started Edge with a private profile folder and several `--disable-…` switches, which can look to antivirus software like a program driving a browser in secret, and made Edge show first-run and "syncing" messages.
+- Large layers load much faster and lighter: the map preview is written by GEOS instead of Python, and layers above 300,000 vertices are drawn simplified to screen detail. Checks, highlights and exports always use the exact shapes. A 3,000-polygon, 2.4-million-vertex shapefile had needed about 100 MB of map data.
+- A truncated layer (over 20,000 features) now still knows its extent, so Zoom To Layer works.
+- When one request fails, the message says whether OVC has stopped or the request was only interrupted, instead of always "OVC is not running any more".
+
+### Added
+- **Drop files to add them**: drag GeoPackage, GeoJSON, FlatGeobuf, GML or KML files, or all the parts of a shapefile (or its folder), from Windows Explorer onto OVC. They are copied to a temporary folder for reading; the originals are not touched.
+- **Resizable, collapsible panes**: drag the edge of Contents or the right-hand panes to resize them; drag a pane narrow, double-click its edge or use its header button to tuck it into a rail at the window edge, and click the rail to bring it back. Sizes are remembered.
+- If OVC was ended from outside (crash, Task Manager, antivirus), the next start says so and offers Report a bug with the log.
+- Clean icon set: [Lucide](https://lucide.dev) (ISC licence), bundled for offline use.
+
+### Changed
+- Refined look: rounded controls and floating surfaces, a survey-blue accent for selection and the active tool, quieter ribbon groups, sentence-case labels.
+- Inside OVC's own window the in-page title bar is gone (Windows already draws one), and the quick-access buttons were removed from it; Report a Bug lives in the Help tab.
+
 ## [3.7.0] - 2026-11-22
 
 ### Fixed

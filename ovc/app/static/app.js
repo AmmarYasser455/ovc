@@ -36,7 +36,8 @@
     update: null,
     panes: [], // open panes in the right dock, in tab order
     pane: null, // active pane
-    contentsOpen: true,
+    left: { width: 290, collapsed: false },
+    right: { width: 370, collapsed: false },
     gp: { tool: null, values: {} },
     symLayer: null,
     theme: "light",
@@ -50,11 +51,16 @@
       init.headers["Content-Type"] = "application/json";
       init.body = JSON.stringify(options.body);
     }
+    if (options.raw !== undefined) {
+      init.method = "POST";
+      init.headers["Content-Type"] = "application/octet-stream";
+      init.body = options.raw;
+    }
     let response;
     try {
       response = await fetch(path, init);
     } catch (e) {
-      throw new Error("OVC is not running any more. Open OVC again.");
+      throw new Error(await whyFetchFailed());
     }
     let data = {};
     try { data = await response.json(); } catch (e) { /* not JSON */ }
@@ -64,6 +70,17 @@
       throw err;
     }
     return data;
+  }
+
+  async function whyFetchFailed() {
+    // Tell a dropped request apart from OVC having stopped.
+    try {
+      const ctl = new AbortController();
+      setTimeout(() => ctl.abort(), 3000);
+      const r = await fetch("/api/ping", { headers: { "X-OVC-Token": TOKEN }, signal: ctl.signal });
+      if (r.ok) return "The request was interrupted before OVC answered. Try again.";
+    } catch (e) { /* OVC is not answering */ }
+    return "OVC has stopped. Close this window and open OVC again; it will offer to report what happened.";
   }
 
   function qs(params) {
@@ -215,7 +232,11 @@
       l.group.addData(data);
       l.bounds = data.bounds;
       l.truncated = data.truncated;
+      l.simplified = data.simplified;
       l.error = "";
+      if (data.simplified) {
+        message(`${l.info.name}: ${data.total.toLocaleString("en")} features, drawn simplified to screen detail. Checks use the exact shapes.`);
+      }
       $("map-hint").hidden = true;
       if (data.truncated) {
         $("map-note").textContent =
@@ -452,6 +473,7 @@
   function openPane(name) {
     if (!S.panes.includes(name)) S.panes.push(name);
     S.pane = name;
+    S.paneJustOpened = true;
     renderDock();
   }
   function closePane(name) {
@@ -460,9 +482,8 @@
     renderDock();
   }
   function renderDock() {
-    const dock = $("dock-right");
-    const wasHidden = dock.hidden;
-    dock.hidden = !S.panes.length;
+    if (S.panes.length && S.pane) S.right.collapsed = S.right.collapsed && !S.paneJustOpened;
+    S.paneJustOpened = false;
     const tabs = $("dock-tabs");
     tabs.replaceChildren();
     S.panes.forEach((name) => {
@@ -473,16 +494,69 @@
       }));
     });
     ["geoprocessing", "results", "attributes", "symbology"].forEach((name) => { $("pane-" + name).hidden = name !== S.pane; });
-    if (wasHidden !== dock.hidden) map.invalidateSize();
+    layoutDocks();
   }
   $("dock-close").addEventListener("click", () => S.pane && closePane(S.pane));
+  $("dock-collapse").addEventListener("click", () => { S.right.collapsed = true; layoutDocks(); });
 
-  function setContents(open) {
-    S.contentsOpen = open;
-    $("dock-left").hidden = !open;
-    map.invalidateSize();
+  // ---- splitters and rails: drag a pane narrow to tuck it away, click its rail to bring it back
+  const DOCK_MIN = 200, DOCK_MAX = 640, COLLAPSE_AT = 120;
+
+  function layoutDocks() {
+    const before = [$("dock-left").offsetWidth, $("dock-right").offsetWidth].join();
+    const L = S.left, R = S.right;
+    $("dock-left").hidden = L.collapsed;
+    $("split-left").hidden = L.collapsed;
+    $("rail-left").hidden = !L.collapsed;
+    $("dock-left").style.width = L.width + "px";
+    const hasPanes = S.panes.length > 0;
+    $("dock-right").hidden = !hasPanes || R.collapsed;
+    $("split-right").hidden = !hasPanes || R.collapsed;
+    $("rail-right").hidden = !hasPanes || !R.collapsed;
+    $("dock-right").style.width = R.width + "px";
+    if (S.pane) $("rail-right-label").textContent = $("pane-" + S.pane).dataset.title;
+    const after = [$("dock-left").offsetWidth, $("dock-right").offsetWidth].join();
+    if (before !== after) map.invalidateSize();
+    try { localStorage.setItem("ovc-docks", JSON.stringify({ left: L, right: R })); } catch (e) { /* private mode */ }
   }
+
+  function setContents(open) { S.left.collapsed = !open; layoutDocks(); }
   $("contents-close").addEventListener("click", () => setContents(false));
+  $("rail-left").addEventListener("click", () => setContents(true));
+  $("rail-right").addEventListener("click", () => { S.right.collapsed = false; layoutDocks(); });
+
+  function wireSplitter(id, side) {
+    const bar = $(id);
+    bar.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      bar.setPointerCapture(e.pointerId);
+      bar.classList.add("dragging");
+      const move = (ev) => {
+        const width = side === "left" ? ev.clientX - $("dock-left").getBoundingClientRect().left
+          : $("dock-right").getBoundingClientRect().right - ev.clientX;
+        if (width < COLLAPSE_AT) { S[side].collapsed = true; stop(); }
+        else S[side].width = Math.round(Math.max(DOCK_MIN, Math.min(DOCK_MAX, width)));
+        layoutDocks();
+      };
+      const stop = () => {
+        bar.classList.remove("dragging");
+        bar.removeEventListener("pointermove", move);
+        bar.removeEventListener("pointerup", stop);
+        map.invalidateSize();
+      };
+      bar.addEventListener("pointermove", move);
+      bar.addEventListener("pointerup", stop);
+    });
+    bar.addEventListener("keydown", (e) => {
+      const step = e.key === "ArrowLeft" ? -20 : e.key === "ArrowRight" ? 20 : 0;
+      if (!step) return;
+      S[side].width = Math.max(DOCK_MIN, Math.min(DOCK_MAX, S[side].width + (side === "left" ? step : -step)));
+      layoutDocks();
+    });
+    bar.addEventListener("dblclick", () => { S[side].collapsed = true; layoutDocks(); });
+  }
+  wireSplitter("split-left", "left");
+  wireSplitter("split-right", "right");
 
   // ---------------------------------------------------------------- toolbox
   function allTools() {
@@ -1439,7 +1513,7 @@
     restore: restoreDismissed,
     toolbox: openToolbox,
     export: startExport,
-    "show-contents": () => setContents(!S.contentsOpen),
+    "show-contents": () => setContents(S.left.collapsed),
     "show-results": () => openPane("results"),
     "show-attributes": () => openPane("attributes"),
     "theme-light": () => setTheme("light"),
@@ -1497,7 +1571,7 @@
     if (e.ctrlKey && e.key.toLowerCase() === "o") { e.preventDefault(); addLayerFlow(false); }
     else if (e.ctrlKey && e.key.toLowerCase() === "e") { e.preventDefault(); startExport(); }
     else if (e.key === "F5") { e.preventDefault(); if (S.gp.tool) runTool(); }
-    else if (e.key === "F2") { e.preventDefault(); setContents(!S.contentsOpen); }
+    else if (e.key === "F2") { e.preventDefault(); setContents(S.left.collapsed); }
     else if (typing) return;
     else if (e.key === "Delete") deleteItem();
     else if (e.key.toLowerCase() === "s") setTool("select");
@@ -1518,6 +1592,85 @@
   setInterval(() => api("/api/ping").catch(() => {}), 20000);
   window.ovcApp = { map, overlays, state: S, openTool }; // for automated UI tests
 
+  try {
+    const saved = JSON.parse(localStorage.getItem("ovc-docks") || "null");
+    if (saved) { Object.assign(S.left, saved.left); Object.assign(S.right, saved.right, { collapsed: false }); }
+  } catch (e) { /* none saved */ }
+  layoutDocks();
+
+  $("notice-dismiss").addEventListener("click", () => { $("notice-bar").hidden = true; map.invalidateSize(); });
+  $("notice-report").addEventListener("click", () => { $("notice-bar").hidden = true; reportBug(); });
+
+  // ---------------------------------------------------- drop files to add
+  const MAIN_EXT = [".gpkg", ".geojson", ".json", ".fgb", ".gml", ".kml", ".shp"];
+  const SHP_PARTS = [".shp", ".shx", ".dbf", ".prj", ".cpg", ".qix", ".sbn", ".sbx"];
+  const ext = (name) => (name.match(/\.[^.]+$/) || [""])[0].toLowerCase();
+  const stem = (name) => name.replace(/\.[^.]+$/, "").toLowerCase();
+  const hasFiles = (e) => e.dataTransfer && [...e.dataTransfer.types].includes("Files");
+  let dragDepth = 0;
+
+  document.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; dragDepth += 1; $("drop-zone").hidden = false; });
+  document.addEventListener("dragleave", (e) => { if (!hasFiles(e)) return; dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) $("drop-zone").hidden = true; });
+  document.addEventListener("dragover", (e) => { if (hasFiles(e)) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } });
+  document.addEventListener("drop", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth = 0;
+    $("drop-zone").hidden = true;
+    collectDropped(e.dataTransfer).then(addDropped);
+  });
+
+  async function collectDropped(dt) {
+    // Folders are read too, so a shapefile's folder can be dropped whole.
+    const entries = [...dt.items].map((i) => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+    if (!entries.length) return [...dt.files];
+    const files = [];
+    const walk = async (entry, depth) => {
+      if (entry.isFile) { files.push(await new Promise((res, rej) => entry.file(res, rej))); return; }
+      if (!entry.isDirectory || depth > 2) return;
+      const reader = entry.createReader();
+      let batch;
+      do {
+        batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+        for (const child of batch) await walk(child, depth + 1);
+      } while (batch.length);
+    };
+    for (const entry of entries) await walk(entry, 0);
+    return files;
+  }
+
+  async function addDropped(files) {
+    const mains = files.filter((f) => MAIN_EXT.includes(ext(f.name)));
+    if (!mains.length) {
+      showModal("Nothing to add", [el("p", { text: "Drop a GeoPackage, GeoJSON, FlatGeobuf, GML or KML file, or all the files of a shapefile (.shp, .shx, .dbf and .prj)." })], [{ text: "Close", primary: true }]);
+      return;
+    }
+    const names = new Set(files.map((f) => f.name.toLowerCase()));
+    const incomplete = mains.filter((f) => ext(f.name) === ".shp" && ![".shx", ".dbf"].every((x) => names.has(stem(f.name) + x)));
+    if (incomplete.length) {
+      showModal("Shapefile parts missing", [el("p", { text: `${incomplete.map((f) => f.name).join(", ")}: drop the .shp together with its .shx, .dbf and .prj files, or drop the folder that holds them.` })], [{ text: "Close", primary: true }]);
+      return;
+    }
+    const shpStems = new Set(mains.filter((f) => ext(f.name) === ".shp").map((f) => stem(f.name)));
+    const upload = files.filter((f) => mains.includes(f) || (shpStems.has(stem(f.name)) && SHP_PARTS.includes(ext(f.name))));
+    const drop = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const saved = {};
+    let done = 0;
+    for (const f of upload) {
+      message(`Copying ${f.name} (${done + 1} of ${upload.length})…`);
+      try {
+        const res = await api("/api/upload?" + qs({ drop, name: f.name }), { raw: f });
+        saved[f.name] = res.path;
+      } catch (err) {
+        showModal("This file could not be added", [el("p", { text: `${f.name}: ${err.message}` })], [{ text: "Close", primary: true }]);
+        return;
+      }
+      done += 1;
+    }
+    message("");
+    for (const f of mains) await addFile(saved[f.name]);
+  }
+
   let savedTheme = "light";
   try { savedTheme = localStorage.getItem("ovc-theme") || "light"; } catch (e) { /* private mode */ }
   setTheme(savedTheme === "dark" ? "dark" : "light");
@@ -1529,6 +1682,13 @@
     $("splash-org").textContent = config.app.organization;
     $("splash-founder").textContent = "Founded by " + config.app.founder;
     $("app-org").textContent = config.app.organization;
+    if (IN_WINDOW) $("titlebar").hidden = true; // Windows draws the window's own title bar
+    if (config.previous_session) {
+      const p = config.previous_session;
+      $("notice-text").textContent =
+        `OVC stopped unexpectedly last time (OVC ${p.version || ""}, started ${p.started || "earlier"}). The log may show why.`;
+      $("notice-bar").hidden = false;
+    }
     renderContents();
     renderToolTree();
     renderRibbonTools();

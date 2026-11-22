@@ -22,6 +22,7 @@ if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
 
 Copy-Item LICENSE dist\OVC\LICENSE.txt
 Copy-Item ovc\app\static\vendor\leaflet\LICENSE dist\OVC\LICENSE-Leaflet.txt
+Copy-Item ovc\app\static\vendor\lucide\LICENSE dist\OVC\LICENSE-Lucide.txt
 
 # Prove the frozen app has its data files and geospatial libraries.
 $report = Join-Path $PWD "dist\self-test.json"
