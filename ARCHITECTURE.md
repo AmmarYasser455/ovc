@@ -32,7 +32,6 @@ ovc/
 ├── api.py        # check_file(): read a layer, run the engine
 ├── app/          # Map app: local server, launcher, browser UI
 ├── cli.py        # `ovc` command (`ovc check`, `ovc gui`, pipeline options)
-├── sample_data/  # Sample GeoPackage bundled with the app
 ├── core/         # CRS helpers, config, logging for the pipeline
 ├── loaders/      # Pipeline data loading
 ├── checks/       # Pipeline building checks
@@ -84,7 +83,10 @@ building pipeline ─> checks.find_building_overlaps ─> ovc.engine.overlaps �
 - `updates.py`: asks GitHub for the latest release at start-up and, in a copy installed with `OVC-Setup.exe`, downloads the new installer, checks its SHA-256 and runs it.
 - `branding.py`: app name, organisation and founder shown in the title bar, splash and About box.
 - `diagnostics.py`: the app log (`~/.ovc/logs`), used by Help > Report a Bug and Log File.
-- `static/`: the page (plain JavaScript and a bundled Leaflet, so it works offline): ribbon, Contents pane, docked panes, and the OVC Toolbox whose tools are defined in `static/toolbox.js`.
+- `settings.py`: the analyst's settings (`~/.ovc/settings.json`: theme, basemap, shortcuts, pane sizes, recent projects). Kept server-side because OVC uses a new port on each start, and a browser keeps page storage per port.
+- `project.py`: `.ovcproj` files (JSON): layers with symbology, map view, basemap. Layer paths are stored absolute and relative to the project.
+- `editing.py`: `EditSession`, the working copy of a layer being edited (indexed by FID, with undo/redo). Geometries arrive from the map in WGS 84 and are stored in the layer's CRS; merge and split run in Shapely. `save()` backs up the source file(s) to `~/.ovc/backups/` before writing; GeoPackage writes replace only that layer.
+- `static/`: the page (plain JavaScript; Leaflet, Leaflet-Geoman and Lucide icons are bundled, so it works offline). `app.js` holds the core (map, layers, Contents, docks, toolbox, selection, commands and keyboard shortcuts) and shares it as `window.OVC`; `files.js` adds projects, the backstage, the Catalog and Settings; `measure.js` the measuring tools; `edit.js` editing. Commands are registered by name in `OVC.commands`, so a ribbon button (`data-cmd`) and a shortcut call the same function. Tools in the OVC Toolbox are defined in `static/toolbox.js`.
 - The window is Edge (or Chrome) started with `--app` in the analyst's normal profile, as Edge does for an installed site; no private profile or extra switches.
 - Window lifetime: each open page holds `/api/events` (server-sent events). The launcher keeps OVC running while any window is connected and stops 15 s after the last one closes; it never relies on the browser process it started, because Edge and Chrome can hand a window to another process. Layers are listed in a panel (visibility, order, symbology); the toolbar holds the map, selection and review tools.
 

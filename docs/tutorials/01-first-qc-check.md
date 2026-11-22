@@ -17,14 +17,13 @@ nav_order: 1
 
 ### Step 1: Prepare Your Data
 
-Download the sample dataset or use your own:
+Use your own data, or the small example GeoPackage in the repository
+([`examples/sample/ovc_sample.gpkg`](../../examples/sample/ovc_sample.gpkg),
+layers `buildings`, `parcels` and `block`):
 
 ```bash
-# Create a data directory
 mkdir -p data
-
-# If using sample data
-wget https://github.com/AmmarYasser455/ovc/raw/main/sample_data/buildings.shp -P data/
+curl -L -o data/ovc_sample.gpkg https://github.com/AmmarYasser455/ovc/raw/main/examples/sample/ovc_sample.gpkg
 ```
 
 ### Step 2: Run OVC

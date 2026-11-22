@@ -26,7 +26,7 @@
 Open OVC, choose a polygon layer, run the checks, click a finding to zoom to it, and save the findings as a GIS layer. No commands are needed.
 
 <p align="center">
-  <img src="docs/assets/ovc-map-app.png" alt="OVC: Contents pane, ribbon, OVC Toolbox and a 10 m² gap and 30 m² overlap found in the sample parcels" width="900">
+  <img src="docs/assets/ovc-map-app.png" alt="OVC: ribbon, Contents pane, and a 10 m² gap and 30 m² overlap found in the example parcels" width="900">
 </p>
 
 ### Install OVC on Windows
@@ -37,24 +37,43 @@ Open OVC, choose a polygon layer, run the checks, click a finding to zoom to it,
 
 OVC runs on your computer only and works offline. Windows may show a SmartScreen notice the first time because the installer is not code-signed; choose **More info**, then **Run anyway**. Uninstall it from Windows Settings > Apps like any other program.
 
-**Updates.** When a new version is released, OVC shows a bar at the top with **Install update**. One click downloads the new installer, checks it against its published SHA-256, closes OVC, upgrades it and opens it again. The check sends one request to GitHub when OVC starts; nothing about you or your data is sent, and it can be turned off in **About**.
+**Updates.** When a new version is released, OVC shows a bar at the top with **Install update**. One click downloads the new installer, checks it against its published SHA-256, closes OVC, upgrades it and opens it again. The check sends one request to GitHub when OVC starts; nothing about you or your data is sent, and it can be turned off in **Project > Settings**.
 
 No installer wanted? The [portable zip](https://github.com/AmmarYasser455/ovc/releases/latest/download/OVC-windows.zip) runs without installing: extract it and double-click `OVC.exe`. It shows new versions too, but updating it means downloading again.
 
+### Projects, data and settings
+
+- **Project tab.** **New**, **Open**, **Save** and **Save As** work with OVC projects (`.ovcproj`). A project keeps the layers, their order, symbology and visibility, the map view and the basemap; the data stays in its own files. Paths are also stored relative to the project, so a project folder can be moved or shared. Recent projects are listed on the Project tab; OVC offers to save before it closes a changed project.
+- **Catalog.** Next to **Contents**, the **Catalog** pane browses folders: double-click a data file, or drag it onto the map, to add it.
+- **Settings** (Project > Settings): theme, update checks, the **default basemap** for new projects (OpenStreetMap, CARTO light or dark, OpenTopoMap, or your own XYZ tile address) and **keyboard shortcuts**, each of which can be changed. Settings are kept in `%USERPROFILE%\.ovc\settings.json`.
+
 ### Review workflow
 
-1. **Add Data.** The Windows file dialog opens; pick a GeoPackage, Shapefile, GeoJSON, FlatGeobuf, GML or KML. Or drag files from Explorer onto OVC (for a shapefile, all its files or its folder). If a file has several layers, tick the ones to add. **Sample Data** loads a small example.
+1. **Add Data.** The Windows file dialog opens; pick a GeoPackage, Shapefile, GeoJSON, FlatGeobuf, GML or KML. Or drag files from Explorer onto OVC (for a shapefile, all its files or its folder). If a file has several layers, tick the ones to add.
 2. **Contents.** Layers are listed in drawing order with a visibility box and their symbol. Drag to reorder; right-click for Zoom To Layer, Symbology, Properties, Move Up/Down and Remove. Drag a pane's edge to resize it; drag it narrow (or use its header button) to tuck it into a rail at the window edge, and click the rail to bring it back. Removing a layer only takes it off the map.
 3. **OVC Toolbox.** Click **OVC Toolbox** on the ribbon. The Geoprocessing pane lists the tools: **Topology > Find Overlaps** needs only the input layer; **Find Gaps** also needs a coverage layer, the area that should be fully covered, such as a parcel block. Each parameter explains what it needs. Press **Run**.
 4. **Results.** The banner says whether the run is clean, found issues, is partial (features were skipped) or failed. A file that cannot be read is a failed run, never "0 issues".
-5. **Review.** Click a finding in the list or on the map. OVC zooms to its geometry, outlines the source features and shows the check, the feature IDs, the area in m² and the reason. Filter by issue type, add a review note, or press **Delete** to dismiss a finding (**Restore** brings it back). **Select** outlines any feature you click in cyan and shows its attributes.
+5. **Review.** Click a finding in the list or on the map. OVC zooms to its geometry, outlines the source features and shows the check, the feature IDs, the area in m² and the reason. Filter by issue type, add a review note, or press **Delete** to dismiss a finding (**Restore** brings it back). **Select** (S) picks features: click one, or drag a rectangle for many; Shift adds to the selection and Ctrl removes. Selected features are outlined in cyan and their attributes are listed.
 6. **Export Findings** (Ctrl+E). Save them as a GeoPackage in the layer's CRS, or as GeoJSON in WGS 84. Dismissed findings are left out; notes are saved. Your input files are opened read-only and never changed.
 
 Something wrong? **Help > Report a Bug** opens a pre-filled GitHub issue.
 
-### Try it on the sample
+### Measure
 
-The app ships with [`ovc_sample.gpkg`](ovc/sample_data/ovc_sample.gpkg), a synthetic block in EPSG:32636 (metres). **Sample Data** loads its `parcels` and `block` layers and opens **Find Gaps** ready to run; **Add Data** on the same file adds `buildings`. Expected results:
+**Map > Distance** (M) and **Area** (Shift+M): click points on the map, then double-click or press Enter. Lengths and areas are geodesic, on the WGS 84 ellipsoid, so they do not depend on the map's Web Mercator display.
+
+### Edit a layer
+
+1. Choose the layer in Contents, then **Edit > Start Editing** (E), or right-click the layer > **Edit Features**.
+2. **Create**: draw a polygon, rectangle, circle, line or point into the same layer. Drawing snaps to the layer's features.
+3. **Modify** the selected features: **Move** (G) and **Rotate** (R) by dragging on the map, **Vertices** (V) to drag, add (drag a midpoint) or remove (right-click) vertices; press **Finish** or Enter. **Merge** joins the selected features (the first one keeps its attributes), **Split** cuts one feature along a line you draw, **Delete** removes them.
+4. **Undo** (Ctrl+Z) and **Redo** (Ctrl+Y) as often as needed. While you edit, the map and the OVC tools use the edited shapes, so you can re-run a check before saving.
+5. **Save Edits** writes the layer back to its file. A copy of the original file is kept first in `%USERPROFILE%\.ovc\backups`. In a GeoPackage, the other layers are left as they are. **Discard** throws the unsaved edits away.
+6. **Export Layer** saves the layer, with its edits, as a new GeoPackage, shapefile, GeoJSON, FlatGeobuf, GML or KML file.
+
+### Example data
+
+The repository includes [`examples/sample/ovc_sample.gpkg`](examples/sample/ovc_sample.gpkg), a synthetic block in EPSG:32636 (metres), used by the tests. Add it with **Add Data** to try the checks. Expected results:
 
 | Layer | Checks | Findings |
 |---|---|---|
@@ -249,7 +268,6 @@ ovc/
 ├── api.py        # check_file(): read a layer and run the engine
 ├── app/          # Map app: local server, launcher, browser UI (static/)
 ├── cli.py        # ovc command
-├── sample_data/  # Sample GeoPackage bundled with the app
 ├── checks/ loaders/ export/ metrics/ core/   # Building QC pipeline
 ├── precheck/     # GeoQA pre-check
 └── road_qc/      # Road network QC

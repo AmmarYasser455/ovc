@@ -146,9 +146,6 @@
   map.getPane("highlight").style.pointerEvents = "none";
   map.getPane("selection").style.pointerEvents = "none";
   L.control.scale({ imperial: false, maxWidth: 160 }).addTo(map);
-  const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 24, maxNativeZoom: 19, attribution: "© OpenStreetMap contributors",
-  });
 
   const overlays = {
     findings: L.layerGroup().addTo(map),
@@ -220,6 +217,7 @@
     S.layers.unshift(l);
     S.expanded.add(id);
     applyOrder();
+    markDirty();
     return l;
   }
 
@@ -267,9 +265,11 @@
     delete map._panes[l.pane];
     S.layers = S.layers.filter((x) => x.id !== id);
     S.expanded.delete(id);
+    markDirty();
+    if (S.onLayerRemoved) S.onLayerRemoved(l);
     if (S.active === id) S.active = null;
     if (S.runLayer === id) clearResults();
-    if (S.feature && S.feature.layer === id) clearFeature();
+    if (S.sel.layer === id) clearFeature();
     if (S.symLayer === id) { S.symLayer = null; closePane("symbology"); }
     if (!S.layers.length) { $("map-hint").hidden = false; $("map-note").hidden = true; }
     renderContents();
@@ -287,6 +287,7 @@
     S.layers.splice(to, 0, l);
     applyOrder();
     renderContents();
+    markDirty();
   }
 
   // --------------------------------------------------------------- contents
@@ -342,6 +343,7 @@
       box.addEventListener("click", (e) => e.stopPropagation());
       box.addEventListener("change", () => {
         l.visible = box.checked;
+        markDirty();
         l.visible ? l.group.addTo(map) : l.group.remove();
       });
       const node = el("div", {
@@ -420,6 +422,8 @@
       up: () => moveLayer(l.id, i - 1),
       down: () => moveLayer(l.id, i + 1),
       remove: () => removeLayer(l.id),
+      edit: () => { S.active = l.id; renderContents(); if (S.startEditing) S.startEditing(l); },
+      export: () => { if (S.exportLayer) S.exportLayer(l); },
     })[item.dataset.ctx]();
   });
   document.addEventListener("mousedown", (e) => { if (!e.target.closest("#ctx")) hideContextMenu(); });
@@ -460,6 +464,7 @@
     l.autoOutline = false; // the analyst chose this colour
     applyStyle(l);
     renderContents();
+    markDirty();
   }
   ["sym-color", "sym-width", "sym-fill", "sym-opacity", "sym-dash"].forEach((id) => $(id).addEventListener("input", symChanged));
 
@@ -517,7 +522,7 @@
     if (S.pane) $("rail-right-label").textContent = $("pane-" + S.pane).dataset.title;
     const after = [$("dock-left").offsetWidth, $("dock-right").offsetWidth].join();
     if (before !== after) map.invalidateSize();
-    try { localStorage.setItem("ovc-docks", JSON.stringify({ left: L, right: R })); } catch (e) { /* private mode */ }
+    if (S.settings && S.ready) saveSettings({ docks: { left: { width: L.width, collapsed: L.collapsed }, right: { width: R.width, collapsed: R.collapsed } } });
   }
 
   function setContents(open) { S.left.collapsed = !open; layoutDocks(); }
@@ -991,64 +996,162 @@
     } catch (e) { /* highlighting is a convenience; the finding itself is shown */ }
   }
 
-  // ------------------------------------------------------- select (identify)
+  // -------------------------------------------------------------- selection
+  // Map tools are modes: Explore, Select, Measure, Draw and the edit tools.
+  // Add-on scripts register what happens when their mode starts and ends.
+  const toolHooks = {};
+  const MODE_EDITS = ["edit-move", "edit-rotate", "edit-reshape", "edit-split"];
+  const isMode = (cmd) => cmd === "pan" || cmd === "select" || /^(measure-|draw-)/.test(cmd) || MODE_EDITS.includes(cmd);
+
   function setTool(tool) {
+    const prev = S.tool;
+    if (prev === tool) return;
+    if (toolHooks[prev] && toolHooks[prev].off) toolHooks[prev].off();
     S.tool = tool;
-    $("tool-pan").setAttribute("aria-pressed", String(tool === "pan"));
-    $("tool-select").setAttribute("aria-pressed", String(tool === "select"));
-    $("map").classList.toggle("tool-select", tool === "select");
-    message(tool === "select" ? "Select: click a feature to select it and see its attributes." : "");
+    document.querySelectorAll(".tool.toggle[data-cmd]").forEach((b) => {
+      if (isMode(b.dataset.cmd)) b.setAttribute("aria-pressed", String(b.dataset.cmd === tool));
+    });
+    $("map").classList.toggle("tool-select", tool !== "pan");
+    if (tool === "pan") { map.dragging.enable(); map.doubleClickZoom.enable(); }
+    else { map.dragging.disable(); map.doubleClickZoom.disable(); }
+    message(tool === "select" ? "Select: click a feature or drag a box. Shift adds to the selection, Ctrl removes." : "");
+    if (toolHooks[tool] && toolHooks[tool].on) toolHooks[tool].on();
+  }
+
+  // The selection belongs to one layer: the layer chosen in Contents, or else
+  // the top visible layer.
+  S.sel = { layer: null, fids: [], features: {}, rows: {} };
+
+  function selectableLayer() {
+    const active = layerById(S.active);
+    if (active && active.visible) return active;
+    return S.layers.find((l) => l.visible && !l.error) || null;
+  }
+
+  async function selectFeatures(l, query, mode = "replace") {
+    let res;
+    try {
+      res = await api("/api/select", { body: Object.assign({ path: l.path, layer: l.info.name, assume_crs: l.assumeCrs }, query) });
+    } catch (e) { message(e.message); return; }
+    if (S.sel.layer !== l.id || mode === "replace") S.sel = { layer: l.id, fids: [], features: {}, rows: {} };
+    const sel = S.sel;
+    const features = {};
+    res.features.forEach((f) => { features[f.properties.fid] = f; });
+    const rows = {};
+    res.rows.forEach((r) => { rows[r.fid] = r; });
+    if (mode === "remove") {
+      sel.fids = sel.fids.filter((f) => !res.fids.includes(f));
+    } else {
+      res.fids.forEach((f) => { if (!sel.fids.includes(f)) sel.fids.push(f); });
+      Object.assign(sel.features, features);
+      Object.assign(sel.rows, rows);
+    }
+    drawSelection();
+    renderAttributes();
+    updateTools();
+    if (S.onSelectionChange) S.onSelectionChange();
+    const n = sel.fids.length;
+    message(n ? `${n} feature${n === 1 ? "" : "s"} selected in ${l.info.name}.` : "Nothing selected.");
+  }
+
+  async function refreshSelection() {
+    // Shapes and attributes again after an edit (the FIDs may have changed).
+    const l = layerById(S.sel.layer);
+    if (!l || !S.sel.fids.length) { drawSelection(); renderAttributes(); return; }
+    await selectFeatures(l, { fids: S.sel.fids }, "replace");
+  }
+
+  function drawSelection() {
+    overlays.selection.clearLayers();
+    const feats = S.sel.fids.map((f) => S.sel.features[f]).filter(Boolean);
+    if (!feats.length) return;
+    L.geoJSON({ type: "FeatureCollection", features: feats }, {
+      pane: "selection", interactive: false,
+      style: { color: SELECT_COLOR, weight: 2.5, fillColor: SELECT_COLOR, fillOpacity: 0.16 },
+      pointToLayer: (f, ll) => L.circleMarker(ll, { pane: "selection", radius: 7, interactive: false }),
+    }).addTo(overlays.selection);
+  }
+
+  function selectionBounds() {
+    const layers = overlays.selection.getLayers();
+    if (!layers.length) return null;
+    const b = layers[0].getBounds();
+    return b.isValid() ? b : null;
+  }
+
+  function renderAttributes() {
+    const l = layerById(S.sel.layer);
+    const fids = S.sel.fids;
+    const table = $("feature-table");
+    table.replaceChildren();
+    $("feature-empty").hidden = fids.length > 0;
+    if (!fids.length || !l) { $("feature-title").textContent = ""; return; }
+    if (fids.length === 1) {
+      const row = S.sel.rows[fids[0]] || { fid: fids[0] };
+      $("feature-title").textContent = `${l.info.name}, FID ${fids[0]}`;
+      const entries = Object.entries(row).filter(([k]) => k !== "fid");
+      entries.forEach(([k, v]) => table.append(el("tr", {}, el("th", { text: k }), el("td", { text: v === null ? "<Null>" : String(v) }))));
+      if (!entries.length) table.append(el("tr", {}, el("td", { text: "This layer has no attributes." })));
+      $("pane-attributes").dataset.fid = fids[0];
+      return;
+    }
+    $("feature-title").textContent = `${l.info.name}: ${fids.length} features selected`;
+    const fields = ["fid", ...l.info.fields].slice(0, 12);
+    table.append(el("tr", {}, ...fields.map((f) => el("th", { text: f === "fid" ? "FID" : f }))));
+    fids.slice(0, 500).forEach((fid) => {
+      const row = S.sel.rows[fid] || { fid };
+      const tr = el("tr", { class: "pick-row", title: "Zoom to this feature", onclick: () => {
+        const f = S.sel.features[fid];
+        if (f) map.fitBounds(L.geoJSON(f).getBounds(), { padding: [60, 60], maxZoom: 22 });
+      } }, ...fields.map((f) => el("td", { text: row[f] === null || row[f] === undefined ? "" : String(row[f]) })));
+      table.append(tr);
+    });
+    delete $("pane-attributes").dataset.fid;
   }
 
   function clearFeature() {
-    S.feature = null;
+    S.sel = { layer: null, fids: [], features: {}, rows: {} };
     overlays.selection.clearLayers();
-    $("feature-title").textContent = "";
-    $("feature-table").replaceChildren();
-    $("feature-empty").hidden = false;
+    renderAttributes();
     updateTools();
+    if (S.onSelectionChange) S.onSelectionChange();
   }
 
-  async function identifyAt(latlng) {
-    const p = map.latLngToContainerPoint(latlng);
-    const tol = Math.abs(map.containerPointToLatLng([p.x + 5, p.y]).lng - latlng.lng);
-    for (const l of S.layers.filter((x) => x.visible && !x.error)) {
-      let res;
-      try {
-        res = await api("/api/identify?" + qs({
-          path: l.path, layer: l.info.name, assume_crs: l.assumeCrs,
-          lon: latlng.lng, lat: latlng.lat,
-          tol: l.info.is_polygon && l.fill ? 0 : tol,
-          edge: l.info.is_polygon && !l.fill ? "1" : "",
-        }));
-      } catch (e) { continue; }
-      if (!res.feature) continue;
-      S.feature = { layer: l.id, fid: res.fid, bounds: L.geoJSON(res.feature).getBounds() };
-      overlays.selection.clearLayers();
-      L.geoJSON(res.feature, {
-        pane: "selection", interactive: false,
-        style: { color: SELECT_COLOR, weight: 3, fillColor: SELECT_COLOR, fillOpacity: 0.18 },
-        pointToLayer: (f, ll) => L.circleMarker(ll, { pane: "selection", radius: 7, interactive: false }),
-      }).addTo(overlays.selection);
-      $("feature-title").textContent = `${l.info.name} · FID ${res.fid} · ${res.geometry_type}`;
-      const table = $("feature-table");
-      table.replaceChildren();
-      Object.entries(res.attributes).forEach(([k, v]) => {
-        table.append(el("tr", {}, el("th", { text: k }), el("td", { text: v === null ? "<Null>" : String(v) })));
-      });
-      if (!Object.keys(res.attributes).length) table.append(el("tr", {}, el("td", { text: "This layer has no attributes." })));
-      $("feature-empty").hidden = true;
-      $("pane-attributes").dataset.fid = res.fid;
-      openPane("attributes");
-      updateTools();
-      message(`Selected FID ${res.fid} in ${l.info.name}.`);
-      return;
-    }
-    clearFeature();
-    message("No feature here.");
-  }
-
-  map.on("click", (e) => { if (S.tool === "select") identifyAt(e.latlng); });
+  // Click a feature, or drag a box. Shift adds, Ctrl removes.
+  (function wireBoxSelect() {
+    let start = null, box = null, mode = "replace";
+    const container = map.getContainer();
+    container.addEventListener("mousedown", (e) => {
+      if (S.tool !== "select" || e.button !== 0) return;
+      if (e.target.closest(".leaflet-control")) return;
+      start = map.mouseEventToLatLng(e);
+      mode = e.shiftKey ? "add" : e.ctrlKey ? "remove" : "replace";
+      box = null;
+    });
+    container.addEventListener("mousemove", (e) => {
+      if (!start) return;
+      const here = map.mouseEventToLatLng(e);
+      if (!box) box = L.rectangle([start, here], { pane: "selection", color: SELECT_COLOR, weight: 1.5, dashArray: "5 4", fillOpacity: 0.06, interactive: false }).addTo(map);
+      else box.setBounds([start, here]);
+    });
+    document.addEventListener("mouseup", (e) => {
+      if (!start) return;
+      const l = selectableLayer();
+      const end = map.mouseEventToLatLng(e);
+      let bounds;
+      const a = map.latLngToContainerPoint(start), b = map.latLngToContainerPoint(end);
+      if (Math.abs(a.x - b.x) < 4 && Math.abs(a.y - b.y) < 4) {
+        const lo = map.containerPointToLatLng([a.x - 3, a.y + 3]), hi = map.containerPointToLatLng([a.x + 3, a.y - 3]);
+        bounds = [lo.lng, lo.lat, hi.lng, hi.lat];
+      } else {
+        bounds = [Math.min(start.lng, end.lng), Math.min(start.lat, end.lat), Math.max(start.lng, end.lng), Math.max(start.lat, end.lat)];
+      }
+      if (box) { box.remove(); box = null; }
+      start = null;
+      if (!l) { message("Add a layer to select from."); return; }
+      selectFeatures(l, { bbox: bounds }, mode).then(() => { if (S.sel.fids.length) openPane("attributes"); });
+    });
+  })();
 
   // ---------------------------------------------------------- adding layers
   let pickBusy = false;
@@ -1061,7 +1164,7 @@
       message("Waiting for the file dialog…");
       try {
         const res = await api("/api/pick", {
-          body: { mode: options.mode, title: options.title, initial_dir: options.dir || "", initial_name: options.name || "" },
+          body: { mode: options.mode, title: options.title, initial_dir: options.dir || "", initial_name: options.name || "", kind: options.kind || "data" },
         });
         if (res.native) return res.path ? { path: res.path, confirmed: true } : null;
       } catch (e) { /* fall through to the in-page browser */ } finally {
@@ -1119,26 +1222,15 @@
   }
 
   async function addLayerFlow(inPage) {
-    const last = localStorage.getItem("ovc-last-dir") || "";
-    const picked = await pickPath({ mode: "open", title: "Add Data", dir: last, inPage });
+    const picked = await pickPath({ mode: "open", title: "Add Data", dir: S.settings.last_dir || "", inPage });
     if (!picked) return;
-    try { localStorage.setItem("ovc-last-dir", dirName(picked.path)); } catch (e) { /* private mode */ }
+    saveSettings({ last_dir: dirName(picked.path) });
     await addFile(picked.path);
   }
 
-  async function loadSample() {
-    const added = await addFile(S.config.sample, ["parcels", "block"]);
-    const parcels = added.find((l) => l.info.name === "parcels");
-    const block = added.find((l) => l.info.name === "block");
-    if (!parcels || !block) return;
-    setCoverageStyle(block);
-    moveLayer(block.id, 0);
-    openTool("find-gaps", { input: parcels.id, coverage: block.id, id_field: "parcel_ref" });
-    document.body.dataset.sample = "1";
-  }
-
   // ---------------------------------------------------------------- modals
-  function showModal(title, body, actions, onClose) {
+  function showModal(title, body, actions, onClose, wide) {
+    $("modal").querySelector(".dialog-box").classList.toggle("settings-box", !!wide);
     $("modal-title").textContent = title;
     $("modal-body").replaceChildren(...body);
     const bar = $("modal-actions");
@@ -1306,14 +1398,17 @@
   let browseSeq = 0;
 
   async function openDialog(options) {
-    Object.assign(dialog, { overwrite: false, initial: true }, options);
+    Object.assign(dialog, { overwrite: false, initial: true, kind: "data", onSave: null }, options);
     $("dialog-title").textContent = options.title;
     $("dialog-save").hidden = options.mode !== "save";
     $("dialog-name").value = options.name || "";
     $("dialog-save-btn").textContent = "Save";
     $("dialog-foot").textContent = options.mode === "save"
       ? "Pick the folder, then check the file name."
-      : "Shows folders and vector files: " + S.config.extensions.join(", ");
+      : dialog.kind === "project" ? "Shows folders and OVC projects (.ovcproj)."
+        : "Shows folders and vector files: " + S.config.extensions.join(", ");
+    $("dialog-save").querySelector("small").textContent = options.saveHint ||
+      "GeoPackage (.gpkg) keeps the layer's CRS. GeoJSON (.geojson) is written in WGS 84 (EPSG:4326).";
     const places = $("dialog-places");
     places.replaceChildren();
     S.config.places.forEach((p) => places.append(el("button", { text: p.label, onclick: () => browseTo(p.path) })));
@@ -1334,7 +1429,7 @@
     const seq = ++browseSeq; // only the latest folder request may update the list
     let data;
     try {
-      data = await api("/api/browse?" + qs({ dir }));
+      data = await api("/api/browse?" + qs({ dir, kind: dialog.kind }));
       if (seq !== browseSeq) return;
     } catch (e) {
       if (seq !== browseSeq) return;
@@ -1388,7 +1483,7 @@
     const sep = dialog.dir.includes("\\") ? "\\" : "/";
     const path = dialog.dir.endsWith(sep) ? dialog.dir + name : dialog.dir + sep + name;
     try {
-      await exportTo(path, dialog.overwrite);
+      await (dialog.onSave || exportTo)(path, dialog.overwrite);
       closeDialog(null);
     } catch (e) {
       if (e.code === "exists") {
@@ -1444,7 +1539,7 @@
   function zoomSelection() {
     const f = S.findings.find((x) => x.properties.finding_id === S.selected);
     if (f && f.bbox) fitTo(f.bbox);
-    else if (S.feature) map.fitBounds(S.feature.bounds, { padding: [60, 60], maxZoom: 22 });
+    else if (selectionBounds()) map.fitBounds(selectionBounds(), { padding: [60, 60], maxZoom: 22 });
   }
 
   function clearSelection() {
@@ -1470,25 +1565,79 @@
     message("Dismissed findings restored.");
   }
 
-  function setTheme(theme) {
+  // --------------------------------------------------------------- settings
+  // Kept by OVC in ~/.ovc/settings.json: the page itself cannot keep them,
+  // because OVC listens on a new port each time and browsers store per port.
+  let settingsTimer = null;
+  const pendingSettings = {};
+  function saveSettings(changes) {
+    Object.assign(S.settings, changes);
+    Object.assign(pendingSettings, changes);
+    clearTimeout(settingsTimer);
+    settingsTimer = setTimeout(() => {
+      const body = Object.assign({}, pendingSettings);
+      Object.keys(pendingSettings).forEach((k) => delete pendingSettings[k]);
+      api("/api/settings", { body }).catch(() => {});
+    }, 400);
+  }
+
+  function setTheme(theme, persist = true) {
     S.theme = theme;
     document.documentElement.dataset.theme = theme;
     $("theme-light").setAttribute("aria-pressed", String(theme === "light"));
     $("theme-dark").setAttribute("aria-pressed", String(theme === "dark"));
-    try { localStorage.setItem("ovc-theme", theme); } catch (e) { /* private mode */ }
+    if (persist) saveSettings({ theme });
     // Outlines that follow the theme (coverage areas, finding sources) change with it.
     S.layers.filter((l) => l.autoOutline).forEach((l) => { l.color = outlineColor(); applyStyle(l); });
     if (S.layers.length) renderContents();
     if (S.selected !== null) select(S.selected, true);
   }
 
-  function toggleBasemap() {
-    const on = !map.hasLayer(osm);
-    on ? osm.addTo(map) : osm.remove();
-    $("basemap").setAttribute("aria-pressed", String(on));
+  // --------------------------------------------------------------- basemaps
+  const BASEMAPS = {
+    none: { name: "No basemap" },
+    osm: { name: "OpenStreetMap", url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", attribution: "© OpenStreetMap contributors", maxNativeZoom: 19 },
+    "carto-light": { name: "Light Gray (CARTO)", url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", attribution: "© OpenStreetMap contributors © CARTO", maxNativeZoom: 20 },
+    "carto-dark": { name: "Dark Gray (CARTO)", url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", attribution: "© OpenStreetMap contributors © CARTO", maxNativeZoom: 20 },
+    topo: { name: "Topographic (OpenTopoMap)", url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", attribution: "© OpenStreetMap contributors, SRTM | © OpenTopoMap (CC-BY-SA)", maxNativeZoom: 17 },
+    custom: { name: "Custom tiles (Settings)" },
+  };
+  let basemapLayer = null;
+
+  function setBasemap(id) {
+    if (basemapLayer) { basemapLayer.remove(); basemapLayer = null; }
+    let def = BASEMAPS[id] || BASEMAPS.none;
+    if (id === "custom") {
+      const url = (S.settings.custom_basemap_url || "").trim();
+      def = url ? { name: "Custom tiles", url, attribution: "Custom tiles", maxNativeZoom: 19 } : BASEMAPS.none;
+    }
+    S.basemap = def.url ? id : "none";
+    if (def.url) {
+      basemapLayer = L.tileLayer(def.url, { maxZoom: 24, maxNativeZoom: def.maxNativeZoom, attribution: def.attribution, subdomains: "abc" }).addTo(map);
+    }
+    $("basemap-label").textContent = S.basemap === "none" ? "Basemap" : BASEMAPS[S.basemap].name.split(" (")[0];
+    markDirty();
   }
 
+  function showBasemapMenu() {
+    const menu = $("basemap-list");
+    menu.replaceChildren();
+    Object.entries(BASEMAPS).forEach(([id, def]) => {
+      const item = el("li", { role: "menuitemradio", "aria-checked": String(S.basemap === id), "data-basemap": id }, def.name);
+      item.addEventListener("click", () => { menu.hidden = true; setBasemap(id); });
+      menu.append(item);
+    });
+    menu.append(el("li", { class: "sep" }));
+    menu.append(el("li", { class: "note-item", text: "Basemaps need an internet connection. Set the default in Project > Settings." }));
+    const r = $("basemap").getBoundingClientRect();
+    menu.hidden = false;
+    menu.style.left = r.left + "px";
+    menu.style.top = r.bottom + 4 + "px";
+  }
+  document.addEventListener("mousedown", (e) => { if (!e.target.closest("#basemap-list, #basemap")) $("basemap-list").hidden = true; });
+
   async function quit() {
+    if (S.beforeQuit && !(await S.beforeQuit())) return;
     try { await api("/api/quit", { body: {} }); } catch (e) { /* already stopped */ }
     stopped();
   }
@@ -1498,9 +1647,9 @@
     document.body.replaceChildren(el("p", { style: "padding:40px;font-size:16px", text: "OVC has stopped. You can close this window." }));
   }
 
+  // --------------------------------------------------------------- commands
   const COMMANDS = {
     "add-data": () => addLayerFlow(false),
-    sample: loadSample,
     pan: () => setTool("pan"),
     select: () => setTool("select"),
     "zoom-in": () => map.zoomIn(),
@@ -1512,13 +1661,15 @@
     delete: deleteItem,
     restore: restoreDismissed,
     toolbox: openToolbox,
+    run: () => { if (S.gp.tool) runTool(); },
     export: startExport,
-    "show-contents": () => setContents(S.left.collapsed),
+    "show-contents": () => { setLeftTab("contents"); setContents(S.left.collapsed || S.leftTab !== "contents"); },
+    "show-catalog": () => { setLeftTab("catalog"); setContents(true); },
     "show-results": () => openPane("results"),
     "show-attributes": () => openPane("attributes"),
     "theme-light": () => setTheme("light"),
     "theme-dark": () => setTheme("dark"),
-    basemap: toggleBasemap,
+    "basemap-menu": showBasemapMenu,
     "report-bug": reportBug,
     "show-log": showLog,
     "check-updates": async () => {
@@ -1528,22 +1679,50 @@
     about: showAbout,
     quit,
   };
-  document.querySelectorAll("[data-cmd]").forEach((b) => b.addEventListener("click", () => COMMANDS[b.dataset.cmd]()));
-
-  document.querySelectorAll(".rtab").forEach((tab) => tab.addEventListener("click", () => {
-    document.querySelectorAll(".rtab").forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
-    document.querySelectorAll(".rpanel").forEach((p) => { p.hidden = p.id !== "rp-" + tab.dataset.tab; });
+  function runCommand(name) {
+    const fn = COMMANDS[name];
+    if (fn) fn();
+  }
+  document.querySelectorAll("[data-cmd]").forEach((b) => b.addEventListener("click", () => {
+    if (b.closest("#backstage") && b.dataset.cmd !== "quit") closeBackstage();
+    runCommand(b.dataset.cmd);
   }));
+
+  function showRibbonTab(name) {
+    if (name === "project") { openBackstage(); return; }
+    document.querySelectorAll(".rtab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.tab === name)));
+    document.querySelectorAll(".rpanel").forEach((p) => { p.hidden = p.id !== "rp-" + name; });
+  }
+  document.querySelectorAll(".rtab").forEach((tab) => tab.addEventListener("click", () => showRibbonTab(tab.dataset.tab)));
+
+  function openBackstage() {
+    $("backstage").hidden = false;
+    if (S.renderBackstage) S.renderBackstage();
+  }
+  function closeBackstage() { $("backstage").hidden = true; }
+  $("bs-back").addEventListener("click", closeBackstage);
+
+  // ---- left dock: Contents | Catalog
+  S.leftTab = "contents";
+  function setLeftTab(name) {
+    S.leftTab = name;
+    document.querySelectorAll("[data-left]").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.left === name)));
+    $("pane-contents").hidden = name !== "contents";
+    $("pane-catalog").hidden = name !== "catalog";
+    if (name === "catalog" && S.renderCatalog) S.renderCatalog();
+  }
+  document.querySelectorAll("[data-left]").forEach((t) => t.addEventListener("click", () => setLeftTab(t.dataset.left)));
 
   function updateTools() {
     const hasResult = !!S.summary && S.summary.status !== "failed";
     document.querySelectorAll('[data-cmd="export"]').forEach((b) => { b.disabled = !hasResult || S.busy; });
     $("restore").disabled = !S.dismissed.size;
-    $("delete-item").disabled = S.selected === null && S.active === null;
-    $("clear-selection").disabled = S.selected === null && !S.feature;
+    $("delete-item").disabled = S.selected === null;
+    $("clear-selection").disabled = S.selected === null && !S.sel.fids.length;
     $("zoom-layer").disabled = !(layerById(S.active) && layerById(S.active).bounds);
-    $("zoom-selection").disabled = S.selected === null && !S.feature;
+    $("zoom-selection").disabled = S.selected === null && !S.sel.fids.length;
     $("zoom-full").disabled = !S.layers.some((l) => l.bounds);
+    if (S.onToolsUpdate) S.onToolsUpdate();
   }
 
   $("gp-run").addEventListener("click", runTool);
@@ -1559,27 +1738,102 @@
     $("dialog-error").hidden = true;
   });
 
+  // -------------------------------------------------------------- shortcuts
+  // Every shortcut can be changed in Project > Settings > Keyboard shortcuts.
+  const SHORTCUTS = [
+    ["project-new", "New project", "Ctrl+N"],
+    ["project-open", "Open project", "Ctrl+Shift+O"],
+    ["project-save", "Save project", "Ctrl+S"],
+    ["add-data", "Add data", "Ctrl+O"],
+    ["export", "Export findings", "Ctrl+E"],
+    ["toolbox", "OVC Toolbox", "Ctrl+T"],
+    ["run", "Run the open tool", "F5"],
+    ["show-contents", "Show or hide Contents", "F2"],
+    ["pan", "Explore", "P"],
+    ["select", "Select", "S"],
+    ["clear", "Clear selection", "Esc"],
+    ["zoom-full", "Full extent", "Home"],
+    ["zoom-in", "Zoom in", "+"],
+    ["zoom-out", "Zoom out", "-"],
+    ["measure-distance", "Measure distance", "M"],
+    ["measure-area", "Measure area", "Shift+M"],
+    ["edit-toggle", "Start or stop editing", "E"],
+    ["edit-save", "Save edits", "Ctrl+Shift+S"],
+    ["edit-undo", "Undo edit", "Ctrl+Z"],
+    ["edit-redo", "Redo edit", "Ctrl+Y"],
+    ["edit-delete", "Delete selected features", "Delete"],
+    ["edit-move", "Move", "G"],
+    ["edit-rotate", "Rotate", "R"],
+    ["edit-reshape", "Edit vertices", "V"],
+    ["edit-merge", "Merge", "Ctrl+M"],
+    ["edit-split", "Split", "Ctrl+K"],
+    ["draw-polygon", "Draw polygon", "Shift+P"],
+    ["draw-rectangle", "Draw rectangle", "Shift+R"],
+    ["report-bug", "Report a bug", ""],
+  ];
+
+  function keyName(e) {
+    const parts = [];
+    if (e.ctrlKey || e.metaKey) parts.push("Ctrl");
+    if (e.altKey) parts.push("Alt");
+    let key = e.key;
+    if (key === "Escape") key = "Esc";
+    else if (key === " ") key = "Space";
+    else if (key === "=") key = "+";
+    else if (key.length === 1) key = key.toUpperCase();
+    if (e.shiftKey && !(key.length === 1 && !/[A-Z0-9]/.test(key))) parts.push("Shift");
+    if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) return "";
+    parts.push(key);
+    return parts.join("+");
+  }
+
+  function shortcutMap() {
+    const custom = S.settings.shortcuts || {};
+    const out = {};
+    SHORTCUTS.forEach(([cmd, , key]) => {
+      const k = cmd in custom ? custom[cmd] : key;
+      if (k) out[k] = cmd;
+    });
+    return out;
+  }
+
   document.addEventListener("keydown", (e) => {
+    if (S.capturingShortcut) return;
     if (e.key === "Escape") {
+      if (!$("basemap-list").hidden) { $("basemap-list").hidden = true; return; }
       if (!$("ctx").hidden) return hideContextMenu();
       if (!$("dialog").hidden) return closeDialog(null);
       if (!$("modal").hidden) return $("modal-close").click();
+      if (!$("backstage").hidden) return closeBackstage();
+      if (S.onEscape && S.onEscape()) return;
       return clearSelection();
     }
+    if (e.key === "Enter" && S.onEnter && !/^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(document.activeElement.tagName) && S.onEnter()) { e.preventDefault(); return; }
     if (!$("dialog").hidden || !$("modal").hidden) return;
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-    if (e.ctrlKey && e.key.toLowerCase() === "o") { e.preventDefault(); addLayerFlow(false); }
-    else if (e.ctrlKey && e.key.toLowerCase() === "e") { e.preventDefault(); startExport(); }
-    else if (e.key === "F5") { e.preventDefault(); if (S.gp.tool) runTool(); }
-    else if (e.key === "F2") { e.preventDefault(); setContents(S.left.collapsed); }
-    else if (typing) return;
-    else if (e.key === "Delete") deleteItem();
-    else if (e.key.toLowerCase() === "s") setTool("select");
-    else if (e.key.toLowerCase() === "p") setTool("pan");
-    else if (e.key === "Home") zoomFull();
-    else if (e.key === "+" || e.key === "=") map.zoomIn();
-    else if (e.key === "-") map.zoomOut();
+    const name = keyName(e);
+    if (!name) return;
+    const cmd = shortcutMap()[name];
+    if (!cmd) return;
+    // While typing, only the function keys and file shortcuts act (Ctrl+Z stays the field's own undo).
+    const global = /^F\d+$/.test(name) || /^Ctrl\+(Shift\+)?[SONET]$/.test(name);
+    if (typing && !global) return;
+    e.preventDefault();
+    if (cmd === "edit-delete" && !(S.editing && S.sel.fids.length)) { deleteItem(); return; }
+    runCommand(cmd);
   });
+
+  // ---------------------------------------------------------- project state
+  function markDirty() {
+    if (S.loadingProject) return;
+    S.projectDirty = true;
+    updateTitle();
+  }
+  function updateTitle() {
+    const name = S.projectPath ? fileName(S.projectPath).replace(/\.ovcproj$/i, "") : "Untitled";
+    $("project-name").textContent = name + (S.projectDirty ? " *" : "");
+    document.title = `${name}${S.projectDirty ? "*" : ""} - OVC`;
+  }
 
   // The open page tells OVC it is still there. When OVC stops, it says so
   // and the window closes itself.
@@ -1589,17 +1843,26 @@
   }
 
   window.addEventListener("pagehide", () => navigator.sendBeacon("/api/bye?" + qs({ t: TOKEN })));
+  window.addEventListener("beforeunload", (e) => {
+    if (S.editing && S.editing.dirty) { e.preventDefault(); e.returnValue = ""; }
+  });
   setInterval(() => api("/api/ping").catch(() => {}), 20000);
-  window.ovcApp = { map, overlays, state: S, openTool }; // for automated UI tests
-
-  try {
-    const saved = JSON.parse(localStorage.getItem("ovc-docks") || "null");
-    if (saved) { Object.assign(S.left, saved.left); Object.assign(S.right, saved.right, { collapsed: false }); }
-  } catch (e) { /* none saved */ }
-  layoutDocks();
 
   $("notice-dismiss").addEventListener("click", () => { $("notice-bar").hidden = true; map.invalidateSize(); });
   $("notice-report").addEventListener("click", () => { $("notice-bar").hidden = true; reportBug(); });
+
+  // Shared with files.js, measure.js and edit.js.
+  const core = {
+    map, overlays, S, $, el, icon, api, qs, epsg, fileName, dirName, message, showModal,
+    layerById, createLayer, loadLayerData, removeLayer, moveLayer, applyStyle, applyOrder, renderContents,
+    addFile, pickPath, fitTo, unionBounds, zoomFull, openPane, closePane, setTool, toolHooks,
+    selectableLayer, selectFeatures, refreshSelection, clearFeature, drawSelection,
+    clearResults, renderToolForm, updateTools, saveSettings, setTheme, setBasemap, BASEMAPS,
+    SHORTCUTS, keyName, markDirty, updateTitle, setContents, setLeftTab, closeBackstage, openBackstage,
+    commands: COMMANDS, runCommand, layoutDocks, outlineColor, SELECT_COLOR, showRibbonTab, addLayerFlow,
+  };
+  window.OVC = core;
+  window.ovcApp = { map, overlays, state: S, openTool }; // for automated UI tests
 
   // ---------------------------------------------------- drop files to add
   const MAIN_EXT = [".gpkg", ".geojson", ".json", ".fgb", ".gml", ".kml", ".shp"];
@@ -1671,12 +1934,20 @@
     for (const f of mains) await addFile(saved[f.name]);
   }
 
-  let savedTheme = "light";
-  try { savedTheme = localStorage.getItem("ovc-theme") || "light"; } catch (e) { /* private mode */ }
-  setTheme(savedTheme === "dark" ? "dark" : "light");
-
-  api("/api/config").then((config) => {
+  S.settings = {};
+  Promise.all([api("/api/config"), api("/api/settings").catch(() => ({}))]).then(([config, settings]) => {
     S.config = config;
+    S.settings = settings || {};
+    setTheme(S.settings.theme === "dark" ? "dark" : "light", false);
+    const docks = S.settings.docks || {};
+    if (docks.left) Object.assign(S.left, docks.left);
+    if (docks.right) Object.assign(S.right, docks.right, { collapsed: false });
+    layoutDocks();
+    S.loadingProject = true;
+    setBasemap(S.settings.basemap || "none");
+    S.loadingProject = false;
+    S.projectDirty = false;
+    updateTitle();
     Object.assign(COLORS, config.issue_colors);
     $("splash-version").textContent = "Version " + config.version;
     $("splash-org").textContent = config.app.organization;
@@ -1698,6 +1969,7 @@
     setTimeout(() => {
       $("splash").classList.add("done");
       document.body.dataset.ready = "1";
+      S.ready = true;
       if (IN_WINDOW) api("/api/window-ready", { body: {} }).catch(() => {});
       setTimeout(() => $("splash").remove(), 400);
       checkForUpdate(false);

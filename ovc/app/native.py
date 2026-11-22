@@ -31,6 +31,20 @@ OPEN_TYPES = [
     ("All files", "*.*"),
 ]
 SAVE_TYPES = [("GeoPackage", "*.gpkg"), ("GeoJSON", "*.geojson")]
+PROJECT_TYPES = [("OVC project", "*.ovcproj")]
+LAYER_SAVE_TYPES = [
+    ("GeoPackage", "*.gpkg"),
+    ("Shapefile", "*.shp"),
+    ("GeoJSON", "*.geojson"),
+    ("FlatGeobuf", "*.fgb"),
+]
+TYPES = {
+    # kind -> (open types, save types, default extension)
+    "data": (OPEN_TYPES, SAVE_TYPES, ".gpkg"),
+    "findings": (OPEN_TYPES, SAVE_TYPES, ".gpkg"),
+    "layer": (OPEN_TYPES, LAYER_SAVE_TYPES, ".gpkg"),
+    "project": (PROJECT_TYPES, PROJECT_TYPES, ".ovcproj"),
+}
 _UNAVAILABLE = 3  # exit code of the child when Tk cannot open a window
 
 
@@ -62,7 +76,11 @@ def _child_command(request_file: str) -> list[str]:
 
 
 def pick_path(
-    mode: str, title: str, initial_dir: str = "", initial_name: str = ""
+    mode: str,
+    title: str,
+    initial_dir: str = "",
+    initial_name: str = "",
+    kind: str = "data",
 ) -> dict:
     """Ask the analyst for a file with the operating system's own dialog.
 
@@ -80,6 +98,7 @@ def pick_path(
                     "title": title,
                     "initial_dir": initial_dir,
                     "initial_name": initial_name,
+                    "kind": kind if kind in TYPES else "data",
                     "result": str(Path(tmp) / "result.json"),
                 }
             ),
@@ -123,18 +142,19 @@ def run_picker(request_file: str) -> int:
         options = {"parent": root, "title": req.get("title") or APP_NAME}
         if req.get("initial_dir") and Path(req["initial_dir"]).is_dir():
             options["initialdir"] = req["initial_dir"]
+        open_types, save_types, default_ext = TYPES.get(req.get("kind"), TYPES["data"])
         if req.get("mode") == "save":
             path = filedialog.asksaveasfilename(
                 initialfile=req.get("initial_name") or "ovc_findings.gpkg",
-                defaultextension=".gpkg",
-                filetypes=SAVE_TYPES,
+                defaultextension=default_ext,
+                filetypes=save_types,
                 confirmoverwrite=True,
                 **options,
             )
         elif req.get("mode") == "test":  # packaging check: no dialog to click
             path = ""
         else:
-            path = filedialog.askopenfilename(filetypes=OPEN_TYPES, **options)
+            path = filedialog.askopenfilename(filetypes=open_types, **options)
         Path(req["result"]).write_text(
             json.dumps({"path": path or ""}), encoding="utf-8"
         )

@@ -21,11 +21,11 @@ import geopandas as gpd
 import pytest
 from shapely.geometry import Polygon, box
 
-from ovc.sample_data import sample_path
+from sample import SAMPLE as _SAMPLE
 
 sync_api = pytest.importorskip("playwright.sync_api")
 
-SAMPLE = sample_path()
+SAMPLE = _SAMPLE
 
 
 def _launch_browser(playwright):
@@ -300,7 +300,7 @@ def test_review_workflow_from_launch_to_export(app, page, tmp_path):
     x, y = map_point(page, "parcels", 0.15, 0.15)  # inside parcel P1
     page.mouse.click(x, y)
     page.wait_for_selector("#pane-attributes:not([hidden])")
-    assert "parcels · FID 1" in page.inner_text("#feature-title")
+    assert "parcels, FID 1" in page.inner_text("#feature-title")
     assert "P1" in page.inner_text("#feature-table")
     outline = page.evaluate(
         "() => window.ovcApp.overlays.selection.getLayers()[0].getLayers()[0].options.color"
@@ -320,6 +320,7 @@ def test_review_workflow_from_launch_to_export(app, page, tmp_path):
     page.click("#filters .chip[data-type='all']")
     assert page.locator("#findings li").count() == 2
     page.click("#findings li[data-type='overlap'] button")
+    page.click(".rtab[data-tab='analysis']")
     page.click("#delete-item")
     assert page.locator("#findings li").count() == 1
     assert "1 finding dismissed" in page.inner_text("#dismissed-note")
@@ -384,6 +385,9 @@ def test_review_workflow_from_launch_to_export(app, page, tmp_path):
     assert "OpenTerra" in about and "Founded by Ammar Yasser" in about
     page.click("#modal-close")
     page.click("#quit")
+    # the map has unsaved changes: OVC offers to save the project first
+    assert page.inner_text("#modal-title") == "Save the project?"
+    page.click('#modal-actions button:has-text("Don\'t save")')
     assert proc.wait(timeout=15) == 0
 
 
@@ -435,21 +439,190 @@ def test_dropping_a_shapefile_adds_it(page, tmp_path):
     assert "ovc-dropped" not in page.evaluate("() => window.ovcApp.state.exportDefault")
 
 
-def test_sample_button_opens_find_gaps_ready_to_run(page):
-    page.click("#use-sample")
-    page.wait_for_selector("body[data-sample='1']")
-    assert page.inner_text("#gp-title") == "Find Gaps"
-    assert (
-        page.eval_on_selector("#gp-input", "(s) => s.options[s.selectedIndex].text")
-        == "parcels"
+def _work_copy(tmp_path):
+    import shutil
+
+    work = tmp_path / "work.gpkg"
+    shutil.copy(SAMPLE, work)
+    return work
+
+
+def _drag(page, start, end):
+    page.mouse.move(*start)
+    page.mouse.down()
+    page.mouse.move(*end, steps=6)
+    page.mouse.up()
+
+
+def test_no_sample_data_in_the_app(page):
+    assert page.locator("#use-sample").count() == 0
+    assert "sample" not in page.evaluate(
+        "() => Object.keys(window.ovcApp.state.config)"
     )
-    assert (
-        page.eval_on_selector("#gp-coverage", "(s) => s.options[s.selectedIndex].text")
-        == "block"
+
+
+def test_rectangle_select_measure_and_shortcuts(page, tmp_path):
+    work = _work_copy(tmp_path)
+    assert add_data(page, work, ["parcels"]).startswith("ok:")
+    page.keyboard.press("s")  # Select
+    assert page.evaluate("() => window.OVC.S.tool") == "select"
+    _drag(
+        page,
+        map_point(page, "parcels", 0.02, 0.98),
+        map_point(page, "parcels", 0.98, 0.02),
     )
-    assert run_tool(page) == "issues"
-    assert page.locator("#findings li").count() == 2
-    assert "Findings" in page.inner_text("#toc li.toc-findings")
+    page.wait_for_function("() => window.OVC.S.sel.fids.length === 8")
+    assert "8 features selected" in page.inner_text("#feature-title")
+    # Ctrl+drag removes from the selection
+    page.keyboard.down("Control")
+    _drag(
+        page,
+        map_point(page, "parcels", 0.02, 0.98),
+        map_point(page, "parcels", 0.3, 0.7),
+    )
+    page.keyboard.up("Control")
+    page.wait_for_function("() => window.OVC.S.sel.fids.length < 8")
+
+    page.keyboard.press("m")  # Measure distance
+    a, b = map_point(page, "parcels", 0.1, 0.5), map_point(page, "parcels", 0.9, 0.5)
+    page.mouse.click(*a)
+    page.mouse.click(*b)
+    page.keyboard.press("Enter")
+    page.wait_for_function(
+        "() => document.getElementById('measure-box').dataset.value > 0"
+    )
+    metres = float(page.get_attribute("#measure-box", "data-value"))
+    expected = page.evaluate(
+        """([a, b]) => { const m = window.OVC.map, r = m.getContainer().getBoundingClientRect();
+            const p = (q) => m.containerPointToLatLng([q[0] - r.left, q[1] - r.top]);
+            return m.distance(p(a), p(b)); }""",
+        [a, b],
+    )
+    assert metres == pytest.approx(expected, rel=0.01)  # geodesic vs spherical
+    page.keyboard.press("Shift+M")  # Measure area
+    for fx, fy in ((0.1, 0.1), (0.9, 0.1), (0.9, 0.9), (0.1, 0.9)):
+        page.mouse.click(*map_point(page, "parcels", fx, fy))
+    page.keyboard.press("Enter")
+    page.wait_for_function(
+        "() => document.getElementById('measure-value').textContent.includes('m²')"
+    )
+    page.keyboard.press("Escape")
+    page.keyboard.press("Escape")
+    assert page.evaluate("() => window.OVC.S.tool") == "pan"
+
+
+def test_edit_merge_undo_draw_save_and_export(page, tmp_path):
+    work = _work_copy(tmp_path)
+    assert add_data(page, work, ["parcels"]).startswith("ok:")
+    page.click(".rtab[data-tab='edit']")
+    page.click("#edit-toggle")
+    page.wait_for_selector("body[data-editing='parcels']")
+    count = lambda: page.evaluate("() => window.OVC.S.editing.count")  # noqa: E731
+    assert count() == 8 and page.is_disabled("#edit-save")
+
+    page.click("#rp-edit [data-cmd='select']")
+    _drag(
+        page,
+        map_point(page, "parcels", 0.02, 0.98),
+        map_point(page, "parcels", 0.6, 0.6),
+    )
+    page.wait_for_function("() => window.OVC.S.sel.fids.length >= 2")
+    page.click("#edit-merge")
+    page.wait_for_function("() => window.OVC.S.sel.fids.length === 1")
+    merged = count()
+    assert merged < 8 and page.is_enabled("#edit-save")
+    page.keyboard.press("Control+z")
+    page.wait_for_function("() => window.OVC.S.editing.count === 8")
+
+    # move one feature
+    page.click("#rp-edit [data-cmd='select']")
+    page.mouse.click(*map_point(page, "parcels", 0.15, 0.15))
+    page.wait_for_function("() => window.OVC.S.sel.fids.length === 1")
+    page.click("#edit-move")
+    x, y = map_point(page, "parcels", 0.15, 0.15)
+    _drag(page, (x, y), (x + 30, y))
+    page.click("#edit-bar-finish")
+    page.wait_for_function(
+        "() => document.getElementById('sb-message').textContent.startsWith('Moved 1')"
+    )
+
+    # draw a rectangle into the same layer
+    page.click("#draw-rectangle")
+    page.mouse.click(*map_point(page, "parcels", 0.8, 0.8))
+    page.mouse.click(*map_point(page, "parcels", 0.95, 0.95))
+    page.wait_for_function("() => window.OVC.S.editing.count === 9")
+    page.keyboard.press("Escape")
+
+    page.click("#edit-save")
+    page.click("#modal-ok")
+    page.wait_for_selector("body[data-saved-edits]")
+    assert len(gpd.read_file(work, layer="parcels")) == 9
+    assert len(gpd.read_file(work, layer="block")) == 1  # the other layers are kept
+    backup = page.evaluate("() => document.body.dataset.savedEdits")
+    assert len(gpd.read_file(backup, layer="parcels")) == 8
+
+    page.click("#rp-edit [data-cmd='export-layer']")
+    open_folder(page, tmp_path)
+    page.fill("#dialog-name", "edited.shp")
+    page.click("#dialog-save-btn")
+    page.wait_for_selector("body[data-exported]")
+    assert len(gpd.read_file(tmp_path / "edited.shp")) == 9
+    page.click("#edit-toggle")
+    page.wait_for_function("() => !document.body.dataset.editing")
+
+
+def test_project_save_new_and_reopen(page, tmp_path):
+    work = _work_copy(tmp_path)
+    assert add_data(page, work, ["parcels", "block"]).startswith("ok:")
+    page.evaluate(
+        "() => { const l = window.OVC.S.layers.find((x) => x.info.name === 'parcels');"
+        " l.color = '#112233'; window.OVC.applyStyle(l); }"
+    )
+    assert page.inner_text("#project-name") == "Untitled *"
+    page.keyboard.press("Control+s")
+    page.wait_for_selector("#dialog:not([hidden])")
+    open_folder(page, tmp_path)
+    page.fill("#dialog-name", "site")
+    page.click("#dialog-save-btn")
+    page.wait_for_function(
+        "() => document.getElementById('project-name').textContent === 'site'"
+    )
+    assert (tmp_path / "site.ovcproj").exists()
+
+    page.keyboard.press("Control+n")
+    page.wait_for_function("() => window.OVC.S.layers.length === 0")
+    assert page.inner_text("#project-name") == "Untitled"
+
+    page.click(".rtab[data-tab='project']")
+    page.wait_for_selector("#backstage:not([hidden])")
+    page.click("#bs-recent li")
+    page.wait_for_selector("body[data-project]")
+    assert sorted(toc(page)) == ["block", "parcels"]
+    color = page.evaluate(
+        "() => window.OVC.S.layers.find((x) => x.info.name === 'parcels').color"
+    )
+    assert color == "#112233"
+
+
+def test_settings_are_kept_between_launches(page, app):
+    page.click(".rtab[data-tab='project']")
+    page.click(".bs-item[data-cmd='settings']")
+    page.click(".settings-nav [data-page='map']")
+    page.select_option("#set-basemap", "carto-light")
+    page.click(".settings-nav [data-page='shortcuts']")
+    page.click("[data-cmd-key='measure-distance']")
+    page.keyboard.press("Control+Shift+D")
+    assert page.inner_text("[data-cmd-key='measure-distance']") == "Ctrl+Shift+D"
+    page.click("#modal-close")
+    page.click(".rtab[data-tab='view']")
+    page.click("#theme-dark")
+    page.wait_for_timeout(700)  # settings are written after a short pause
+    page.reload()
+    page.wait_for_selector("body[data-ready='1']")
+    assert page.evaluate("() => document.documentElement.dataset.theme") == "dark"
+    assert page.evaluate("() => window.OVC.S.basemap") == "carto-light"
+    page.keyboard.press("Control+Shift+D")
+    assert page.evaluate("() => window.OVC.S.tool") == "measure-distance"
 
 
 def test_failed_and_partial_runs_are_not_shown_as_clean(page, tmp_path):

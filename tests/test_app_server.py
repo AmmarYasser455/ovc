@@ -14,9 +14,9 @@ import pytest
 from shapely.geometry import Polygon, box
 
 from ovc.app.server import AppServer, AppState
-from ovc.sample_data import sample_path
+from sample import SAMPLE as _SAMPLE
 
-SAMPLE = str(sample_path())
+SAMPLE = str(_SAMPLE)
 NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
@@ -69,7 +69,7 @@ def test_api_needs_the_launch_token_and_a_local_host(client):
     assert client.call("/api/config", headers={"Host": "evil.example"})[0] == 403
     status, config = client.call("/api/config")
     assert status == 200
-    assert config["sample"] == SAMPLE
+    assert "sample" not in config  # OVC ships no sample data in the app
 
 
 def test_static_app_files_are_served(client):
@@ -324,3 +324,156 @@ def test_large_layers_are_drawn_simplified_but_checked_exactly(
     assert preview["simplified"] is True and preview["shown"] == 8
     _, exact = client.call("/api/features", path=SAMPLE, layer="parcels", fids="1")
     assert exact["simplified"] is False  # the features behind a finding: exact
+
+
+# ---- 4.0: settings, projects, measuring, selection, editing ------------
+
+
+def _copy_sample(tmp_path):
+    import shutil
+
+    work = tmp_path / "work.gpkg"
+    shutil.copy(SAMPLE, work)
+    return str(work)
+
+
+def test_settings_round_trip(client):
+    _, before = client.call("/api/settings")
+    assert before["basemap"] == "none"
+    status, after = client.call(
+        "/api/settings",
+        {
+            "basemap": "carto-light",
+            "shortcuts": {"pan": "Ctrl+Shift+P"},
+            "nonsense": 1,
+            "theme": 5,
+        },
+    )
+    assert status == 200
+    assert after["basemap"] == "carto-light"
+    assert after["shortcuts"] == {"pan": "Ctrl+Shift+P"}
+    assert "nonsense" not in after and after["theme"] == "light"  # wrong type ignored
+    assert client.call("/api/settings")[1]["basemap"] == "carto-light"
+
+
+def test_project_save_refuses_to_overwrite_then_opens(client, tmp_path):
+    project = {
+        "basemap": "osm",
+        "view": {"center": [30, 31], "zoom": 17},
+        "layers": [
+            {"path": SAMPLE, "layer": "parcels", "color": "#123456", "visible": True}
+        ],
+    }
+    status, saved = client.call(
+        "/api/project/save", {"path": str(tmp_path / "site"), "project": project}
+    )
+    assert status == 200 and saved["path"].endswith("site.ovcproj")
+    assert saved["recent"][0] == saved["path"]
+    again = client.call(
+        "/api/project/save", {"path": saved["path"], "project": project}
+    )
+    assert again[0] == 400 and again[1]["code"] == "exists"
+    assert (
+        client.call(
+            "/api/project/save",
+            {"path": saved["path"], "project": project, "overwrite": True},
+        )[0]
+        == 200
+    )
+
+    _, opened = client.call("/api/project/open", {"path": saved["path"]})
+    assert opened["layers"][0]["color"] == "#123456" and opened["missing"] == []
+    assert opened["basemap"] == "osm"
+    _, listing = client.call("/api/browse", dir=str(tmp_path), kind="project")
+    assert [e["name"] for e in listing["entries"]] == ["site.ovcproj"]
+    bad = tmp_path / "bad.ovcproj"
+    bad.write_text("{}")
+    assert client.call("/api/project/open", {"path": str(bad)})[0] == 400
+
+
+def test_measure_is_geodesic(client):
+    # 0.001 degrees of longitude at the equator is 111.32 m on WGS 84.
+    _, line = client.call("/api/measure", {"coords": [[0, 0], [0.001, 0]]})
+    assert line["length_m"] == pytest.approx(111.32, abs=0.01)
+    _, area = client.call(
+        "/api/measure",
+        {"coords": [[0, 0], [0.001, 0], [0.001, 0.001], [0, 0.001]], "kind": "area"},
+    )
+    assert area["area_m2"] == pytest.approx(111.32 * 110.57, rel=1e-3)
+
+
+def test_select_by_box_and_fids(client):
+    _, preview = client.call("/api/preview", path=SAMPLE, layer="parcels")
+    west, south, east, north = preview["bounds"]
+    _, everything = client.call(
+        "/api/select",
+        {"path": SAMPLE, "layer": "parcels", "bbox": [west, south, east, north]},
+    )
+    assert len(everything["fids"]) == 8 and len(everything["rows"]) == 8
+    _, two = client.call(
+        "/api/select", {"path": SAMPLE, "layer": "parcels", "fids": [2, 3]}
+    )
+    assert two["fids"] == [2, 3]
+    assert {r["parcel_ref"] for r in two["rows"]} == {"P2", "P3"}
+
+
+def test_edit_session_over_http(client, tmp_path, _private_home):
+    work = _copy_sample(tmp_path)
+    target = {"path": work, "layer": "parcels"}
+    _, status = client.call("/api/edit/start", target)
+    assert (
+        status["editing"]
+        and status["count"] == 8
+        and status["geometry_type"] == "Polygon"
+    )
+    _, two = client.call("/api/select", {**target, "fids": [2, 3]})
+    merged = client.call(
+        "/api/edit/op", {**target, "op": {"op": "merge", "fids": [2, 3]}}
+    )[1]
+    assert merged["count"] == 7 and merged["removed"] == [3]
+    # the map and the checks read the working copy
+    assert client.call("/api/preview", path=work, layer="parcels")[1]["total"] == 7
+    shifted = {
+        "type": "Polygon",
+        "coordinates": [
+            [[x + 0.00001, y] for x, y in ring]
+            for ring in two["features"][0]["geometry"]["coordinates"]
+        ],
+    }
+    moved = client.call(
+        "/api/edit/op",
+        {
+            **target,
+            "op": {"op": "update", "features": [{"fid": 2, "geometry": shifted}]},
+        },
+    )[1]
+    assert moved["changed"][0]["fid"] == 2 and moved["can_undo"]
+    assert (
+        client.call(
+            "/api/edit/op",
+            {
+                **target,
+                "op": {
+                    "op": "split",
+                    "fids": [2],
+                    "line": {"type": "LineString", "coordinates": [[0, 0], [0.1, 0.1]]},
+                },
+            },
+        )[0]
+        == 400
+    )  # misses it
+
+    _, saved = client.call("/api/edit/save", target)
+    assert Path(saved["backup"]).exists()
+    assert len(gpd.read_file(work, layer="parcels")) == 7
+    assert len(gpd.read_file(work, layer="block")) == 1  # other layers kept
+    assert len(gpd.read_file(saved["backup"], layer="parcels")) == 8
+
+    out = tmp_path / "parcels.shp"
+    assert client.call("/api/layer/export", {**target, "out": str(out)})[0] == 200
+    assert len(gpd.read_file(out)) == 7
+    exists = client.call("/api/layer/export", {**target, "out": str(out)})
+    assert exists[0] == 400 and exists[1]["code"] == "exists"
+    assert (
+        client.call("/api/layer/export", {**target, "out": work})[0] == 400
+    )  # use Save Edits

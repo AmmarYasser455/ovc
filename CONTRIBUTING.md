@@ -133,7 +133,6 @@ ovc/
 ├── api.py        # check_file(): read a layer and run the engine
 ├── app/          # Map app: local server, launcher, browser UI (static/)
 ├── cli.py        # ovc command
-├── sample_data/  # Sample GeoPackage bundled with the app
 ├── checks/ loaders/ export/ metrics/ core/   # Building QC pipeline
 ├── precheck/     # GeoQA pre-check
 └── road_qc/      # Road network quality checks

@@ -167,8 +167,42 @@ def wait_for_windows_closed(state, grace: float = WINDOW_CLOSE_GRACE) -> str:
     return "quit"
 
 
+def _self_test_data(folder: Path) -> Path:
+    """A tiny parcels block in EPSG:32636 with one 30 m² overlap and one 10 m² gap."""
+    import geopandas as gpd
+    from shapely.geometry import Polygon, box
+
+    x0, y0 = 330_000, 3_320_000
+
+    def rect(a, b, c, d):
+        return box(x0 + a, y0 + b, x0 + c, y0 + d)
+
+    parcels = [
+        rect(0, 0, 20, 15),
+        rect(20, 0, 40, 15),
+        rect(38, 0, 60, 15),
+        rect(0, 15, 25, 30),
+        rect(35, 15, 60, 30),
+        rect(0, 30, 20, 40),
+        rect(20, 30, 40, 40),
+        rect(41, 30, 60, 40),
+    ]
+    path = folder / "self_test.gpkg"
+    gpd.GeoDataFrame(
+        {"parcel_ref": [f"P{i}" for i in range(1, 9)]},
+        geometry=parcels,
+        crs="EPSG:32636",
+    ).to_file(path, layer="parcels", driver="GPKG")
+    outer = list(rect(0, 0, 60, 40).exterior.coords)
+    pond = list(rect(25, 15, 35, 30).exterior.coords)
+    gpd.GeoDataFrame(geometry=[Polygon(outer, [pond])], crs="EPSG:32636").to_file(
+        path, layer="block", driver="GPKG"
+    )
+    return path
+
+
 def self_test(report_path: str | None = None) -> int:
-    """Run the bundled sample through read, check, export and re-read.
+    """Read, check, export, re-read and edit a tiny generated dataset.
 
     Used by the packaging checks to prove an installed or frozen copy has
     its data files and geospatial libraries. Returns 0 on success.
@@ -176,8 +210,7 @@ def self_test(report_path: str | None = None) -> int:
     import geopandas as gpd
 
     from ovc.api import check_file
-    from ovc.app.server import STATIC
-    from ovc.sample_data import sample_path
+    from ovc.app.server import STATIC, AppState
     from ovc.io import export_findings, list_layers
 
     report: dict = {"ok": False}
@@ -190,32 +223,31 @@ def self_test(report_path: str | None = None) -> int:
             "ovc.ico",
             "splash-logo.png",
             "vendor/leaflet/leaflet.js",
+            "vendor/geoman/leaflet-geoman.js",
         ):
             target = STATIC
             for part in name.split("/"):
                 target = target / part
             assert target.is_file(), f"missing app file: {name}"
-        sample = sample_path()
-        report["layers"] = [i.name for i in list_layers(sample)]
-        result = check_file(
-            sample,
-            "parcels",
-            check_gaps=True,
-            coverage_path=sample,
-            coverage_layer="block",
-            id_field="parcel_ref",
-        )
-        report["status"] = result.status
-        report["counts"] = result.counts_by_type()
         with tempfile.TemporaryDirectory() as tmp:
+            sample = _self_test_data(Path(tmp))
+            report["layers"] = [i.name for i in list_layers(sample)]
+            result = check_file(
+                sample,
+                "parcels",
+                check_gaps=True,
+                coverage_path=sample,
+                coverage_layer="block",
+                id_field="parcel_ref",
+            )
+            report["status"] = result.status
+            report["counts"] = result.counts_by_type()
             out = Path(tmp) / "findings.gpkg"
             export_findings(result, out, protect=[sample])
             back = gpd.read_file(out, layer="ovc_findings")
             report["export_crs"] = back.crs.to_epsg()
             report["export_areas"] = sorted(round(a, 6) for a in back["area_m2"])
             # A shapefile, read and drawn the way the map does it.
-            from ovc.app.server import AppState
-
             shp = Path(tmp) / "parcels.shp"
             gpd.read_file(sample, layer="parcels").to_file(shp)
             shp_info = list_layers(shp)[0]
@@ -225,12 +257,22 @@ def self_test(report_path: str | None = None) -> int:
                 "crs": shp_info.crs,
                 "drawn": preview.meta["shown"],
             }
+            # An edit, saved back to the shapefile with a backup.
+            state = AppState("self-test")
+            state.edit_start(str(shp), shp_info.name)
+            state.edit_op(str(shp), shp_info.name, {"op": "delete", "fids": [0]})
+            saved = state.edit_save(str(shp), shp_info.name)
+            report["edit"] = {
+                "features_after": len(gpd.read_file(shp)),
+                "backup": Path(saved["backup"]).exists(),
+            }
         report["ok"] = (
             report["counts"] == {"overlap": 1, "gap": 1}
             and report["export_crs"] == 32636
             and report["export_areas"] == [10.0, 30.0]
             and report["shapefile"]["drawn"] == 8
             and report["shapefile"]["crs"].startswith("EPSG:32636")
+            and report["edit"] == {"features_after": 7, "backup": True}
         )
     except Exception:
         report["error"] = traceback.format_exc()
@@ -270,7 +312,7 @@ def main(argv=None) -> int:
         nargs="?",
         const="",
         metavar="REPORT.json",
-        help="Check the installation with the bundled sample and exit",
+        help="Check the installation with a tiny generated dataset and exit",
     )
     parser.add_argument("--pick", metavar="REQUEST.json", help=argparse.SUPPRESS)
     parser.add_argument("--splash-test", action="store_true", help=argparse.SUPPRESS)

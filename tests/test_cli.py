@@ -5,10 +5,10 @@ from pathlib import Path
 import geopandas as gpd
 import pytest
 
-from ovc.sample_data import sample_path
+from sample import SAMPLE as _SAMPLE
 from ovc.cli import check_command, main
 
-SAMPLE = str(sample_path())
+SAMPLE = str(_SAMPLE)
 DATA = Path(__file__).parent / "data"
 
 

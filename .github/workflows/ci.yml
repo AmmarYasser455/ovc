@@ -86,4 +86,4 @@ jobs:
           pip install dist/*.whl
           cd "$RUNNER_TEMP"
           ovc-gui --self-test
-          ovc check "$(python -c 'from ovc.sample_data import sample_path; print(sample_path())')" --layer buildings || [ $? -eq 1 ]
+          ovc check "$GITHUB_WORKSPACE/examples/sample/ovc_sample.gpkg" --layer buildings || [ $? -eq 1 ]

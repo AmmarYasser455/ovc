@@ -8,10 +8,10 @@ import pytest
 from shapely.geometry import box
 
 from ovc import check_file
-from ovc.sample_data import sample_path
+from sample import SAMPLE as _SAMPLE
 from ovc.io import ExportError, LayerReadError, export_findings, list_layers, read_layer
 
-SAMPLE = sample_path()
+SAMPLE = _SAMPLE
 
 
 def sha(path):

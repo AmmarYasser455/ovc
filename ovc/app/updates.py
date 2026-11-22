@@ -52,29 +52,18 @@ class UpdateError(Exception):
     """An update could not be checked, downloaded or verified."""
 
 
-def _settings_file() -> Path:
-    return Path.home() / ".ovc" / "settings.json"
-
-
-def _read_settings() -> dict:
-    try:
-        return json.loads(_settings_file().read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-
-
 def checks_enabled() -> bool:
+    from ovc.app import settings
+
     if os.environ.get("OVC_NO_UPDATE_CHECK"):
         return False
-    return bool(_read_settings().get("check_for_updates", True))
+    return bool(settings.load().get("check_for_updates", True))
 
 
 def set_checks_enabled(enabled: bool) -> None:
-    settings = _read_settings()
-    settings["check_for_updates"] = bool(enabled)
-    path = _settings_file()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+    from ovc.app import settings
+
+    settings.update({"check_for_updates": bool(enabled)})
 
 
 def parse_version(text) -> tuple | None:
