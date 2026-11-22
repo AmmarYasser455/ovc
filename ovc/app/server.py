@@ -13,7 +13,6 @@ import os
 import string
 import threading
 import time
-import traceback
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
@@ -23,11 +22,12 @@ from urllib.parse import parse_qs, urlparse
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import shapely
 from shapely.geometry import Point
 
 from ovc import __version__
 from ovc.api import check_file
-from ovc.app import native, updates
+from ovc.app import diagnostics, native, updates
 from ovc.app.branding import APP_NAME, APP_TITLE, FOUNDER, ORGANIZATION
 from ovc.engine import DEFAULT_DUPLICATE_RATIO, DEFAULT_MIN_AREA_M2, ISSUE_TYPES
 from ovc.engine.model import crs_label
@@ -41,6 +41,8 @@ from ovc.io import (
     read_layer,
 )
 
+log = diagnostics.get_logger("server")
+BUG_REPORT_URL = "https://github.com/AmmarYasser455/ovc/issues/new"
 MAX_MAP_FEATURES = 20_000  # more than this and only finding-related features are drawn
 STATIC = resources.files("ovc.app") / "static"
 
@@ -72,6 +74,9 @@ class AppState:
         self.last_seen = time.time()
         self.shutdown = threading.Event()
         self.window_ready = threading.Event()  # the page loaded in the app window
+        self.clients = 0  # pages connected to /api/events (open OVC windows)
+        self.clients_changed = time.time()
+        self.opened_urls: list = []  # with OVC_NO_OPEN_URL set (tests)
         self.update_info = None  # result of the last update check
         self.update_job = {"state": "idle", "fraction": 0.0, "message": ""}
         self._layers: dict = {}  # (path, layer, mtime, size) -> GeoDataFrame
@@ -155,7 +160,7 @@ class AppState:
 
             message = f"The check stopped with an error: {type(exc).__name__}: {exc}"
             result = ScanResult(status=STATUS_FAILED, message=message, error=message)
-            traceback.print_exc()
+            log.exception("Unexpected error")
         with self.lock:
             if self.job["id"] == job_id:
                 self.result = result
@@ -237,6 +242,10 @@ class AppState:
         if fids is not None:
             geoms = geoms[geoms.index.isin(fids)]
         polys = geoms[geoms.notna() & ~geoms.is_empty]
+        # The map is 2D; Z or M values (NaN in some files) would break the JSON.
+        polys = gpd.GeoSeries(
+            shapely.force_2d(polys.values), index=polys.index, crs=crs
+        )
         truncated = limit is not None and len(polys) > limit
         if truncated:
             polys = polys.iloc[:0]
@@ -483,6 +492,8 @@ class Handler(BaseHTTPRequestHandler):
                 {"error": "This page is not connected to OVC. Open OVC again."},
                 HTTPStatus.FORBIDDEN,
             )
+        if url.path == "/api/events" and method == "GET":
+            return self._events()
         self.state.last_seen = time.time()
         body = {}
         if method == "POST":
@@ -501,12 +512,45 @@ class Handler(BaseHTTPRequestHandler):
                 {"error": str(exc), "code": "read"}, HTTPStatus.BAD_REQUEST
             )
         except Exception as exc:
-            traceback.print_exc()
+            log.exception("Unexpected error")
             return self._json(
                 {"error": f"Unexpected error: {type(exc).__name__}: {exc}"},
                 HTTPStatus.INTERNAL_SERVER_ERROR,
             )
         self._json(payload)
+
+    def _events(self):
+        """Server-sent events: one long request per open OVC window.
+
+        The launcher counts these connections to know whether a window is
+        still open, whichever browser process shows it. When OVC stops, a
+        ``quit`` event tells the page to close its window.
+        """
+        state = self.state
+        self.close_connection = True
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        with state.lock:
+            state.clients += 1
+            state.clients_changed = time.time()
+        try:
+            self.wfile.write(b"retry: 2000\n\n")
+            self.wfile.flush()
+            while not state.shutdown.is_set():
+                self.wfile.write(b": alive\n\n")
+                self.wfile.flush()
+                state.shutdown.wait(2.0)
+            self.wfile.write(b"event: quit\ndata: {}\n\n")
+            self.wfile.flush()
+        except OSError:
+            pass  # the window went away
+        finally:
+            with state.lock:
+                state.clients -= 1
+                state.clients_changed = time.time()
 
     def _route(self, method, path, query, body):
         state = self.state
@@ -563,6 +607,12 @@ class Handler(BaseHTTPRequestHandler):
                     float(q("tol") or 0),
                     edge_only=q("edge") == "1",
                 )
+            if path == "/api/diagnostics":
+                info = diagnostics.environment()
+                info["log_path"] = str(diagnostics.log_path())
+                info["log"] = diagnostics.tail()
+                info["report_url"] = BUG_REPORT_URL
+                return info
             if path == "/api/update":
                 return state.check_update(force=q("force") == "1")
             if path == "/api/update/status":
@@ -600,6 +650,25 @@ class Handler(BaseHTTPRequestHandler):
                     str(body.get("initial_dir") or ""),
                     str(body.get("initial_name") or ""),
                 )
+            if path == "/api/open-url":
+                target = str(body.get("url") or "")
+                if not target.startswith("https://github.com/AmmarYasser455/ovc"):
+                    raise ApiError("Only OVC's GitHub pages can be opened from here.")
+                if os.environ.get("OVC_NO_OPEN_URL"):
+                    state.opened_urls.append(target)
+                else:
+                    import webbrowser
+
+                    webbrowser.open(target)  # the analyst's own browser, signed in
+                return {"opened": True}
+            if path == "/api/open-log":
+                folder = diagnostics.log_dir()
+                folder.mkdir(parents=True, exist_ok=True)
+                opened = False
+                if os.name == "nt" and not os.environ.get("OVC_NO_OPEN_URL"):
+                    os.startfile(folder)  # noqa: S606 - Windows Explorer
+                    opened = True
+                return {"opened": opened, "path": str(diagnostics.log_path())}
             if path == "/api/update/install":
                 return state.start_update_install()
             if path == "/api/update/settings":
@@ -658,9 +727,12 @@ def serve(server: AppServer) -> None:
             with state.lock:
                 running = state.job["state"] == "running"
             if not running and time.time() - state.last_seen > state.idle_timeout:
+                log.info("Stopping: no OVC page for %.0f s", state.idle_timeout)
                 break
     except KeyboardInterrupt:
         pass
     finally:
+        state.shutdown.set()  # pages get a "quit" event and close
+        time.sleep(0.6)
         server.shutdown()
         server.server_close()
