@@ -90,6 +90,10 @@ class AppState:
         self.token = token
         self.idle_timeout = idle_timeout
         self.lock = threading.Lock()
+        # GEOS and GDAL work on the shared layers runs one request at a time:
+        # on Windows, parallel use from several threads corrupted memory and
+        # OVC was killed later, while Python collected garbage (0x80000003).
+        self.geo_lock = threading.RLock()
         self.last_seen = time.time()
         self.shutdown = threading.Event()
         self.window_ready = threading.Event()  # the page loaded in the app window
@@ -164,28 +168,31 @@ class AppState:
         coverage = req.get("coverage") or {}
         exclusions = req.get("exclusions") or {}
         try:
-            result = check_file(
-                req["path"],
-                req.get("layer"),
-                coverage_path=coverage.get("path"),
-                coverage_layer=coverage.get("layer"),
-                exclusions_path=exclusions.get("path"),
-                exclusions_layer=exclusions.get("layer"),
-                progress=progress,
-                reader=self.read,
-                check_overlaps=bool(req.get("check_overlaps", True)),
-                check_gaps=bool(req.get("check_gaps", False)),
-                id_field=req.get("id_field") or None,
-                min_overlap_area_m2=float(
-                    req.get("min_overlap_area_m2", DEFAULT_MIN_AREA_M2)
-                ),
-                min_gap_area_m2=float(req.get("min_gap_area_m2", DEFAULT_MIN_AREA_M2)),
-                duplicate_ratio=float(
-                    req.get("duplicate_ratio", DEFAULT_DUPLICATE_RATIO)
-                ),
-                repair_invalid=bool(req.get("repair_invalid", False)),
-                assume_crs=req.get("assume_crs") or None,
-            )
+            with self.geo_lock:
+                result = check_file(
+                    req["path"],
+                    req.get("layer"),
+                    coverage_path=coverage.get("path"),
+                    coverage_layer=coverage.get("layer"),
+                    exclusions_path=exclusions.get("path"),
+                    exclusions_layer=exclusions.get("layer"),
+                    progress=progress,
+                    reader=self.read,
+                    check_overlaps=bool(req.get("check_overlaps", True)),
+                    check_gaps=bool(req.get("check_gaps", False)),
+                    id_field=req.get("id_field") or None,
+                    min_overlap_area_m2=float(
+                        req.get("min_overlap_area_m2", DEFAULT_MIN_AREA_M2)
+                    ),
+                    min_gap_area_m2=float(
+                        req.get("min_gap_area_m2", DEFAULT_MIN_AREA_M2)
+                    ),
+                    duplicate_ratio=float(
+                        req.get("duplicate_ratio", DEFAULT_DUPLICATE_RATIO)
+                    ),
+                    repair_invalid=bool(req.get("repair_invalid", False)),
+                    assume_crs=req.get("assume_crs") or None,
+                )
         except Exception as exc:  # never leave the job hanging
             from ovc.engine.model import STATUS_FAILED, ScanResult
 
@@ -523,6 +530,26 @@ class AppState:
             raise ApiError(str(exc), code=code)
 
 
+# Requests that read layers or run GEOS / GDAL. They run one at a time
+# (AppState.geo_lock); polling, events, settings and static files do not wait.
+GEO_ROUTES = frozenset(
+    {
+        "/api/layers",
+        "/api/preview",
+        "/api/features",
+        "/api/identify",
+        "/api/findings",
+        "/api/select",
+        "/api/export",
+        "/api/layer/export",
+        "/api/edit/start",
+        "/api/edit/op",
+        "/api/edit/save",
+        "/api/edit/discard",
+    }
+)
+
+
 # ---- measuring --------------------------------------------------------
 
 
@@ -700,7 +727,11 @@ class Handler(BaseHTTPRequestHandler):
                 except ValueError:
                     return self._json({"error": "Bad request."}, HTTPStatus.BAD_REQUEST)
         try:
-            payload = self._route(method, url.path, query, body)
+            if url.path in GEO_ROUTES:
+                with self.server.state.geo_lock:
+                    payload = self._route(method, url.path, query, body)
+            else:
+                payload = self._route(method, url.path, query, body)
         except ApiError as exc:
             return self._json({"error": str(exc), "code": exc.code}, exc.status)
         except LayerReadError as exc:

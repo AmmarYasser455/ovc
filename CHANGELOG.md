@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.1] - 2026-11-22
+
+### Fixed
+- **OVC closed by itself while a layer was read or drawn** ("OVC is not running any more"). The crash log showed a native fault (`Windows fatal exception: code 0x80000003`) during garbage collection in the layer read and map preview code, in 3.7, 3.8 and 4.0. OVC served requests on parallel threads that shared each loaded layer, so GEOS and GDAL worked on the same geometries from several threads at once. Work on layers (reading, drawing, Select, editing, exports and the checks) now runs one request at a time; status, settings and the page itself are not held up.
+
 ## [4.0.0] - 2026-11-22
 
 OVC becomes a small desktop GIS for topology QC: projects, a Catalog,
