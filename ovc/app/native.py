@@ -11,6 +11,7 @@ shares a thread with the HTTP server. When Tk or a display is missing
 
 from __future__ import annotations
 
+import gc
 import json
 import os
 import subprocess
@@ -168,6 +169,18 @@ def show_splash(is_ready, min_seconds: float = 1.6, max_seconds: float = 60.0) -
 
     Returns False without showing anything when Tk is not available.
     """
+    try:
+        return _splash_window(is_ready, min_seconds, max_seconds)
+    finally:
+        # Free the window's Tk objects now, on this thread. Tk widgets hold
+        # reference cycles, so otherwise the garbage collector frees them
+        # later on whichever thread it runs, usually one reading a layer;
+        # Tcl then stops the process ("async handler deleted by the wrong
+        # thread", Windows fatal exception 0x80000003).
+        gc.collect()
+
+
+def _splash_window(is_ready, min_seconds: float, max_seconds: float) -> bool:
     try:
         import tkinter as tk
 

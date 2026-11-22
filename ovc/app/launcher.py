@@ -8,6 +8,7 @@ program on Windows, so no console opens), ``python -m ovc.app`` and the
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import logging
 import os
@@ -346,7 +347,14 @@ def main(argv=None) -> int:
     if args.splash_test:  # packaging check: the splash window opens and closes
         from ovc.app.native import show_splash
 
-        return 0 if show_splash(lambda: True, min_seconds=1.0) else 1
+        if not show_splash(lambda: True, min_seconds=1.0):
+            return 1
+        # A garbage collection on another thread, as during layer loading,
+        # must find nothing of Tk left to free (it would stop the process).
+        collector = threading.Thread(target=gc.collect, name="ovc-gc-check")
+        collector.start()
+        collector.join()
+        return 0
     if args.self_test is not None:
         return self_test(args.self_test or None)
 
