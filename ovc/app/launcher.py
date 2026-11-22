@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import secrets
 import sys
@@ -74,6 +75,28 @@ def _show_error(text: str) -> None:
             pass
 
 
+log = logging.getLogger("ovc.app.launcher")
+WINDOW_START_TIMEOUT = 45.0  # seconds for the page to load in a new window
+WINDOW_CLOSE_GRACE = 15.0  # seconds with no open window before OVC stops
+
+
+def wait_for_windows_closed(state, grace: float = WINDOW_CLOSE_GRACE) -> str:
+    """Block while at least one OVC window is open; return why it stopped.
+
+    A window counts as open while its page holds ``/api/events``. The grace
+    period covers a page reload and the moment a window is being opened.
+    """
+    while not state.shutdown.wait(1.0):
+        with state.lock:
+            clients = state.clients
+            quiet_for = time.time() - state.clients_changed
+        if clients == 0 and quiet_for > grace:
+            log.info("Stopping: no OVC window open for %.0f s", quiet_for)
+            return "closed"
+    log.info("Stopping: Quit or update")
+    return "quit"
+
+
 def self_test(report_path: str | None = None) -> int:
     """Run the bundled sample through read, check, export and re-read.
 
@@ -92,6 +115,7 @@ def self_test(report_path: str | None = None) -> int:
         for name in (
             "index.html",
             "app.js",
+            "toolbox.js",
             "app.css",
             "ovc.ico",
             "splash-logo.png",
@@ -119,10 +143,24 @@ def self_test(report_path: str | None = None) -> int:
             back = gpd.read_file(out, layer="ovc_findings")
             report["export_crs"] = back.crs.to_epsg()
             report["export_areas"] = sorted(round(a, 6) for a in back["area_m2"])
+            # A shapefile, read and drawn the way the map does it.
+            from ovc.app.server import AppState
+
+            shp = Path(tmp) / "parcels.shp"
+            gpd.read_file(sample, layer="parcels").to_file(shp)
+            shp_info = list_layers(shp)[0]
+            preview = AppState("self-test").features_geojson(str(shp), shp_info.name)
+            report["shapefile"] = {
+                "geometry": shp_info.geometry_type,
+                "crs": shp_info.crs,
+                "drawn": preview["shown"],
+            }
         report["ok"] = (
             report["counts"] == {"overlap": 1, "gap": 1}
             and report["export_crs"] == 32636
             and report["export_areas"] == [10.0, 30.0]
+            and report["shapefile"]["drawn"] == 8
+            and report["shapefile"]["crs"].startswith("EPSG:32636")
         )
     except Exception:
         report["error"] = traceback.format_exc()
@@ -170,7 +208,10 @@ def main(argv=None) -> int:
     parser.add_argument("--install-info", metavar="REPORT.json", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
 
-    from ovc.app import native
+    from ovc.app import diagnostics, native
+
+    if not (args.pick or args.install_info or args.self_test is not None):
+        diagnostics.setup_logging()
 
     # OVC opens in its own window when it can; otherwise in the browser.
     windowed = args.window_test or (
@@ -234,12 +275,19 @@ def main(argv=None) -> int:
             show_splash(lambda: not worker.is_alive())
         worker.join()
         if "error" in boot:
+            log.error("Start-up failed:\n%s", boot["error"])
             _show_error(boot["error"])
             return 1
         from ovc.app.server import serve
 
         server = boot["server"]
         state = server.state
+        log.info(
+            "OVC %s started (%s), %s",
+            diagnostics.environment()["version"],
+            diagnostics.environment()["install"],
+            "own window" if windowed else "browser tab",
+        )
     except Exception:
         _show_error(traceback.format_exc())
         return 1
@@ -269,22 +317,28 @@ def main(argv=None) -> int:
                 target=serve, args=(server,), name="ovc-serve", daemon=True
             )
             serving.start()
-            shown = native.run_window(
-                server.url,
-                state.shutdown,
-                ready=state.window_ready,
-                test=args.window_test,
+            process = native.open_window(server.url)
+            log.info("Window: %s", "opened" if process else "no app browser found")
+            shown = process is not None and state.window_ready.wait(
+                WINDOW_START_TIMEOUT
             )
             if args.window_test:
                 result = 0 if shown else 1
-            elif not shown and not state.shutdown.is_set():
-                # No usable window (for example no WebView2 runtime): browser.
+                log.info(
+                    "Window test: %s", "page loaded" if shown else "page never loaded"
+                )
+            elif not shown:
+                # No usable window: fall back to a browser tab.
+                log.warning("The app window did not load; opening a browser tab")
                 state.idle_timeout = args.idle_timeout
                 state.last_seen = time.time()
                 webbrowser.open(server.url)
                 serving.join()  # until Quit or the idle timeout
-            state.shutdown.set()
+            else:
+                wait_for_windows_closed(state)
+            state.shutdown.set()  # open pages close their windows
             serving.join(timeout=5)
+            native.close_window(process)
         else:
             if not args.no_browser:
                 webbrowser.open(server.url)

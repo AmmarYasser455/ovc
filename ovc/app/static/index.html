@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -26,12 +26,26 @@
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6.500 7l1 13h9l1-13M10 11v6M14 11v6"/></symbol>
   <symbol id="i-undo" viewBox="0 0 24 24"><path d="M8 5 4 9l4 4"/><path d="M4 9h10a5 5 0 0 1 0 10H9"/></symbol>
   <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3v12M7.500 10.500 12 15l4.500-4.500"/><path d="M4 16v4h16v-4"/></symbol>
-  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
-  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
-  <symbol id="i-style" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
   <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.500v.500"/></symbol>
-  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h6l2 2.500h10V19H3z"/></symbol>
+  <symbol id="i-caret" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></symbol>
+  <symbol id="i-toolbox" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="1"/><path d="M8 8V5h8v3M3 13h18M11 12v3h2v-3"/></symbol>
+  <symbol id="i-hammer" viewBox="0 0 24 24"><path d="M14 4l6 6-3 3-6-6z"/><path d="M11 7 4 14l3 3 7-7"/><path d="M5.500 18.500 3 21"/></symbol>
+  <symbol id="i-pane-left" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M9 4v16"/></symbol>
+  <symbol id="i-pane-right" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M15 4v16"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></symbol>
+  <symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14.500h18M9 9v11"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.900 4.900l1.400 1.400M17.700 17.700l1.400 1.400M4.900 19.100l1.400-1.400M17.700 6.300l1.400-1.400"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.500A8 8 0 0 1 9.500 4 8 8 0 1 0 20 14.500z"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.500 3 14.500 0 18M12 3c-3 3.500-3 14.500 0 18"/></symbol>
+  <symbol id="i-bug" viewBox="0 0 24 24"><rect x="7" y="8" width="10" height="12" rx="5"/><path d="M12 8v12M9 5l1.500 3M15 5l-1.500 3M3 11h4M17 11h4M3 17h4M17 17h4"/></symbol>
+  <symbol id="i-log" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 11h7M9 15h7M9 19h4"/></symbol>
+  <symbol id="i-update" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.300-5.700"/><path d="M20 4v5h-5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.500" cy="10.500" r="6.500"/><path d="M15.500 15.500 21 21"/></symbol>
 </svg>
 
 <div id="splash" class="splash">
@@ -47,145 +61,195 @@
 
 <header class="titlebar">
   <img src="/static/ovc-icon.png" alt="" class="app-icon">
-  <span class="app-name">OVC</span>
-  <span class="app-title">Overlap Violation Checker</span>
+  <div class="quick" role="toolbar" aria-label="Quick access">
+    <button class="qa" id="qa-toolbox" data-cmd="toolbox" title="OVC Toolbox"><img src="/static/ovc-icon.png" alt=""><span>Toolbox</span></button>
+    <button class="qa" data-cmd="add-data" title="Add data (Ctrl+O)"><svg><use href="#i-add"/></svg></button>
+    <button class="qa" data-cmd="report-bug" title="Report a bug"><svg><use href="#i-bug"/></svg></button>
+  </div>
+  <span class="grow"></span>
+  <span class="app-title"><strong>OVC</strong> Overlap Violation Checker</span>
   <span class="grow"></span>
   <span class="app-org" id="app-org">OpenTerra</span>
-  <button id="about" class="tb-link" title="About OVC">About</button>
-  <button id="quit" class="tb-link" title="Stop OVC and end this session">Quit</button>
+  <button class="tb-link" data-cmd="quit" id="quit" title="Stop OVC">Quit</button>
 </header>
 
-<nav class="ribbon" aria-label="Tools">
-  <div class="group"><div class="tools">
-    <button class="tool" id="choose-layer" title="Add a layer from a file (Ctrl+O)"><svg><use href="#i-add"/></svg><span>Add layer</span></button>
-    <button class="tool" id="use-sample" title="Load the sample parcels and block"><svg><use href="#i-sample"/></svg><span>Sample</span></button>
-  </div><div class="caption">Layer</div></div>
+<nav class="ribbon" aria-label="Ribbon">
+  <div class="rtabs" role="tablist">
+    <button class="rtab" role="tab" data-tab="map" aria-selected="true">Map</button>
+    <button class="rtab" role="tab" data-tab="analysis" aria-selected="false">Analysis</button>
+    <button class="rtab" role="tab" data-tab="view" aria-selected="false">View</button>
+    <button class="rtab" role="tab" data-tab="help" aria-selected="false">Help</button>
+  </div>
 
-  <div class="group"><div class="tools">
-    <button class="tool toggle" id="tool-pan" aria-pressed="true" title="Pan the map (P)"><svg><use href="#i-pan"/></svg><span>Pan</span></button>
-    <button class="tool toggle" id="tool-select" aria-pressed="false" title="Select a feature and show its attributes (S)"><svg><use href="#i-select"/></svg><span>Select</span></button>
-    <button class="tool" id="zoom-in" title="Zoom in (+)"><svg><use href="#i-zoomin"/></svg><span>Zoom in</span></button>
-    <button class="tool" id="zoom-out" title="Zoom out (-)"><svg><use href="#i-zoomout"/></svg><span>Zoom out</span></button>
-    <button class="tool" id="zoom-full" title="Zoom to all layers (Home)"><svg><use href="#i-extent"/></svg><span>Full extent</span></button>
-    <button class="tool" id="zoom-layer" title="Zoom to the layer highlighted in the Layers panel"><svg><use href="#i-zoomlayer"/></svg><span>To layer</span></button>
-    <button class="tool" id="zoom-selection" title="Zoom to the selected finding or feature"><svg><use href="#i-zoomsel"/></svg><span>To selection</span></button>
-  </div><div class="caption">Map</div></div>
+  <div class="rpanel" id="rp-map" role="tabpanel">
+    <div class="group"><div class="tools">
+      <button class="tool big" data-cmd="add-data" id="add-data" title="Add data from a file (Ctrl+O)"><svg><use href="#i-add"/></svg><span>Add Data</span></button>
+      <button class="tool big" data-cmd="sample" id="use-sample" title="Load the sample parcels and block"><svg><use href="#i-sample"/></svg><span>Sample Data</span></button>
+    </div><div class="caption">Layer</div></div>
 
-  <div class="group"><div class="tools">
-    <button class="tool" id="clear-selection" title="Clear the selection (Esc)"><svg><use href="#i-clear"/></svg><span>Clear</span></button>
-    <button class="tool" id="delete-item" title="Dismiss the selected finding, or remove the highlighted layer from the map (Delete). Files are never changed."><svg><use href="#i-trash"/></svg><span>Delete</span></button>
-    <button class="tool" id="restore" title="Bring back dismissed findings"><svg><use href="#i-undo"/></svg><span>Restore</span></button>
-  </div><div class="caption">Edit</div></div>
+    <div class="group"><div class="tools">
+      <button class="tool big toggle" data-cmd="pan" id="tool-pan" aria-pressed="true" title="Explore: pan and zoom the map (P)"><svg><use href="#i-pan"/></svg><span>Explore</span></button>
+      <div class="stack">
+        <button class="tool small" data-cmd="zoom-in" id="zoom-in" title="Zoom in (+)"><svg><use href="#i-zoomin"/></svg><span>Zoom In</span></button>
+        <button class="tool small" data-cmd="zoom-out" id="zoom-out" title="Zoom out (-)"><svg><use href="#i-zoomout"/></svg><span>Zoom Out</span></button>
+        <button class="tool small" data-cmd="zoom-full" id="zoom-full" title="Full extent (Home)"><svg><use href="#i-extent"/></svg><span>Full Extent</span></button>
+      </div>
+      <div class="stack">
+        <button class="tool small" data-cmd="zoom-layer" id="zoom-layer" title="Zoom to the layer selected in Contents"><svg><use href="#i-zoomlayer"/></svg><span>Zoom To Layer</span></button>
+        <button class="tool small" data-cmd="zoom-selection" id="zoom-selection" title="Zoom to the selection"><svg><use href="#i-zoomsel"/></svg><span>Zoom To Selection</span></button>
+      </div>
+    </div><div class="caption">Navigate</div></div>
 
-  <div class="group"><div class="tools">
-    <button class="tool accent" id="run" disabled title="Run the selected checks (F5)"><svg><use href="#i-run"/></svg><span>Run checks</span></button>
-    <button class="tool" id="export" disabled title="Save the findings as a GIS layer (Ctrl+E)"><svg><use href="#i-export"/></svg><span>Export</span></button>
-  </div><div class="caption">Review</div></div>
+    <div class="group"><div class="tools">
+      <button class="tool big toggle" data-cmd="select" id="tool-select" aria-pressed="false" title="Select a feature and show its attributes (S)"><svg><use href="#i-select"/></svg><span>Select</span></button>
+      <div class="stack">
+        <button class="tool small" data-cmd="clear" id="clear-selection" title="Clear the selection (Esc)"><svg><use href="#i-clear"/></svg><span>Clear</span></button>
+        <button class="tool small" data-cmd="delete" id="delete-item" title="Dismiss the selected finding, or remove the layer selected in Contents (Delete). Files are never changed."><svg><use href="#i-trash"/></svg><span>Delete</span></button>
+        <button class="tool small" data-cmd="restore" id="restore" title="Bring back dismissed findings"><svg><use href="#i-undo"/></svg><span>Restore</span></button>
+      </div>
+    </div><div class="caption">Selection</div></div>
+
+    <div class="group"><div class="tools">
+      <button class="tool big brand" data-cmd="toolbox" id="open-toolbox" title="Open the OVC Toolbox"><img src="/static/ovc-icon.png" alt=""><span>OVC Toolbox</span></button>
+      <button class="tool big" data-cmd="export" id="export" disabled title="Save the findings as a GIS layer (Ctrl+E)"><svg><use href="#i-export"/></svg><span>Export Findings</span></button>
+    </div><div class="caption">Analysis</div></div>
+  </div>
+
+  <div class="rpanel" id="rp-analysis" role="tabpanel" hidden>
+    <div class="group"><div class="tools">
+      <button class="tool big brand" data-cmd="toolbox" title="Open the OVC Toolbox"><img src="/static/ovc-icon.png" alt=""><span>OVC Toolbox</span></button>
+    </div><div class="caption">Geoprocessing</div></div>
+    <div class="group"><div class="tools" id="ribbon-tools"></div><div class="caption">Tools</div></div>
+    <div class="group"><div class="tools">
+      <button class="tool big" data-cmd="show-results" title="Show the Results pane"><svg><use href="#i-list"/></svg><span>Results</span></button>
+      <button class="tool big" data-cmd="export" title="Save the findings as a GIS layer (Ctrl+E)"><svg><use href="#i-export"/></svg><span>Export</span></button>
+    </div><div class="caption">Findings</div></div>
+  </div>
+
+  <div class="rpanel" id="rp-view" role="tabpanel" hidden>
+    <div class="group"><div class="tools">
+      <button class="tool big" data-cmd="show-contents" title="Show or hide the Contents pane (F2)"><svg><use href="#i-pane-left"/></svg><span>Contents</span></button>
+      <button class="tool big" data-cmd="toolbox" title="Geoprocessing pane"><svg><use href="#i-hammer"/></svg><span>Geoprocessing</span></button>
+      <button class="tool big" data-cmd="show-results" title="Results pane"><svg><use href="#i-list"/></svg><span>Results</span></button>
+      <button class="tool big" data-cmd="show-attributes" title="Attributes of the selected feature"><svg><use href="#i-table"/></svg><span>Attributes</span></button>
+    </div><div class="caption">Windows</div></div>
+    <div class="group"><div class="tools">
+      <button class="tool big toggle" data-cmd="theme-light" id="theme-light" aria-pressed="true"><svg><use href="#i-sun"/></svg><span>Light</span></button>
+      <button class="tool big toggle" data-cmd="theme-dark" id="theme-dark" aria-pressed="false"><svg><use href="#i-moon"/></svg><span>Dark</span></button>
+    </div><div class="caption">Theme</div></div>
+    <div class="group"><div class="tools">
+      <button class="tool big toggle" data-cmd="basemap" id="basemap" aria-pressed="false" title="OpenStreetMap background (needs internet)"><svg><use href="#i-globe"/></svg><span>OpenStreetMap</span></button>
+    </div><div class="caption">Basemap</div></div>
+  </div>
+
+  <div class="rpanel" id="rp-help" role="tabpanel" hidden>
+    <div class="group"><div class="tools">
+      <button class="tool big" data-cmd="report-bug" id="report-bug" title="Report a bug on GitHub"><svg><use href="#i-bug"/></svg><span>Report a Bug</span></button>
+      <button class="tool big" data-cmd="show-log" title="Open the folder with OVC's log file"><svg><use href="#i-log"/></svg><span>Log File</span></button>
+    </div><div class="caption">Support</div></div>
+    <div class="group"><div class="tools">
+      <button class="tool big" data-cmd="check-updates" title="Look for a newer OVC"><svg><use href="#i-update"/></svg><span>Check for Updates</span></button>
+      <button class="tool big" data-cmd="about" id="about" title="About OVC"><svg><use href="#i-info"/></svg><span>About</span></button>
+    </div><div class="caption">OVC</div></div>
+  </div>
 </nav>
 
 <div id="update-bar" class="update-bar" role="status" hidden>
   <svg><use href="#i-info"/></svg>
   <span id="update-text"></span>
-  <a id="update-notes" href="#" target="_blank" rel="noopener">What's new</a>
+  <a id="update-notes" href="#">What's new</a>
   <span class="grow"></span>
   <button id="update-action" class="primary"></button>
   <button id="update-later">Later</button>
 </div>
 
 <main>
-  <aside class="dock left" aria-label="Layers and checks">
-    <section class="panel" id="panel-layers">
-      <h2>Layers
-        <button id="add-gdb" class="mini-link" title="Browse for a file geodatabase (.gdb) folder or type a path">Browse in app…</button>
-      </h2>
-      <ul id="toc" class="toc"></ul>
-      <div id="toc-empty" class="empty">No layers yet. Use <strong>Add layer</strong> to open a GeoPackage, Shapefile or GeoJSON, or <strong>Sample</strong> to try OVC.</div>
-    </section>
-
-    <section class="panel" id="panel-checks">
-      <h2>Checks</h2>
-      <label class="field">Layer to check
-        <select id="target-layer"></select>
-      </label>
-      <dl class="facts" id="layer-facts"></dl>
-      <div id="layer-problem" class="note warn" hidden></div>
-      <label class="field" id="crs-wrap" hidden>Declare the CRS (EPSG code)
-        <input id="assume-crs" type="text" inputmode="numeric" placeholder="for example 32636">
-        <small>This layer has no CRS. OVC will not guess one. Enter the EPSG code its coordinates are in; the file itself is not changed.</small>
-      </label>
-      <label class="field">Feature ID field <span class="opt">optional</span>
-        <select id="id-field"></select>
-      </label>
-
-      <label class="check">
-        <input type="checkbox" id="check-overlaps" checked>
-        <span><strong>Overlaps</strong>
-        <small>Needs nothing else. Each pair of features that share area is reported once. A shared edge or corner is not an overlap.</small></span>
-      </label>
-      <label class="check">
-        <input type="checkbox" id="check-gaps">
-        <span><strong>Gaps</strong>
-        <small>Needs a polygon layer of the area that should be fully covered, such as a parcel block. OVC never guesses this area.</small></span>
-      </label>
-      <div id="gap-inputs" class="sub" hidden>
-        <label class="field">Coverage layer
-          <select id="coverage-layer"></select>
-        </label>
-        <div id="coverage-problem" class="note warn" hidden></div>
-        <div id="coverage-missing" class="note">Add the coverage layer with <strong>Add layer</strong>, then choose it here. The overlap check can run without it.</div>
-      </div>
-
-      <details class="options">
-        <summary>Options</summary>
-        <label class="field">Smallest overlap to report (m²)
-          <input id="min-overlap" type="number" min="0" step="0.01" value="0.01">
-        </label>
-        <label class="field">Smallest gap to report (m²)
-          <input id="min-gap" type="number" min="0" step="0.01" value="0.01">
-        </label>
-        <small>A finding whose area equals the limit is reported. 0 reports every finding with any area.</small>
-        <label class="check">
-          <input type="checkbox" id="repair">
-          <span><strong>Repair invalid geometries in memory</strong>
-          <small>Off: invalid polygons are reported and skipped. On: they are repaired for this run and checked. Your file is never changed.</small></span>
-        </label>
-      </details>
-
-      <div id="run-hint" class="hint">Add a polygon layer first.</div>
-      <div id="progress" hidden>
-        <div class="bar"><div id="bar-fill"></div></div>
-        <div id="progress-text" aria-live="polite"></div>
-      </div>
-    </section>
+  <aside class="dock left" id="dock-left" aria-label="Contents">
+    <div class="pane-head">
+      <span>Contents</span>
+      <span class="grow"></span>
+      <button class="icon-btn" id="contents-close" title="Close Contents (View > Contents brings it back)"><svg><use href="#i-close"/></svg></button>
+    </div>
+    <div class="pane-body" id="pane-contents">
+      <div class="toc-hint">Drawing order</div>
+      <ul id="toc" class="toc" role="tree"></ul>
+      <div id="toc-empty" class="empty">No layers yet. Use <strong>Add Data</strong> to open a GeoPackage, Shapefile or GeoJSON, or <strong>Sample Data</strong> to try OVC.</div>
+      <button id="add-gdb" class="mini-link" title="Browse for a file geodatabase (.gdb) folder or type a path">Browse files in OVC…</button>
+    </div>
   </aside>
 
   <div class="mapwrap">
     <div id="map" aria-label="Map"></div>
-    <div id="map-hint" class="map-hint">Add a layer to see it here.</div>
+    <div id="map-hint" class="map-hint">Add data to see it here.</div>
     <div id="map-note" class="map-note" hidden></div>
   </div>
 
-  <aside class="dock right" id="dock-right" aria-label="Results" hidden>
-    <section class="panel" id="step-results" hidden>
-      <h2>Results</h2>
-      <div id="status" class="status" role="status" aria-live="polite"></div>
-      <ul id="check-lines" class="check-lines"></ul>
-      <div id="warnings"></div>
-      <details id="skipped-wrap" hidden>
-        <summary id="skipped-summary"></summary>
-        <ul id="skipped-list" class="plain"></ul>
-      </details>
-      <p id="area-method" class="method"></p>
-      <div id="filters" class="filters" role="group" aria-label="Filter by issue type"></div>
-      <div id="dismissed-note" class="hint" hidden></div>
-      <ol id="findings" class="findings"></ol>
-      <div id="export-done" class="hint"></div>
+  <aside class="dock right" id="dock-right" aria-label="Panes" hidden>
+    <div class="pane-head tabs">
+      <div id="dock-tabs" class="dock-tabs" role="tablist"></div>
+      <span class="grow"></span>
+      <button class="icon-btn" id="dock-close" title="Close this pane"><svg><use href="#i-close"/></svg></button>
+    </div>
+
+    <section class="pane-body" id="pane-geoprocessing" data-title="Geoprocessing" hidden>
+      <div id="gp-home">
+        <label class="search"><svg><use href="#i-search"/></svg><input id="gp-search" type="search" placeholder="Find tools"></label>
+        <ul id="gp-tree" class="tree" role="tree"></ul>
+      </div>
+      <div id="gp-tool" hidden>
+        <div class="gp-head">
+          <button class="icon-btn" id="gp-back" title="Back to the toolbox"><svg><use href="#i-back"/></svg></button>
+          <h3 id="gp-title"></h3>
+        </div>
+        <p id="gp-summary" class="gp-summary"></p>
+        <form id="gp-form" class="gp-form" onsubmit="return false"></form>
+        <div class="gp-run">
+          <span id="gp-hint" class="hint"></span>
+          <span class="grow"></span>
+          <button id="gp-run" class="primary" disabled><svg><use href="#i-run"/></svg>Run</button>
+        </div>
+        <div id="progress" hidden>
+          <div class="bar"><div id="bar-fill"></div></div>
+          <div id="progress-text" aria-live="polite"></div>
+        </div>
+        <div id="gp-message" class="gp-message" hidden></div>
+      </div>
     </section>
 
-    <section class="panel" id="panel-feature" hidden>
-      <h2>Selected feature</h2>
+    <section class="pane-body" id="pane-results" data-title="Results" hidden>
+      <div id="results-empty" class="empty">Run a tool from the OVC Toolbox to see findings here.</div>
+      <div id="step-results" hidden>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+        <ul id="check-lines" class="check-lines"></ul>
+        <div id="warnings"></div>
+        <details id="skipped-wrap" hidden>
+          <summary id="skipped-summary"></summary>
+          <ul id="skipped-list" class="plain"></ul>
+        </details>
+        <p id="area-method" class="method"></p>
+        <div id="filters" class="filters" role="group" aria-label="Filter by issue type"></div>
+        <div id="dismissed-note" class="hint" hidden></div>
+        <ol id="findings" class="findings"></ol>
+        <div class="row-end"><button id="export-pane" data-cmd="export" class="primary">Export findings…</button></div>
+        <div id="export-done" class="hint"></div>
+      </div>
+    </section>
+
+    <section class="pane-body" id="pane-attributes" data-title="Attributes" hidden>
+      <div id="feature-empty" class="empty">Use <strong>Select</strong> and click a feature on the map.</div>
       <div id="feature-title" class="feature-title"></div>
       <table id="feature-table" class="attrs"></table>
+    </section>
+
+    <section class="pane-body" id="pane-symbology" data-title="Symbology" hidden>
+      <div id="sym-layer" class="feature-title"></div>
+      <div class="sym-grid">
+        <label for="sym-color">Colour</label><input type="color" id="sym-color">
+        <label for="sym-width">Outline width</label><input type="range" id="sym-width" min="0.5" max="6" step="0.5">
+        <label for="sym-fill" class="sym-fill">Fill</label><input type="checkbox" id="sym-fill" class="sym-fill">
+        <label for="sym-opacity" class="sym-fill">Fill transparency</label><input type="range" id="sym-opacity" class="sym-fill" min="0" max="1" step="0.05">
+        <label for="sym-dash">Dashed outline</label><input type="checkbox" id="sym-dash">
+      </div>
     </section>
   </aside>
 </main>
@@ -197,6 +261,17 @@
   <span class="grow"></span>
   <span id="sb-message"></span>
 </footer>
+
+<ul id="ctx" class="ctx" role="menu" hidden>
+  <li role="menuitem" data-ctx="zoom"><svg><use href="#i-zoomlayer"/></svg>Zoom To Layer</li>
+  <li role="menuitem" data-ctx="symbology"><svg><use href="#i-sun"/></svg>Symbology…</li>
+  <li role="menuitem" data-ctx="properties"><svg><use href="#i-info"/></svg>Properties</li>
+  <li class="sep"></li>
+  <li role="menuitem" data-ctx="up"><svg><use href="#i-up"/></svg>Move Up</li>
+  <li role="menuitem" data-ctx="down"><svg><use href="#i-down"/></svg>Move Down</li>
+  <li class="sep"></li>
+  <li role="menuitem" data-ctx="remove"><svg><use href="#i-close"/></svg>Remove</li>
+</ul>
 
 <div id="dialog" class="dialog" hidden role="dialog" aria-modal="true" aria-labelledby="dialog-title">
   <div class="dialog-box">
@@ -235,6 +310,7 @@
 </div>
 
 <script src="/static/vendor/leaflet/leaflet.js"></script>
+<script src="/static/toolbox.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

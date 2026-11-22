@@ -83,7 +83,9 @@ building pipeline ─> checks.find_building_overlaps ─> ovc.engine.overlaps �
 - `native.py`: the app window (the installed Edge or Chrome in app mode, with a browser tab as fallback), the Windows file dialogs and the splash window (Tk). A dialog runs in a short child process; without a desktop the page's own file browser is used.
 - `updates.py`: asks GitHub for the latest release at start-up and, in a copy installed with `OVC-Setup.exe`, downloads the new installer, checks its SHA-256 and runs it.
 - `branding.py`: app name, organisation and founder shown in the title bar, splash and About box.
-- `static/`: the page (plain JavaScript and a bundled Leaflet, so it works offline). Layers are listed in a panel (visibility, order, symbology); the toolbar holds the map, selection and review tools.
+- `diagnostics.py`: the app log (`~/.ovc/logs`), used by Help > Report a Bug and Log File.
+- `static/`: the page (plain JavaScript and a bundled Leaflet, so it works offline): ribbon, Contents pane, docked panes, and the OVC Toolbox whose tools are defined in `static/toolbox.js`.
+- Window lifetime: each open page holds `/api/events` (server-sent events). The launcher keeps OVC running while any window is connected and stops 15 s after the last one closes; it never relies on the browser process it started, because Edge and Chrome can hand a window to another process. Layers are listed in a panel (visibility, order, symbology); the toolbar holds the map, selection and review tools.
 
 ---
 

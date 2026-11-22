@@ -26,7 +26,7 @@
 Open OVC, choose a polygon layer, run the checks, click a finding to zoom to it, and save the findings as a GIS layer. No commands are needed.
 
 <p align="center">
-  <img src="docs/assets/ovc-map-app.png" alt="OVC: layers panel, toolbar and a 10 m² gap and 30 m² overlap found in the sample parcels" width="900">
+  <img src="docs/assets/ovc-map-app.png" alt="OVC: Contents pane, ribbon, OVC Toolbox and a 10 m² gap and 30 m² overlap found in the sample parcels" width="900">
 </p>
 
 ### Install OVC on Windows
@@ -43,16 +43,18 @@ No installer wanted? The [portable zip](https://github.com/AmmarYasser455/ovc/re
 
 ### Review workflow
 
-1. **Add layer.** The Windows file dialog opens; pick a GeoPackage, Shapefile, GeoJSON, FlatGeobuf, GML or KML. If the file has several layers, tick the ones to add. Or press **Sample**.
-2. **Layers panel.** Each layer has a visibility box, zoom to layer, move up or down, symbology (colour, outline, fill, opacity) and remove. Removing a layer only takes it off the map.
-3. **Checks.** Choose the layer to check; OVC shows its feature count and CRS. *Overlaps* needs nothing else. *Gaps* is off by default and needs a coverage layer: a polygon layer of the area that should be fully covered, such as a parcel block.
-4. **Run checks** (F5). The banner says whether the run is clean, found issues, is partial (features were skipped) or failed. A file that cannot be read is a failed run, never "0 issues".
-5. **Review.** Click a finding in the list or on the map. OVC zooms to its geometry, outlines the source features and shows the check, the feature IDs, the area in m² and the reason. Filter by issue type, add a review note, or press **Delete** to dismiss a finding (**Restore** brings it back). **Select** shows the attributes of any feature you click.
-6. **Export** (Ctrl+E). Save the findings as a GeoPackage in the layer's CRS, or as GeoJSON in WGS 84. Dismissed findings are left out; notes are saved. Your input files are opened read-only and never changed.
+1. **Add Data.** The Windows file dialog opens; pick a GeoPackage, Shapefile, GeoJSON, FlatGeobuf, GML or KML. If the file has several layers, tick the ones to add. Or press **Sample Data**.
+2. **Contents.** Layers are listed in drawing order with a visibility box and their symbol. Drag to reorder; right-click for Zoom To Layer, Symbology, Properties, Move Up/Down and Remove. Close the pane with its X and bring it back with **View > Contents** (F2). Removing a layer only takes it off the map.
+3. **OVC Toolbox.** Click the OVC icon in the title bar or on the ribbon. The Geoprocessing pane lists the tools: **Topology > Find Overlaps** needs only the input layer; **Find Gaps** also needs a coverage layer, the area that should be fully covered, such as a parcel block. Each parameter explains what it needs. Press **Run**.
+4. **Results.** The banner says whether the run is clean, found issues, is partial (features were skipped) or failed. A file that cannot be read is a failed run, never "0 issues".
+5. **Review.** Click a finding in the list or on the map. OVC zooms to its geometry, outlines the source features and shows the check, the feature IDs, the area in m² and the reason. Filter by issue type, add a review note, or press **Delete** to dismiss a finding (**Restore** brings it back). **Select** outlines any feature you click in cyan and shows its attributes.
+6. **Export Findings** (Ctrl+E). Save them as a GeoPackage in the layer's CRS, or as GeoJSON in WGS 84. Dismissed findings are left out; notes are saved. Your input files are opened read-only and never changed.
+
+Something wrong? **Help > Report a Bug** opens a pre-filled GitHub issue.
 
 ### Try it on the sample
 
-The app ships with [`ovc_sample.gpkg`](ovc/sample_data/ovc_sample.gpkg), a synthetic block in EPSG:32636 (metres). **Sample** loads its `parcels` and `block` layers; **Add layer** on the same file adds `buildings`. Expected results:
+The app ships with [`ovc_sample.gpkg`](ovc/sample_data/ovc_sample.gpkg), a synthetic block in EPSG:32636 (metres). **Sample Data** loads its `parcels` and `block` layers and opens **Find Gaps** ready to run; **Add Data** on the same file adds `buildings`. Expected results:
 
 | Layer | Checks | Findings |
 |---|---|---|

@@ -53,7 +53,7 @@ jobs:
         run: |
           pip install playwright
           python -m playwright install chromium
-          pytest tests/test_gui_workflow.py -v
+          pytest tests/test_gui_workflow.py tests/test_app_window.py -v -rs
 
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'

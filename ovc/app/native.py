@@ -246,64 +246,57 @@ def window_available() -> bool:
     return find_app_browser() is not None
 
 
-def run_window(url: str, stopped, ready=None, test: bool = False) -> bool:
-    """Show OVC in its own window and block until the window is closed.
+def window_profile() -> Path:
+    """The browser profile used for OVC's window, kept between launches.
 
-    The window is the installed browser in "app mode": a plain window with
-    the OVC icon and title and no tabs or address bar. Nothing extra is
-    bundled with OVC for it. Each launch uses its own throw-away browser
-    profile, so the window belongs to this process and its closing can be
-    detected.
-
-    ``stopped`` is a ``threading.Event`` set when the app stops for another
-    reason (the Quit button); the window is then closed. ``ready`` is an
-    event the page sets once it has loaded inside the window.
-
-    Returns False when no window could be shown, so the caller can fall back
-    to a browser tab. With ``test=True`` the window is closed as soon as the
-    page reports ready, and the result says whether it did.
+    A fresh profile on every launch made Edge show its first-run and
+    "we are now syncing" messages each time. One persistent profile shows
+    any such message at most once, and keeps the app's settings.
     """
-    import shutil
+    return Path.home() / ".ovc" / "window-profile"
 
+
+def open_window(url: str):
+    """Open OVC in its own window (the installed browser in app mode).
+
+    Returns the started process, or None when no window can be opened.
+    The process is not the window's lifetime: a Chromium-based browser can
+    hand the window to another of its processes and exit. The launcher
+    watches the page's event stream instead (see ``/api/events``).
+    """
     exe = find_app_browser()
     if exe is None:
-        return False
-    profile = tempfile.mkdtemp(prefix="ovc-window-")
+        return None
+    profile = window_profile()
+    try:
+        profile.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        profile = Path(tempfile.mkdtemp(prefix="ovc-window-"))
     command = [
         exe,
         "--app=" + url + ("&" if "?" in url else "?") + "w=1",
-        "--user-data-dir=" + profile,
+        "--user-data-dir=" + str(profile),
         "--no-first-run",
         "--no-default-browser-check",
+        "--disable-sync",
         "--disable-extensions",
+        "--disable-background-networking",
+        "--disable-component-update",
+        "--disable-features=msImplicitSignin,Translate",
         "--window-size=1440,900",
     ] + os.environ.get("OVC_APP_BROWSER_ARGS", "").split()
     try:
-        process = subprocess.Popen(command)
+        return subprocess.Popen(command)
     except Exception:
-        shutil.rmtree(profile, ignore_errors=True)
-        return False
-    started = time.time()
-    loaded = False
+        return None
+
+
+def close_window(process) -> None:
+    """Stop the browser process OVC started, if it is still running."""
+    if process is None or process.poll() is not None:
+        return
+    process.terminate()
     try:
-        while process.poll() is None:
-            if stopped.wait(0.3):
-                break
-            if ready is not None and ready.is_set():
-                loaded = True
-                if test:
-                    break
-            if test and time.time() - started > 90:
-                break
-    finally:
-        if process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=10)
-            except Exception:
-                process.kill()
-        shutil.rmtree(profile, ignore_errors=True)
-    if test:
-        return loaded
-    # A window that vanished at once without loading the page never worked.
-    return loaded or time.time() - started > 5
+        process.wait(timeout=10)
+    except Exception:
+        process.kill()

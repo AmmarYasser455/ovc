@@ -147,6 +147,25 @@ tests/              # Test suite
 - The engine does no file I/O; the app and CLI contain no geometry logic
 - Update tests alongside code changes
 
+### Adding a tool to the OVC Toolbox
+
+The toolbox in the app is defined in [`ovc/app/static/toolbox.js`](ovc/app/static/toolbox.js). A tool is one entry in a toolset:
+
+```js
+{
+  id: "find-slivers",
+  name: "Find Slivers",
+  summary: "One or two sentences shown at the top of the tool.",
+  params: [
+    { name: "input", label: "Input Features", type: "layer", geometry: "polygon", required: true, help: "..." },
+    { name: "min_overlap_area_m2", label: "Minimum Area (m²)", type: "number", min: 0, step: 0.01, default: 0.01, help: "..." },
+  ],
+  request: (v) => ({ check_overlaps: true, check_gaps: false, min_overlap_area_m2: v.min_overlap_area_m2 }),
+}
+```
+
+The Geoprocessing pane builds the form from `params` (types: `layer`, `field`, `crs`, `number`, `bool`) and lists the tool in the tree and on the ribbon's Analysis tab. `request` returns the options passed to the engine, so a tool that needs new behaviour also needs the engine change described in "Adding a check" below. Add the tool to the browser test in `tests/test_gui_workflow.py`.
+
 ### Adding a check
 
 A check added to the engine is available to the map app, `ovc check` and the Python API at once. The steps, in order:

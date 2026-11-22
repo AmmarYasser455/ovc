@@ -252,3 +252,34 @@ def test_native_dialog_is_off_without_a_desktop(client, monkeypatch):
     assert config["native_dialog"] is False
     assert config["app"]["organization"] == "OpenTerra"
     assert config["app"]["founder"] == "Ammar Yasser"
+
+
+def test_bug_report_and_log_endpoints(client, monkeypatch, tmp_path):
+    monkeypatch.setenv("OVC_NO_OPEN_URL", "1")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    status, info = client.call("/api/diagnostics")
+    assert status == 200
+    assert info["report_url"] == "https://github.com/AmmarYasser455/ovc/issues/new"
+    assert {"version", "os", "install", "log", "log_path"} <= set(info)
+
+    ok = "https://github.com/AmmarYasser455/ovc/issues/new?title=x"
+    assert client.call("/api/open-url", {"url": ok}) == (200, {"opened": True})
+    # anything that is not OVC's own GitHub page is refused
+    status, err = client.call("/api/open-url", {"url": "https://example.com/"})
+    assert status == 400 and "GitHub" in err["error"]
+
+    status, res = client.call("/api/open-log", {})
+    assert status == 200 and res["path"].endswith("ovc-app.log")
+
+
+def test_unexpected_error_is_logged_and_reported_not_dropped(client, monkeypatch):
+    from ovc.app import server as server_module
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("unexpected while drawing")
+
+    monkeypatch.setattr(server_module.AppState, "features_geojson", boom)
+    status, err = client.call("/api/preview", path=SAMPLE, layer="parcels")
+    assert status == 500
+    assert "unexpected while drawing" in err["error"]
